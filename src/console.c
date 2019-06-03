@@ -3,12 +3,21 @@
 #include "audio-decoder.h"
 #include "audio-processor.h"
 #include "video-generator.h"
+#include "str.h"
 
-int main(int argc, const char *argv[]) {
-    int r = 0;
-    audio_decoder *decoder;
-    audio_processor *processor;
-    video_generator *generator;
+static audio_decoder *decoder;
+static audio_processor *processor;
+static video_generator *generator;
+
+int main(int argc, char **argv) {
+
+    if(argc < 3) {
+        fprintf(stderr,"Usage: %s songfile scriptfile\n",argv[0]);
+        return 1;
+    }
+    const char *songfile = argv[1];
+    const char *scriptfile = argv[2];
+    unsigned int r = 0;
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(decoder == NULL) return 1;
@@ -17,12 +26,16 @@ int main(int argc, const char *argv[]) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(generator == NULL) return 1;
 
-    if(video_generator_init(generator,processor,decoder,argv[1],argv[2])) return 1;
+    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,stdout)) {
+        fprintf(stderr,"error starting the video generator\n");
+        return 1;
+    }
 
     do {
         r = video_generator_loop(generator);
     } while (r == 0);
 
     video_generator_close(generator);
+
     return 0;
 }

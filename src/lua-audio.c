@@ -1,8 +1,8 @@
 #include "audio-processor.h"
 #include "lua-audio.h"
 
-#include "lua/src/lua.h"
-#include "lua/src/lauxlib.h"
+#include <lua.h>
+#include <lauxlib.h>
 
 static int
 lua_amp_index(lua_State *L) {

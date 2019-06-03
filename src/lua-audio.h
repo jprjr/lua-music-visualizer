@@ -1,7 +1,7 @@
 #ifndef LUA_AUDIO_H
 #define LUA_AUDIO_H
 
-#include "lua/src/lua.h"
+#include <lua.h>
 
 #ifdef __cplusplus
 extern "C" {

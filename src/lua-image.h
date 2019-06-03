@@ -1,7 +1,7 @@
 #ifndef LUA_IMAGE_H
 #define LUA_IMAGE_H
 
-#include "lua/src/lua.h"
+#include <lua.h>
 #include "thread.h"
 
 enum IMAGE_STATE {

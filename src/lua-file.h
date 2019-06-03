@@ -1,7 +1,7 @@
 #ifndef LUA_FILE_H
 #define LUA_FILE_H
 
-#include "lua/src/lua.h"
+#include <lua.h>
 
 #ifdef __cplusplus
 extern "C" {

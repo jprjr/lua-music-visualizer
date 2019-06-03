@@ -107,7 +107,6 @@ unsigned int str_iends(const char *s, const char *q) {
 unsigned int str_cat(char *d, const char *s) {
     char *p = d + str_len(d);
     while(*s) {
-        fprintf(stderr,"cat-ing %c\n",*s);
         *p++ = *s++;
     }
     *p = 0;

@@ -2,7 +2,7 @@
 #include "lua-image.h"
 #include "image.lua.lh"
 #include "thread.h"
-#include "lua/src/lauxlib.h"
+#include <lauxlib.h>
 
 #include <stdlib.h>
 #include <string.h>

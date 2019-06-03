@@ -2,8 +2,8 @@
 #include "lua-file.h"
 #include "str.h"
 
-#include "lua/src/lua.h"
-#include "lua/src/lauxlib.h"
+#include <lua.h>
+#include <lauxlib.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
