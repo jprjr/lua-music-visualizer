@@ -3,6 +3,7 @@
 #include <iup.h>
 #include <iup_config.h>
 #include <windows.h>
+#include <shlwapi.h>
 #include <tchar.h>
 #include <strsafe.h>
 #include "audio-decoder.h"
@@ -19,6 +20,21 @@ static Ihandle *songLabel, *songText;
 static Ihandle *scriptLabel, *scriptText;
 static Ihandle *ffplayLabel, *ffplayText;
 static Ihandle *config;
+
+static const char* const video_players[] = {
+    "C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe",
+    "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",
+    "",
+};
+
+const char *findVideoPlayer(void) {
+    const char **p = video_players;
+    while(str_len(*p) > 0) {
+        if(PathFileExists(*p)) return *p;
+        *p++;
+    }
+    return *p;
+}
 
 int lazySetTextCB(Ihandle *self, char *filename, int num, int x, int y) {
     (void)num;
@@ -119,6 +135,9 @@ int main(int argc, char **argv) {
     ffplayText = IupText(NULL);
     IupSetAttribute(ffplayText,"VALUE",IupConfigGetVariableStr(config,"global","ffplay"));
     IupSetAttribute(ffplayText, "EXPAND", "HORIZONTAL");
+    if(str_len(IupGetAttribute(ffplayText,"VALUE")) == 0) {
+        IupSetAttribute(ffplayText,"VALUE",findVideoPlayer());
+    }
 
     startButton = IupButton("Start",NULL);
     IupSetCallback(startButton,"ACTION",(Icallback) startButtonCb);
