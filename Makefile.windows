@@ -36,12 +36,12 @@ LUALHS = \
 BIN2CSRC = src/bin2c.c
 
 CFLAGS = -Wall -Wextra -O2 -g -I$(LUA_INCDIR) -I$(IUP_INCDIR)
-LDFLAGS = -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi
+LDFLAGS = -s -mconsole -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi
 
 all: lua-music-visualizer.exe
 
 lua-music-visualizer.exe: $(OBJS) $(LIBIUP) $(LIBLUA) src/lua-music-visualizer.res
-	$(TARGET_CC) -s -mconsole -o $@ $^ $(LDFLAGS)
+	$(TARGET_CC) -o $@ $^ $(LDFLAGS)
 	upx $@
 
 %.o: %.c $(LUALHS) $(LUA)/.extracted

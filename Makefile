@@ -4,7 +4,7 @@
 
 all: lua-music-visualizer
 
-LUA = lua5.3
+LUA = lua
 
 OBJS = \
   src/console.o \
@@ -31,7 +31,7 @@ LUALHS = \
 
 BIN2CSRC = src/bin2c.c
 
-CFLAGS = -Wall -Wextra -O2 -g $(shell pkg-config --cflags $(LUA))
+CFLAGS = -Wall -Wextra -O2 $(shell pkg-config --cflags $(LUA))
 LDFLAGS = $(shell pkg-config --libs $(LUA)) -lm -pthread
 
 lua-music-visualizer: $(OBJS)
