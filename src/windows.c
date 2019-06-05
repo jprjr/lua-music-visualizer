@@ -233,6 +233,7 @@ int main(int argc, char **argv) {
 
     config = IupConfig();
     IupSetAttribute(config,"APP_NAME","lua-music-visualizer");
+    IupConfigLoad(config);
 
     songBtn = IupButton("Song", NULL);
     songText = IupText(NULL);
@@ -266,7 +267,6 @@ int main(int argc, char **argv) {
     IupSetAttribute(gridbox,"GAPCOL","20");
     IupSetAttribute(gridbox,"NORMALIZESIZE","HORIZONTAL");
     IupSetAttribute(gridbox,"MARGIN","20x20");
-
 
     IupSetAttribute(songText,"VALUE",IupConfigGetVariableStrDef(config,"global","songfile",""));
     IupSetAttribute(scriptText,"VALUE",IupConfigGetVariableStrDef(config,"global","scriptfile",""));
