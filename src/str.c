@@ -5,11 +5,12 @@
 #define STR_MAX(a,b) ( a > b ? a : b)
 #define STR_MIN(a,b) ( a < b ? a : b)
 
-unsigned int str_nlower(char *dest, const char *str, unsigned int max) {
+unsigned int str_nlower(char *dest, const char *src, unsigned int max) {
+    if(dest == NULL) return STR_MIN(str_len(src),max);
     char *d = dest;
     unsigned int n = 0;
-    while(*str && n < max) {
-        *d++ = char_lower(*str++);
+    while(*src && n < max) {
+        *d++ = char_lower(*src++);
         n++;
     }
     return d - dest;
@@ -32,7 +33,7 @@ unsigned int str_chr(const char *s, char c) {
 }
 
 unsigned int str_ncpy(char *dest, const char *src, unsigned int max) {
-    if(dest == NULL) return str_len(src);
+    if(dest == NULL) return STR_MIN(str_len(src),max);
     char *d = dest;
     const char *s = src;
     unsigned int n = 0;
@@ -113,6 +114,7 @@ unsigned int str_iends(const char *s, const char *q) {
 }
 
 unsigned int str_ncat(char *dest, const char *s, unsigned int max) {
+    if(dest == NULL) return STR_MIN(str_len(s),max);
     const char *f = s + max;
     char *d = dest + str_len(dest);
     char *p = d;
@@ -129,18 +131,23 @@ unsigned int str_cat(char *dest, const char *s) {
 
 unsigned int str_necat(char *dest, const char *s, unsigned int max, const char *e, char t) {
     const char *f = s + max;
-    char *d = dest + str_len(dest);
+    char *d = dest;
+    if(dest != NULL) d += str_len(dest);
     const char *q = e;
     char *p = d;
     while(*s && s < f) {
         q = e;
         while(*q) {
-            if(*q == *s) *p++ = t;
+            if(*q == *s) {
+                if(dest != NULL) *p = t;
+                p++;
+            }
             q++;
         }
-        *p++ = *s++;
+        if(dest != NULL) *p = *s++;
+        p++;
     }
-    *p = 0;
+    if(dest != NULL) *p = 0;
     return p - d;
 }
 
