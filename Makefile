@@ -16,7 +16,11 @@ OBJS = \
   src/audio-decoder.o \
   src/image.o \
   src/thread.o \
-  src/str.o
+  src/utf.o \
+  src/str.o \
+  src/unpack.o \
+  src/pack.o \
+  src/char.o \
 
 LUALHS = \
   src/font.lua.lh \

@@ -1,8 +1,19 @@
 #include "audio-decoder.h"
+#include "utf.h"
 #include "str.h"
+#include "unpack.h"
 
 #define DR_FLAC_IMPLEMENTATION
 #include "dr_flac.h"
+
+#define DR_MP3_IMPLEMENTATION
+#include "dr_mp3.h"
+
+#define DR_WAV_IMPLEMENTATION
+#include "dr_wav.h"
+
+static const uint8_t allzero[10] = "\0\0\0\0\0\0\0\0\0\0";
+
 
 static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     audio_decoder *a = (audio_decoder *)ctx;
@@ -22,10 +33,182 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
         r = str_chr(buf,'=');
         if(buf[r]) {
             buf[r] = 0;
-            str_strlower(buf);
+            str_lower(buf,buf);
             a->onmeta(a->meta_ctx,buf,buf+r+1);
         }
     }
+
+}
+
+static void process_id3(audio_decoder *a, FILE *f) {
+    /* assumption: the file has already read the 'ID3' bytes */
+    /* does not close out the file, that's the responsibility of the
+     * calling function */
+    char buffer[10];
+    buffer[0] = 0;
+    char *buffer2 = NULL;
+    char *buffer3 = NULL;
+
+    unsigned int id3_size = 0;
+    unsigned int frame_size = 0;
+    unsigned int buf2_size = 0;
+    unsigned int buf3_size = 0;
+    unsigned int dec_len = 0;
+
+    if(fread(buffer,1,10,f) != 10) return;
+    if(str_ncmp(buffer,"ID3",3) != 0) return;
+    id3_size =
+      (((unsigned int)buffer[6]) << 21) +
+      (((unsigned int)buffer[7]) << 14) +
+      (((unsigned int)buffer[8]) << 7 ) +
+      (((unsigned int)buffer[9]));
+
+    if(buffer[5] & 0x20) {
+        if(fread(buffer,1,6,f) != 6) return;
+        frame_size =
+          (((unsigned int)buffer[0]) << 21) +
+          (((unsigned int)buffer[1]) << 14) +
+          (((unsigned int)buffer[2]) << 7 ) +
+          (((unsigned int)buffer[3]));
+        frame_size -= 6;
+        fseek(f,frame_size,SEEK_CUR);
+    }
+
+    while(id3_size > 0) {
+        if(fread(buffer,1,10,f) != 10) {
+            fclose(f);
+            return;
+        }
+        if(memcmp(buffer,allzero,10) == 0) return;
+
+        id3_size -= 10;
+        frame_size = unpack_uint32be((uint8_t *)buffer + 4);
+        id3_size -= frame_size;
+        buffer[4] = 0;
+
+        if(buf2_size < frame_size) {
+            buffer2 = (char *)realloc(buffer2,frame_size);
+            if(buffer2 == NULL) {
+                if(buffer3 != NULL) free(buffer3);
+                return;
+            }
+            buf2_size = frame_size;
+        }
+
+        if(fread(buffer2,1,frame_size,f) != frame_size)  {
+            fclose(f);
+            if(buffer2 != NULL) free(buffer2);
+            if(buffer3 != NULL) free(buffer3);
+            return;
+        }
+
+        if(buffer[0] != 'T') {
+            continue;
+        }
+
+        if(buffer2[0] == 0) {
+            dec_len = utf_conv_iso88591_utf8(NULL,(uint8_t *)buffer2+1,frame_size-1) + 1;
+            if(dec_len > buf3_size) {
+                buffer3 = (char *)realloc(buffer3,dec_len);
+                if(buffer3 == NULL) {
+                    if(buffer2 == NULL) free(buffer2);
+                    return;
+                }
+            }
+            buffer3[utf_conv_iso88591_utf8((uint8_t *)buffer3,(uint8_t *)buffer2+1,frame_size-1)] = 0;
+        } else if(buffer2[0] == 1) {
+            dec_len = utf_conv_utf16_utf8(NULL,(uint8_t *)buffer+1,frame_size-1) + 1;
+            if(dec_len > buf3_size) {
+                buffer3 = (char *)realloc(buffer3,dec_len);
+                if(buffer3 == NULL) {
+                    if(buffer2 == NULL) free(buffer2);
+                    return;
+                }
+            }
+            buffer3[utf_conv_utf16_utf8((uint8_t *)buffer3,(uint8_t *)buffer2+1,frame_size-1)] = 0;
+        } else if(buffer2[0] == 2) {
+            dec_len = utf_conv_utf16be_utf8(NULL,(uint8_t *)buffer2+1,frame_size-1) + 1;
+            if(dec_len > buf3_size) {
+                buffer3 = (char *)realloc(buffer3,dec_len);
+                if(buffer3 == NULL) {
+                    if(buffer2 == NULL) free(buffer2);
+                    return;
+                }
+            }
+            buffer3[utf_conv_utf16be_utf8((uint8_t *)buffer3,(uint8_t *)buffer2+1,frame_size-1)] = 0;
+        } else if(buffer2[0] == 3) {
+            dec_len = frame_size;
+            if(dec_len > buf3_size) {
+                buffer3 = (char *)realloc(buffer3,dec_len);
+                if(buffer3 == NULL) {
+                    if(buffer2 == NULL) free(buffer2);
+                    return;
+                }
+            }
+            str_ncpy((char *)buffer3,(const char *)buffer+1,frame_size-1);
+        }
+        else {
+            continue;
+        }
+        if(str_icmp(buffer,"tpe1") == 0) {
+            a->onmeta(a->meta_ctx,"artist",buffer3);
+        }
+        else if(str_icmp(buffer,"tit2") == 0) {
+            a->onmeta(a->meta_ctx,"title",buffer3);
+        }
+        else if(str_icmp(buffer,"talb") == 0) {
+            a->onmeta(a->meta_ctx,"album",buffer3);
+        }
+
+    }
+
+    if(buffer2 != NULL) free(buffer2);
+    if(buffer3 != NULL) free(buffer3);
+
+    return;
+}
+
+static void wav_id3(audio_decoder *a, const char *filename) {
+    if(a->onmeta == NULL) return;
+    FILE *f = fopen(filename,"rb");
+    uint32_t bytes = 0;
+    uint32_t cbytes = 0;
+    uint8_t buffer[12];
+    if(f == NULL) {
+        return;
+    }
+    if(fread(buffer,1,12,f) != 12) goto closereturn;
+    if(str_ncmp((char *)buffer,"RIFF",4)) goto closereturn;
+    if(str_ncmp((char *)buffer+8,"WAVE",4)) goto closereturn;
+    bytes = unpack_uint32le(buffer+4);
+    bytes -= 4;
+
+    while(bytes > 0) {
+        if(fread(buffer,1,12,f) != 12) goto closereturn;
+        bytes -= 8;
+        cbytes = unpack_uint32le(buffer+4);
+        cbytes -= 4;
+        if(str_incmp((char *)buffer,"id3 ",4) == 0) {
+            process_id3(a,f);
+            goto closereturn;
+        }
+        fseek(f,cbytes,SEEK_CUR);
+        bytes -= cbytes;
+    }
+
+closereturn:
+    fclose(f);
+    return;
+}
+
+static void mp3_id3(audio_decoder *a, const char *filename) {
+    if(a->onmeta == NULL) return;
+    FILE *f = fopen(filename,"rb");
+    if(f == NULL) {
+        return;
+    }
+    process_id3(a,f);
+    fclose(f);
 
 }
 
@@ -41,6 +224,7 @@ int audio_decoder_init(audio_decoder *a) {
 }
 
 int audio_decoder_open(audio_decoder *a, const char *filename) {
+    drmp3 *mp3 = NULL;
     if(str_iends(filename,".flac")) {
         a->ctx.pFlac = drflac_open_file_with_metadata(filename,flac_meta,a);
         if(a->ctx.pFlac == NULL) return 1;
@@ -49,21 +233,69 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->channels = a->ctx.pFlac->channels;
         a->type = 0;
     }
+    else if(str_iends(filename,".mp3")) {
+        mp3_id3(a,filename);
+        mp3 = (drmp3 *)malloc(sizeof(drmp3));
+        if(mp3 == NULL) {
+            fprintf(stderr,"out of memory\n");
+            return 1;
+        }
+        a->ctx.pMp3 = mp3;
+        if(!drmp3_init_file(a->ctx.pMp3,filename,NULL)) {
+            fprintf(stderr,"error opening as mp3\n");
+            free(mp3);
+            a->ctx.pMp3 = NULL;
+            return 1;
+        }
+        a->framecount = drmp3_get_pcm_frame_count(mp3);
+        a->samplerate = mp3->sampleRate;
+        a->channels = mp3->channels;
+        a->type = 1;
+    }
+    else if(str_iends(filename,"wav")) {
+        wav_id3(a,filename);
+        a->ctx.pWav = drwav_open_file(filename);
+        if(a->ctx.pWav == NULL) return 1;
+        a->framecount = a->ctx.pWav->totalPCMFrameCount;
+        a->samplerate = a->ctx.pWav->sampleRate;
+        a->channels = a->ctx.pWav->channels;
+        a->type = 2;
+    }
+    else {
+        fprintf(stderr,"sorry, I don't support that file format\n");
+    }
 
     if(a->ctx.p == NULL) return 1;
     return 0;
 }
 
 unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, int16_t *buf) {
-    if(a->type == 0) {
-        return (unsigned int)drflac_read_pcm_frames_s16(a->ctx.pFlac,framecount,buf);
+    switch(a->type) {
+        case 0: return (unsigned int)drflac_read_pcm_frames_s16(a->ctx.pFlac,framecount,buf);
+        case 1: return (unsigned int)drmp3_read_pcm_frames_s16(a->ctx.pMp3,framecount,buf);
+        case 2: return (unsigned int)drwav_read_pcm_frames_s16(a->ctx.pWav,framecount,buf);
     }
     return 0;
 }
 
 void audio_decoder_close(audio_decoder *a) {
     switch(a->type) {
-        case 0: drflac_close(a->ctx.pFlac); break;
+        case 0: {
+            drflac_close(a->ctx.pFlac);
+            a->ctx.pFlac = NULL;
+            break;
+        }
+        case 1: {
+            drmp3_uninit(a->ctx.pMp3);
+            free(a->ctx.pMp3);
+            a->ctx.pMp3 = NULL;
+            break;
+        }
+        case 2: {
+            drwav_close(a->ctx.pWav);
+            a->ctx.pWav = NULL;
+            break;
+        }
     }
 }
 

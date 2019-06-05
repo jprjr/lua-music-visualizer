@@ -2,6 +2,8 @@
 #define AUDIO_DECODER_H
 
 #include "dr_flac.h"
+#include "dr_mp3.h"
+#include "dr_wav.h"
 
 /* audio_decoder is responsible for pulling in (x) frames of audio
  * data (a pull-style API) */
@@ -11,6 +13,8 @@ typedef union decoder_ctx_u decoder_ctx;
 union decoder_ctx_u {
     void *p;
     drflac *pFlac;
+    drmp3 *pMp3;
+    drwav *pWav;
 };
 
 

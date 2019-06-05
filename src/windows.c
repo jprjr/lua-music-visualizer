@@ -68,7 +68,7 @@ int startButtonCb(Ihandle *self) {
     char cmdLine[1000];
     cmdLine[0] = 0;
     if(strstr(ffplayfile,"vlc") != NULL) {
-        str_cat(cmdLine,"stream://\\\\\\.\\pipe\\lua-music-vis");
+        str_cat(cmdLine,"stream://\\\\\\.\\pipe\\lua-music-vis --file-caching=5000");
     }
     if(strstr(ffplayfile,"ffplay") != NULL) {
         str_cat(cmdLine,"\\\\.\\pipe\\lua-music-vis");

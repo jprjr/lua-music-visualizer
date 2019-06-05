@@ -256,14 +256,24 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     char *rpath;
     char *tmp;
     rpath = malloc(sizeof(char)*PATH_MAX);
-    if(rpath == NULL) return 1;
+    if(rpath == NULL) {
+        fprintf(stderr,"out of memory\n");
+        return 1;
+    }
+
     tmp = malloc(sizeof(char)*PATH_MAX);
-    if(tmp == NULL) return 1;
+    if(tmp == NULL) {
+        fprintf(stderr,"out of memory\n");
+        return 1;
+    }
     char *dir;
     rpath[0] = 0;
     tmp[0] = 0;
 
-    if(audio_decoder_init(d)) return 1;
+    if(audio_decoder_init(d)) {
+        fprintf(stderr,"error with audio_decoder_init\n");
+        return 1;
+    }
 
     d->onmeta = onmeta;
     d->meta_ctx = (void *)v;
@@ -272,7 +282,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     thread_queue_init(&(v->image_queue),100,(void **)&(v->images),0);
 
     v->L = luaL_newstate();
-    if(!v->L) return 1;
+    if(!v->L) {
+        fprintf(stderr,"error opening lua\n");
+        return 1;
+    }
 
     luaL_openlibs(v->L);
 
@@ -285,7 +298,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     str_cpy(tmp,dir);
 
     str_cpy(rpath,"package.path = '");
-    str_cat_escape(rpath,tmp);
+    str_ecat(rpath,tmp,"\\",'\\');
 
 #ifdef _WIN32
     strcat(rpath,"\\\\?.lua;' .. package.path");
@@ -303,7 +316,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     lua_settop(v->L,0);
 
     /* open audio file and populate metadata */
-    if(audio_decoder_open(d,filename)) return 1;
+    if(audio_decoder_open(d,filename)) {
+        fprintf(stderr,"error opening audio decoder\n");
+        return 1;
+    }
     v->samples_per_frame = d->samplerate / 30;
     v->ms_per_frame = 1000.0f / 30.0f;
     v->elapsed = 0.0f;
@@ -317,7 +333,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     lua_setfield(v->L,-2,"file");
     lua_settop(v->L,0);
 
-    if(audio_processor_init(p,d)) return 1;
+    if(audio_processor_init(p,d)) {
+        fprintf(stderr,"error with audio_processor_init\n");
+        return 1;
+    }
 
     v->decoder = d;
     v->processor = p;
@@ -418,9 +437,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     str_cpy((char *)v->aud_header,"01wb");
     format_dword(v->aud_header + 4, v->samples_per_frame * v->processor->decoder->channels * 2);
 
-#if 0
-    setmode(fileno((HANDLE)v->outHandle), O_BINARY);
-#endif
     if(write_avi_header(v)) return 1;
 
     free(rpath);
