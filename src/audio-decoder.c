@@ -14,6 +14,27 @@
 
 static const uint8_t allzero[10] = "\0\0\0\0\0\0\0\0\0\0";
 
+struct str_alloc_s {
+    char *s;
+    unsigned int a;
+};
+
+typedef struct str_alloc_s str_alloc;
+
+#define STR_ALLOC_ZERO { .s = NULL, .a = 0 }
+
+static int str_alloc_resize(str_alloc *s, unsigned int size) {
+    char *t = NULL;
+    if(s->a >= size) return 0;
+    t = realloc(s->s,size);
+    if(t == NULL) {
+      free(s->s);
+      return 1;
+    }
+    s->a = size;
+    s->s = t;
+    return 0;
+}
 
 static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     audio_decoder *a = (audio_decoder *)ctx;
@@ -37,7 +58,6 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
             a->onmeta(a->meta_ctx,buf,buf+r+1);
         }
     }
-
 }
 
 static void process_id3(audio_decoder *a, FILE *f) {
@@ -46,13 +66,12 @@ static void process_id3(audio_decoder *a, FILE *f) {
      * calling function */
     char buffer[10];
     buffer[0] = 0;
-    char *buffer2 = NULL;
-    char *buffer3 = NULL;
+    str_alloc buffer2 = STR_ALLOC_ZERO;
+    str_alloc buffer3 = STR_ALLOC_ZERO;
+    unsigned int (*text_func)(uint8_t *, const uint8_t *, unsigned int) = NULL;
 
     unsigned int id3_size = 0;
     unsigned int frame_size = 0;
-    unsigned int buf2_size = 0;
-    unsigned int buf3_size = 0;
     unsigned int dec_len = 0;
 
     if(fread(buffer,1,10,f) != 10) return;
@@ -75,95 +94,50 @@ static void process_id3(audio_decoder *a, FILE *f) {
     }
 
     while(id3_size > 0) {
-        if(fread(buffer,1,10,f) != 10) {
-            fclose(f);
-            return;
-        }
-        if(memcmp(buffer,allzero,10) == 0) return;
+        if(fread(buffer,1,10,f) != 10) goto id3_done;
+        if(memcmp(buffer,allzero,10) == 0) goto id3_done;
 
         id3_size -= 10;
         frame_size = unpack_uint32be((uint8_t *)buffer + 4);
         id3_size -= frame_size;
         buffer[4] = 0;
 
-        if(buf2_size < frame_size) {
-            buffer2 = (char *)realloc(buffer2,frame_size);
-            if(buffer2 == NULL) {
-                if(buffer3 != NULL) free(buffer3);
-                return;
-            }
-            buf2_size = frame_size;
-        }
+        if(str_alloc_resize(&buffer2,frame_size)) goto id3_done;
 
-        if(fread(buffer2,1,frame_size,f) != frame_size)  {
-            fclose(f);
-            if(buffer2 != NULL) free(buffer2);
-            if(buffer3 != NULL) free(buffer3);
-            return;
-        }
+        if(fread(buffer2.s,1,frame_size,f) != frame_size) goto id3_done;
 
         if(buffer[0] != 'T') {
             continue;
         }
 
-        if(buffer2[0] == 0) {
-            dec_len = utf_conv_iso88591_utf8(NULL,(uint8_t *)buffer2+1,frame_size-1) + 1;
-            if(dec_len > buf3_size) {
-                buffer3 = (char *)realloc(buffer3,dec_len);
-                if(buffer3 == NULL) {
-                    if(buffer2 == NULL) free(buffer2);
-                    return;
-                }
-            }
-            buffer3[utf_conv_iso88591_utf8((uint8_t *)buffer3,(uint8_t *)buffer2+1,frame_size-1)] = 0;
-        } else if(buffer2[0] == 1) {
-            dec_len = utf_conv_utf16_utf8(NULL,(uint8_t *)buffer+1,frame_size-1) + 1;
-            if(dec_len > buf3_size) {
-                buffer3 = (char *)realloc(buffer3,dec_len);
-                if(buffer3 == NULL) {
-                    if(buffer2 == NULL) free(buffer2);
-                    return;
-                }
-            }
-            buffer3[utf_conv_utf16_utf8((uint8_t *)buffer3,(uint8_t *)buffer2+1,frame_size-1)] = 0;
-        } else if(buffer2[0] == 2) {
-            dec_len = utf_conv_utf16be_utf8(NULL,(uint8_t *)buffer2+1,frame_size-1) + 1;
-            if(dec_len > buf3_size) {
-                buffer3 = (char *)realloc(buffer3,dec_len);
-                if(buffer3 == NULL) {
-                    if(buffer2 == NULL) free(buffer2);
-                    return;
-                }
-            }
-            buffer3[utf_conv_utf16be_utf8((uint8_t *)buffer3,(uint8_t *)buffer2+1,frame_size-1)] = 0;
-        } else if(buffer2[0] == 3) {
-            dec_len = frame_size;
-            if(dec_len > buf3_size) {
-                buffer3 = (char *)realloc(buffer3,dec_len);
-                if(buffer3 == NULL) {
-                    if(buffer2 == NULL) free(buffer2);
-                    return;
-                }
-            }
-            str_ncpy((char *)buffer3,(const char *)buffer+1,frame_size-1);
+        switch(buffer2.s[0]) {
+            case 0: text_func = utf_conv_iso88591_utf8; break;
+            case 1: text_func = utf_conv_utf16_utf8; break;
+            case 2: text_func = utf_conv_utf16be_utf8; break;
+            case 3: text_func = str_ncpy; break;
+            default: text_func = NULL;
         }
-        else {
-            continue;
-        }
+        if(text_func == NULL) continue;
+        dec_len = text_func(NULL,(uint8_t *)buffer2.s+1,frame_size-1) + 1;
+        if(str_alloc_resize(&buffer3,dec_len)) goto id3_done;
+        buffer3.s[text_func((uint8_t *)buffer3.s,(uint8_t *)buffer2.s+1,frame_size-1)] = 0;
+
         if(str_icmp(buffer,"tpe1") == 0) {
-            a->onmeta(a->meta_ctx,"artist",buffer3);
+            a->onmeta(a->meta_ctx,"artist",buffer3.s);
         }
         else if(str_icmp(buffer,"tit2") == 0) {
-            a->onmeta(a->meta_ctx,"title",buffer3);
+            a->onmeta(a->meta_ctx,"title",buffer3.s);
         }
         else if(str_icmp(buffer,"talb") == 0) {
-            a->onmeta(a->meta_ctx,"album",buffer3);
+            a->onmeta(a->meta_ctx,"album",buffer3.s);
         }
 
     }
 
-    if(buffer2 != NULL) free(buffer2);
-    if(buffer3 != NULL) free(buffer3);
+    id3_done:
+
+    if(buffer2.s != NULL) free(buffer2.s);
+    if(buffer3.s != NULL) free(buffer3.s);
 
     return;
 }

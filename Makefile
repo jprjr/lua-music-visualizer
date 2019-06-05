@@ -4,6 +4,8 @@
 
 all: lua-music-visualizer
 
+LUA = lua5.3
+
 OBJS = \
   src/console.o \
   src/video-generator.o \
@@ -29,11 +31,11 @@ LUALHS = \
 
 BIN2CSRC = src/bin2c.c
 
-CFLAGS = -Wall -Wextra -O2 -g $(shell pkg-config --cflags lua)
-LDFLAGS = $(shell pkg-config --libs lua)
+CFLAGS = -Wall -Wextra -O2 -g $(shell pkg-config --cflags $(LUA))
+LDFLAGS = $(shell pkg-config --libs $(LUA)) -lm -pthread
 
 lua-music-visualizer: $(OBJS)
-	$(CC) -s -o $@ $^ $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c $(LUALHS)
 	$(CC) $(CFLAGS) -o $@ -c $<
@@ -42,7 +44,7 @@ src/%.lh: lua/% src/bin2c
 	./src/bin2c $< $@ $(patsubst %.lua,%_lua,$(notdir $<))
 
 src/bin2c: src/bin2c.c
-	$(HOST_CC) -o src/bin2c src/bin2c.c
+	$(CC) -o src/bin2c src/bin2c.c
 
 
 clean:

@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
     const char *songfile = argv[1];
     const char *scriptfile = argv[2];
     unsigned int r = 0;
+    FILE *f = fopen("/dev/null","wb");
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(decoder == NULL) return 1;
@@ -26,7 +27,7 @@ int main(int argc, char **argv) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(generator == NULL) return 1;
 
-    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,stdout)) {
+    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,f)) {
         fprintf(stderr,"error starting the video generator\n");
         return 1;
     }

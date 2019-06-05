@@ -1,5 +1,6 @@
 #include "str.h"
 #include "char.h"
+#include <stddef.h>
 
 #define STR_MAX(a,b) ( a > b ? a : b)
 #define STR_MIN(a,b) ( a < b ? a : b)
@@ -31,6 +32,7 @@ unsigned int str_chr(const char *s, char c) {
 }
 
 unsigned int str_ncpy(char *dest, const char *src, unsigned int max) {
+    if(dest == NULL) return str_len(src);
     char *d = dest;
     const char *s = src;
     unsigned int n = 0;

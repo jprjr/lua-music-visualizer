@@ -4,6 +4,8 @@
 #include "str.h"
 #include <stddef.h>
 
+#include <stdio.h>
+
 uint8_t utf_dec_iso88591(uint32_t *cp, const uint8_t *s) {
     if(cp != NULL) {
         *cp = *s;
@@ -200,14 +202,14 @@ static unsigned int utf_conv(uint8_t *dest, const uint8_t *src, unsigned int len
     unsigned int n = 0;
 
     if(len == 0) {
-        len =_len(src);
+        len = _len(src);
     }
 
     while(len > 0) {
         if(( r = dec(&cp,s)) == 0) break;
         len-=r;
         s += r;
-        if(( r = enc(d,cp)) == 0) break;
+        if( (r = enc(d,cp)) == 0 ) break;
         if(d != NULL) d += r;
         n += r;
     }
@@ -282,6 +284,7 @@ unsigned int utf_conv_utf8_utf32(uint8_t *dest, const uint8_t *src, unsigned int
 }
 
 unsigned int utf_conv_utf16_utf8(uint8_t *dest, const uint8_t *src, unsigned int len) {
+    if(len > 2) len -= 2;
     if(src[0] == 0xFF && src[1] == 0xFE) return utf_conv(dest,src+2,len, utf_dec_utf16le, utf_enc_utf8, get_utf16_len);
     if(src[0] == 0xFE && src[1] == 0xFF) return utf_conv(dest,src+2,len, utf_dec_utf16be, utf_enc_utf8, get_utf16_len);
     return 0;
