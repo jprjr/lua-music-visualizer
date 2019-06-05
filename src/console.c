@@ -38,5 +38,10 @@ int main(int argc, char **argv) {
 
     video_generator_close(generator);
 
+    fclose(f);
+    free(decoder);
+    free(processor);
+    free(generator);
+
     return 0;
 }
