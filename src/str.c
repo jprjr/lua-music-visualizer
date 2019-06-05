@@ -144,7 +144,8 @@ unsigned int str_necat(char *dest, const char *s, unsigned int max, const char *
             }
             q++;
         }
-        if(dest != NULL) *p = *s++;
+        if(dest != NULL) *p = *s;
+        s++;
         p++;
     }
     if(dest != NULL) *p = 0;
