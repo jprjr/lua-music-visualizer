@@ -35,7 +35,7 @@ LUALHS = \
 
 BIN2CSRC = src/bin2c.c
 
-CFLAGS = -Wall -Wextra -O2 -g -I$(LUA_INCDIR) -I$(IUP_INCDIR)
+CFLAGS = -Wall -Wextra -Wno-cast-function-type -O2 -g -I$(LUA_INCDIR) -I$(IUP_INCDIR)
 LDFLAGS = -s -mconsole -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi
 
 all: lua-music-visualizer.exe
@@ -57,4 +57,4 @@ src/bin2c: src/bin2c.c
 	$(TARGET_WINDRES) $< -O coff -o $@
 
 clean:
-	rm -f lua-music-visualizer$(EXT) lua-music-visualizer.exe $(OBJS)
+	rm -f lua-music-visualizer$(EXT) lua-music-visualizer.exe $(OBJS) $(LUALHS)

@@ -31,7 +31,7 @@ LUALHS = \
 
 BIN2CSRC = src/bin2c.c
 
-CFLAGS = -Wall -Wextra -O2 $(shell pkg-config --cflags $(LUA))
+CFLAGS = -Wall -Wextra -Wno-cast-function-type -O2 $(shell pkg-config --cflags $(LUA))
 LDFLAGS = $(shell pkg-config --libs $(LUA)) -lm -pthread
 
 lua-music-visualizer: $(OBJS)
@@ -48,4 +48,4 @@ src/bin2c: src/bin2c.c
 
 
 clean:
-	rm -f lua-music-visualizer $(OBJS)
+	rm -f lua-music-visualizer $(OBJS) $(LUALHS)
