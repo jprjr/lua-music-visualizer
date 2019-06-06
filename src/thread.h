@@ -678,6 +678,7 @@ thread_ptr_t thread_create( int (*thread_proc)( void* ), void* user_data, char c
     {
     #if defined( _WIN32 )
 
+        (void)name;
         DWORD thread_id;
         HANDLE handle = CreateThread( NULL, stack_size > 0 ? (size_t)stack_size : 0U, 
             (LPTHREAD_START_ROUTINE)(uintptr_t) thread_proc, user_data, 0, &thread_id );
