@@ -3,6 +3,9 @@
 #include "str.h"
 #include "unpack.h"
 
+#define AUDIO_MAX(a,b) ( a > b ? a : b)
+#define AUDIO_MIN(a,b) ( a < b ? a : b)
+
 #define DR_FLAC_IMPLEMENTATION
 #include "dr_flac.h"
 
@@ -34,6 +37,11 @@ static int str_alloc_resize(str_alloc *s, unsigned int size) {
     s->a = size;
     s->s = t;
     return 0;
+}
+
+static unsigned int utf8_len_or_copy(uint8_t *dest, const uint8_t *src, unsigned int max) {
+    if(dest == NULL) return AUDIO_MIN(str_len((const char *)src),max);
+    return str_ncpy((char *)dest,(const char *)src,max);
 }
 
 static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
@@ -114,7 +122,7 @@ static void process_id3(audio_decoder *a, FILE *f) {
             case 0: text_func = utf_conv_iso88591_utf8; break;
             case 1: text_func = utf_conv_utf16_utf8; break;
             case 2: text_func = utf_conv_utf16be_utf8; break;
-            case 3: text_func = str_ncpy; break;
+            case 3: text_func = utf8_len_or_copy; break;
             default: text_func = NULL;
         }
         if(text_func == NULL) continue;

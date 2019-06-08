@@ -59,7 +59,7 @@ static kiss_fft_scalar window_blackman_harris(int i, int n) {
 int audio_processor_init(audio_processor *p, audio_decoder *a) {
     int i = 0;
     double octaves = ceil(log2(FREQ_MAX / FREQ_MIN));
-    double interval = 1.0f / (octaves / 20.0f);
+    double interval = 1.0f / (octaves / SPECTRUM_BARS);
     double bin_size = 0.0f;
     if(a->type == -1) return 1;
     if(a->samplerate == 0) return 1;
@@ -79,7 +79,7 @@ int audio_processor_init(audio_processor *p, audio_decoder *a) {
     }
     p->firstflag = 0;
 
-    for(i=0;i<20;i++) {
+    for(i=0;i<SPECTRUM_BARS + 1;i++) {
         p->spectrum[i].amp = 0.0f;
         p->spectrum[i].prevamp = 0.0f;
         if(i==0) {
@@ -121,30 +121,41 @@ unsigned int audio_processor_process(audio_processor *p, unsigned int framecount
     unsigned int i = 0;
     unsigned int r = 0;
     unsigned int o = 8192 - (framecount * p->decoder->channels);
-    while(i<o) {
-        p->buffer[i] = p->buffer[o+i];
+
+    while(i+framecount < 8192) {
+        p->buffer[i] = p->buffer[framecount+i];
         i++;
     }
 
     r = audio_decoder_decode(p->decoder,framecount,&(p->buffer[o]));
+
     if(r < framecount) {
         i = r;
         while(i<framecount) {
-            p->buffer[i] = 0;
+            p->buffer[o+(i*p->decoder->channels)] = 0.0f;
+            if(p->decoder->channels > 1) {
+                p->buffer[o+(i*p->decoder->channels) + 1] = 0.0f;
+            }
             i++;
         }
     }
 
     i=0;
     while(i < 4096) {
-        m = p->buffer[i * p->decoder->channels] + p->buffer[(i*p->decoder->channels)+( p->decoder->channels > 1)];
-        p->mbuffer[i] = ( (m / 2) / 32768.0f) * p->wbuffer[i];
+        if(p->decoder->channels ==2) {
+            m = p->buffer[i * 2] + p->buffer[(i*2)+1];
+            m /= 2.0f;
+        } else {
+            m = p->buffer[i];
+        }
+        m /= 32768.0f;
+        p->mbuffer[i] = m * p->wbuffer[i];
         i++;
     }
 
     kiss_fftr(p->plan,p->mbuffer,p->obuffer);
 
-    for(i=0;i<20;i++) {
+    for(i=0;i<SPECTRUM_BARS;i++) {
         p->spectrum[i].amp = find_amplitude_max(p->obuffer,p->spectrum[i].first_bin,p->spectrum[i].last_bin);
 
         if(!isfinite(p->spectrum[i].amp)) {

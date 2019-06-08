@@ -12,6 +12,8 @@
 #include "audio-processor.h"
 #include "video-generator.h"
 #include "str.h"
+#define JPR_PROC_IMPLEMENTATION
+#include "jpr_proc.h"
 
 static audio_decoder *decoder = NULL;
 static audio_processor *processor = NULL;
@@ -114,14 +116,12 @@ int startButtonCb(Ihandle *self) {
     char *songfile = IupGetAttribute(songText,"VALUE");
     char *scriptfile = IupGetAttribute(scriptText,"VALUE");
     char *videoplayerfile = IupGetAttribute(videoplayerText,"VALUE");
-    char cmdLine[1000];
-    HANDLE pipe = INVALID_HANDLE_VALUE;
-    HANDLE childStdInRd = INVALID_HANDLE_VALUE;
-    HANDLE childStdInWr = INVALID_HANDLE_VALUE;
-    SECURITY_ATTRIBUTES sa;
-    PROCESS_INFORMATION pi;
-    STARTUPINFO si;
+    char **args = NULL;
+    char **a;
     unsigned int r = 0;
+    int t = 0;
+    jpr_proc_info process;
+    jpr_proc_pipe child_stdin;
 
     if(str_len(songfile) == 0 ||
        str_len(scriptfile) == 0 ||
@@ -137,57 +137,28 @@ int startButtonCb(Ihandle *self) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(generator == NULL) goto cleanshitup;
 
-    cmdLine[0] = 0;
+    jpr_proc_info_init(&process);
+    jpr_proc_pipe_init(&child_stdin);
 
-    memset(&sa,0,sizeof(SECURITY_ATTRIBUTES));
-    memset(&pi,0,sizeof(PROCESS_INFORMATION));
-    memset(&si,0,sizeof(STARTUPINFO));
+    args = (char **)malloc(sizeof(char *) * 10);
+    if(args == NULL) goto cleanshitup;
+    a = args;
+    *a++ = videoplayerfile;
 
-    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-    sa.bInheritHandle = TRUE;
-    sa.lpSecurityDescriptor = NULL;
-
-
-    if(!CreatePipe(&childStdInRd, &childStdInWr, &sa, 0)) {
-        goto cleanshitup;
-    }
-
-    if(!SetHandleInformation(childStdInWr, HANDLE_FLAG_INHERIT, 0)) {
-        goto cleanshitup;
-    }
-
-    si.cb = sizeof(STARTUPINFO);
-    si.hStdError = NULL;
-    si.hStdOutput = NULL;
-    si.hStdInput = childStdInRd;
-    si.dwFlags |= STARTF_USESTDHANDLES;
-
-    str_cat(cmdLine,videoplayerfile);
     if(strstr(videoplayerfile,"vlc") != NULL) {
-        str_cat(cmdLine," --file-caching 1500 --network-caching 1500");
+        *a++ = "--file-caching";
+        *a++ = "1500";
+        *a++ = "--network-caching";
+        *a++ = "1500";
     }
-    str_cat(cmdLine," -");
-    fprintf(stderr,"spawning: %s\n",cmdLine);
+    else {
+        *a++ = "-";
+    }
+    *a = NULL;
 
+    if(jpr_proc_spawn(&process,(const char * const*)args,&child_stdin,NULL,NULL)) goto cleanshitup;
 
-    if(!CreateProcess(NULL,
-        cmdLine,
-        NULL,
-        NULL,
-        TRUE,
-        0,
-        NULL,
-        NULL,
-        &si,
-        &pi)) goto cleanshitup;
-
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    CloseHandle(childStdInRd);
-    childStdInRd = INVALID_HANDLE_VALUE;
-
-
-    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,childStdInWr)) {
+    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,child_stdin.pipe)) {
         fprintf(stderr,"error starting the video generator\n");
         goto cleanshitup;
     }
@@ -200,15 +171,9 @@ int startButtonCb(Ihandle *self) {
     video_generator_close(generator);
 
 cleanshitup:
-    if(pipe != INVALID_HANDLE_VALUE) {
-        CloseHandle(pipe);
-    }
-    if(childStdInRd != INVALID_HANDLE_VALUE) {
-        CloseHandle(childStdInRd);
-    }
-    if(childStdInWr != INVALID_HANDLE_VALUE) {
-        CloseHandle(childStdInWr);
-    }
+    jpr_proc_pipe_close(&child_stdin);
+    jpr_proc_info_wait(&process,&t);
+    if(args != NULL) free(args);
 
     if(decoder != NULL) {
         free(decoder);

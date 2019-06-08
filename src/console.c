@@ -11,14 +11,25 @@ static video_generator *generator;
 
 int main(int argc, char **argv) {
 
-    if(argc < 3) {
-        fprintf(stderr,"Usage: %s songfile scriptfile\n",argv[0]);
+    if(argc < 4) {
+        fprintf(stderr,"Usage: %s songfile scriptfile output\n",argv[0]);
         return 1;
     }
+    FILE *f = NULL;
     const char *songfile = argv[1];
     const char *scriptfile = argv[2];
+    const char *output = argv[3];
     unsigned int r = 0;
-    FILE *f = fopen("/dev/null","wb");
+
+    if(str_cmp(output,"-") == 0) {
+        f = stdout;
+    } else {
+        f = fopen(output,"wb");
+        if(f == NULL) {
+            fprintf(stderr,"error opening %s for output\n",output);
+            return 1;
+        }
+    }
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(decoder == NULL) return 1;

@@ -4,6 +4,8 @@
 #include "audio-decoder.h"
 #include "kiss_fftr.h"
 
+#define SPECTRUM_BARS 24
+
 typedef struct audio_processor_s audio_processor;
 typedef struct frange_s frange;
 
@@ -23,7 +25,7 @@ struct audio_processor_s {
     kiss_fft_scalar wbuffer[4096]; /* stores window function factors */
     kiss_fft_cpx obuffer[2049]; /* n/2 + 1 output points */
     kiss_fftr_cfg plan;
-    frange spectrum[20];
+    frange spectrum[SPECTRUM_BARS+1];
     int firstflag;
 };
 
