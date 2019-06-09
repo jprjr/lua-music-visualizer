@@ -26,13 +26,17 @@ static Ihandle *dlg;
 static Ihandle *config;
 
 static Ihandle *startBox, *startVbox;
-static Ihandle *startButton;
+static Ihandle *startButton, *saveButton;
 
 /* "Basics" tab */
 static Ihandle *gridbox;
 static Ihandle *songBtn, *songText;
 static Ihandle *scriptBtn, *scriptText;
+
+/* "Programs" tab */
+static Ihandle *programBox;
 static Ihandle *videoplayerBtn, *videoplayerText;
+static Ihandle *ffmpegBtn, *ffmpegText;
 
 /* "Video" tab */
 static Ihandle *videoBox;
@@ -44,6 +48,11 @@ static Ihandle *fpsLabel, *fpsDropdown;
 static Ihandle *audioBox;
 static Ihandle *barsLabel, *barsText;
 
+/* "Encoder" tab */
+static Ihandle *encoderBox;
+static Ihandle *ffmpegArgsLabel, *ffmpegArgsText;
+static Ihandle *outputBtn, *outputText;
+
 /* "Misc" tab */
 static Ihandle *miscBox;
 static Ihandle *cwdBtn, *cwdText;
@@ -52,8 +61,14 @@ static Ihandle *cwdBtn, *cwdText;
 static void activateStartButton(void) {
     if(str_len(IupGetAttribute(songText,"VALUE")) == 0) return;
     if(str_len(IupGetAttribute(scriptText,"VALUE")) == 0) return;
-    if(str_len(IupGetAttribute(videoplayerText,"VALUE")) == 0) return;
-    IupSetAttribute(startButton,"ACTIVE","YES");
+
+    if(str_len(IupGetAttribute(videoplayerText,"VALUE")) != 0) {
+        IupSetAttribute(startButton,"ACTIVE","YES");
+    }
+
+    if(str_len(IupGetAttribute(outputText,"VALUE")) == 0) return;
+    if(str_len(IupGetAttribute(ffmpegText,"VALUE")) == 0) return;
+    IupSetAttribute(saveButton,"ACTIVE","YES");
 }
 
 static const char* const video_players[] = {
@@ -89,6 +104,10 @@ static int lazySetTextCB(Ihandle *self, char *filename, int num, int x, int y) {
         IupConfigSetVariableStr(config,"global","videoplayer",filename);
     } else if(self == cwdText) {
         IupConfigSetVariableStr(config,"global","working directory",filename);
+    } else if(self == ffmpegText) {
+        IupConfigSetVariableStr(config,"global","ffmpeg",filename);
+    } else if(self == outputText) {
+        IupConfigSetVariableStr(config,"global","output",filename);
     }
     IupConfigSave(config);
     activateStartButton();
@@ -133,6 +152,24 @@ static int scriptBtnCb(Ihandle *self) {
     return IUP_DEFAULT;
 }
 
+static int outputBtnCb(Ihandle *self) {
+    (void)self;
+    Ihandle *dlg = IupFileDlg();
+    IupSetAttribute(dlg,"DIALOGTYPE","SAVE");
+    IupSetAttribute(dlg,"TITLE","Save video as");
+    IupSetAttribute(dlg,"EXTDEFAULT","mp4");
+    IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
+    if(IupGetInt(dlg,"STATUS") > 0) {
+        IupSetAttribute(outputText,"VALUE",IupGetAttribute(dlg,"VALUE"));
+        IupConfigSetVariableStr(config,"global","output",IupGetAttribute(dlg,"VALUE"));
+        IupConfigSave(config);
+    }
+    IupDestroy(dlg);
+    activateStartButton();
+
+    return IUP_DEFAULT;
+}
+
 static int songBtnCb(Ihandle *self) {
     (void)self;
     Ihandle *dlg = IupFileDlg();
@@ -144,6 +181,25 @@ static int songBtnCb(Ihandle *self) {
     if(IupGetInt(dlg,"STATUS") == 0) {
         IupSetAttribute(songText,"VALUE",IupGetAttribute(dlg,"VALUE"));
         IupConfigSetVariableStr(config,"global","songfile",IupGetAttribute(dlg,"VALUE"));
+        IupConfigSave(config);
+    }
+    IupDestroy(dlg);
+    activateStartButton();
+
+    return IUP_DEFAULT;
+}
+
+static int ffmpegBtnCb(Ihandle *self) {
+    (void)self;
+    Ihandle *dlg = IupFileDlg();
+    IupSetAttribute(dlg,"DIALOGTYPE","OPEN");
+    IupSetAttribute(dlg,"TITLE","Choose ffmpeg.exe");
+    IupSetAttribute(dlg,"FILTER","*.exe");
+    IupSetAttribute(dlg,"FILTERINFO","Executables");
+    IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
+    if(IupGetInt(dlg,"STATUS") == 0) {
+        IupSetAttribute(ffmpegText,"VALUE",IupGetAttribute(dlg,"VALUE"));
+        IupConfigSetVariableStr(config,"global","ffmpeg",IupGetAttribute(dlg,"VALUE"));
         IupConfigSave(config);
     }
     IupDestroy(dlg);
@@ -171,12 +227,22 @@ static int videoplayerBtnCb(Ihandle *self) {
     return IUP_DEFAULT;
 }
 
-static int startButtonCb(Ihandle *self) {
-    (void)self;
+static void tearDownGenerator(void) {
+    if(decoder != NULL) {
+        free(decoder);
+        decoder = NULL;
+    }
+    if(processor != NULL) {
+        free(processor);
+        processor = NULL;
+    }
+    if(generator != NULL) {
+        free(generator);
+        generator = NULL;
+    }
+}
 
-    char *songfile = IupGetAttribute(songText,"VALUE");
-    char *scriptfile = IupGetAttribute(scriptText,"VALUE");
-    char *videoplayerfile = IupGetAttribute(videoplayerText,"VALUE");
+static int setupVideoGenerator(void) {
     char *workdir = IupGetAttribute(cwdText,"VALUE");
     char *fps_t = IupGetAttribute(fpsDropdown,IupGetAttribute(fpsDropdown,"VALUE"));
     char *width_t = IupGetAttribute(widthText,"VALUE");
@@ -184,12 +250,6 @@ static int startButtonCb(Ihandle *self) {
     char *bars_t = IupGetAttribute(barsText,"VALUE");
     unsigned int fps, width, height, bars;
     char wdir[PATH_MAX];
-    char **args = NULL;
-    char **a;
-    unsigned int r = 0;
-    int t = 0;
-    jpr_proc_info process;
-    jpr_proc_pipe child_stdin;
 
     scan_uint(fps_t,&fps);
     scan_uint(width_t,&width);
@@ -216,25 +276,121 @@ static int startButtonCb(Ihandle *self) {
     else {
         GetCurrentDirectory(PATH_MAX,wdir);
     }
-    if(!SetCurrentDirectory(wdir)) goto cleanshitup;
+    if(!SetCurrentDirectory(wdir)) goto videogenerator_fail;
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
-    if(decoder == NULL) goto cleanshitup;
+    if(decoder == NULL) goto videogenerator_fail;
     processor = (audio_processor *)malloc(sizeof(audio_processor));
-    if(processor == NULL) goto cleanshitup;
+    if(processor == NULL) goto videogenerator_fail;
     generator = (video_generator *)malloc(sizeof(video_generator));
-    if(generator == NULL) goto cleanshitup;
+    if(generator == NULL) goto videogenerator_fail;
 
     generator->width = width;
     generator->height = height;
     generator->fps = fps;
     processor->spectrum_bars = bars;
 
+    return 0;
+
+videogenerator_fail:
+    tearDownGenerator();
+    return 1;
+}
+
+static void startVideoGenerator(const char *songfile, const char *scriptfile, const char *const *args) {
+    jpr_proc_info process;
+    jpr_proc_pipe child_stdin;
+    unsigned int r = 0;
+    int t = 0;
+
+    if(setupVideoGenerator()) return;
+
     jpr_proc_info_init(&process);
     jpr_proc_pipe_init(&child_stdin);
 
+    if(jpr_proc_spawn(&process,args,&child_stdin,NULL,NULL)) goto startvideo_cleanup;
+
+    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,child_stdin.pipe)) {
+        fprintf(stderr,"error starting the video generator\n");
+        goto startvideo_cleanup;
+    }
+
+    do {
+        r = video_generator_loop(generator);
+    } while (r == 0);
+
+    video_generator_close(generator);
+
+startvideo_cleanup:
+    jpr_proc_pipe_close(&child_stdin);
+    jpr_proc_info_wait(&process,&t);
+    tearDownGenerator();
+
+    return;
+
+}
+
+static int saveButtonCb(Ihandle *self) {
+    (void)self;
+    char *songfile = IupGetAttribute(songText,"VALUE");
+    char *scriptfile = IupGetAttribute(scriptText,"VALUE");
+    char *ffmpegfile = IupGetAttribute(ffmpegText,"VALUE");
+    char *outputfile = IupGetAttribute(outputText,"VALUE");
+    char *ffmpegargs = IupGetAttribute(ffmpegArgsText,"VALUE");
+    char *f = ffmpegargs;
+    unsigned int total_args = 6;
+    unsigned int i = 0;
+    char **args = NULL;
+    char **a;
+
+    do {
+      i = str_chr(f,' ');
+      if(i>0) {
+          total_args++;
+          f += i + 1;
+      }
+    } while(*f);
+
+    args = (char **)malloc(sizeof(char *)*total_args);
+    if(args == NULL) goto cleanshitup_save;
+    a = args;
+    f = ffmpegargs;
+
+    *a++ = ffmpegfile;
+    *a++ = "-i";
+    *a++ = "pipe:0";
+
+    do {
+      i = str_chr(f,' ');
+      if(i>0) {
+          f[i] = 0;
+          *a++ = f;
+          f += i + 1;
+      }
+    } while(*f);
+
+    *a++ = "-y";
+    *a++ = outputfile;
+    *a = NULL;
+
+    startVideoGenerator(songfile,scriptfile,(const char *const *)args);
+
+cleanshitup_save:
+    if(args != NULL) free(args);
+
+    return IUP_DEFAULT;
+}
+
+static int startButtonCb(Ihandle *self) {
+    (void)self;
+    char *songfile = IupGetAttribute(songText,"VALUE");
+    char *scriptfile = IupGetAttribute(scriptText,"VALUE");
+    char *videoplayerfile = IupGetAttribute(videoplayerText,"VALUE");
+    char **args;
+    char **a;
+
     args = (char **)malloc(sizeof(char *) * 10);
-    if(args == NULL) goto cleanshitup;
+    if(args == NULL) goto cleanshitup_start;
     a = args;
     *a++ = videoplayerfile;
 
@@ -249,43 +405,15 @@ static int startButtonCb(Ihandle *self) {
     }
     *a = NULL;
 
-    if(jpr_proc_spawn(&process,(const char * const*)args,&child_stdin,NULL,NULL)) goto cleanshitup;
+    startVideoGenerator(songfile,scriptfile,(const char *const *)args);
 
-    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,child_stdin.pipe)) {
-        fprintf(stderr,"error starting the video generator\n");
-        goto cleanshitup;
-    }
-    fprintf(stderr,"sending video...\n");
-
-    do {
-        r = video_generator_loop(generator);
-    } while (r == 0);
-
-    video_generator_close(generator);
-
-cleanshitup:
-    jpr_proc_pipe_close(&child_stdin);
-    jpr_proc_info_wait(&process,&t);
+cleanshitup_start:
     if(args != NULL) free(args);
-
-    if(decoder != NULL) {
-        free(decoder);
-        decoder = NULL;
-    }
-    if(processor != NULL) {
-        free(processor);
-        processor = NULL;
-    }
-    if(generator != NULL) {
-        free(generator);
-        generator = NULL;
-    }
 
     return IUP_DEFAULT;
 }
 
 static int updateAndSaveConfig(Ihandle *self) {
-    char t[100];
     if(self == fpsDropdown) {
         IupConfigSetVariableStr(config,"video","fps",
           IupGetAttribute(self,
@@ -301,6 +429,10 @@ static int updateAndSaveConfig(Ihandle *self) {
     }
     else if(self == barsText) {
         IupConfigSetVariableStr(config,"audio","visualizer bars",
+          IupGetAttribute(self,"VALUE"));
+    }
+    else if(self == ffmpegArgsText) {
+        IupConfigSetVariableStr(config,"audio","ffmpeg args",
           IupGetAttribute(self,"VALUE"));
     }
     IupConfigSave(config);
@@ -369,6 +501,68 @@ static void createVideoBox(void) {
     IupSetAttribute(videoBox,"TABTITLE","Video");
 }
 
+static void createProgramBox(void) {
+
+    videoplayerBtn = IupButton("Player",NULL);
+    IupSetCallback(videoplayerBtn,"ACTION",(Icallback) videoplayerBtnCb);
+
+    ffmpegBtn = IupButton("FFMpeg",NULL);
+    IupSetCallback(ffmpegBtn,"ACTION",(Icallback) ffmpegBtnCb);
+
+    videoplayerText = IupText(NULL);
+    IupSetAttribute(videoplayerText, "EXPAND", "HORIZONTAL");
+    IupSetCallback(videoplayerText,"DROPFILES_CB",(Icallback) lazySetTextCB);
+    IupSetAttribute(videoplayerText,"DROPFILESTARGET","YES");
+    IupSetAttribute(videoplayerText,"VALUE",IupConfigGetVariableStrDef(config,"global","videoplayer",""));
+
+    if(str_len(IupGetAttribute(videoplayerText,"VALUE")) == 0) {
+        IupSetAttribute(videoplayerText,"VALUE",findVideoPlayer());
+        IupConfigSetVariableStr(config,"global","videoplayer",findVideoPlayer());
+        IupConfigSave(config);
+    }
+
+    ffmpegText = IupText(NULL);
+    IupSetAttribute(ffmpegText, "EXPAND", "HORIZONTAL");
+    IupSetCallback(ffmpegText,"DROPFILES_CB",(Icallback) lazySetTextCB);
+    IupSetAttribute(ffmpegText,"DROPFILESTARGET","YES");
+    IupSetAttribute(ffmpegText,"VALUE",IupConfigGetVariableStrDef(config,"global","ffmpeg",""));
+
+    programBox = IupGridBox(videoplayerBtn,videoplayerText,ffmpegBtn,ffmpegText,NULL);
+    IupSetAttribute(programBox,"ORIENTATION","HORIZONTAL");
+    IupSetAttribute(programBox,"NUMDIV","2");
+    IupSetAttribute(programBox,"GAPLIN","20");
+    IupSetAttribute(programBox,"GAPCOL","20");
+    IupSetAttribute(programBox,"NORMALIZESIZE","HORIZONTAL");
+    IupSetAttribute(programBox,"MARGIN","20x20");
+    IupSetAttribute(programBox,"TABTITLE","Programs");
+}
+
+static void createEncoderBox(void) {
+    ffmpegArgsLabel = IupLabel("FFMpeg encode flags");
+    ffmpegArgsText = IupText(NULL);
+    IupSetAttribute(ffmpegArgsText,"EXPAND","HORIZONTAL");
+    IupSetAttribute(ffmpegArgsText,"VALUE",IupConfigGetVariableStrDef(config,"global","ffmpeg args","-c:v libx264 -c:a aac"));
+    IupSetCallback(ffmpegArgsText,"VALUECHANGED_CB",updateAndSaveConfig);
+
+    outputBtn = IupButton("Save As",NULL);
+    IupSetCallback(outputBtn,"ACTION",(Icallback) outputBtnCb);
+
+    outputText = IupText(NULL);
+    IupSetAttribute(outputText, "EXPAND", "HORIZONTAL");
+    IupSetCallback(outputText,"DROPFILES_CB",(Icallback) lazySetTextCB);
+    IupSetAttribute(outputText,"DROPFILESTARGET","YES");
+    IupSetAttribute(outputText,"VALUE",IupConfigGetVariableStrDef(config,"global","output",""));
+
+    encoderBox = IupGridBox(ffmpegArgsLabel,ffmpegArgsText,outputBtn,outputText,NULL);
+    IupSetAttribute(encoderBox,"ORIENTATION","HORIZONTAL");
+    IupSetAttribute(encoderBox,"NUMDIV","2");
+    IupSetAttribute(encoderBox,"GAPLIN","20");
+    IupSetAttribute(encoderBox,"GAPCOL","20");
+    IupSetAttribute(encoderBox,"NORMALIZESIZE","HORIZONTAL");
+    IupSetAttribute(encoderBox,"MARGIN","20x20");
+    IupSetAttribute(encoderBox,"TABTITLE","Encoder");
+}
+
 static void createMiscBox(void) {
     /*
     char wdir[PATH_MAX];
@@ -406,19 +600,12 @@ static void createBasicBox(void) {
     IupSetAttribute(scriptText, "EXPAND", "HORIZONTAL");
     IupSetCallback(scriptBtn,"ACTION",(Icallback) scriptBtnCb);
 
-    videoplayerBtn = IupButton("Player",NULL);
-    videoplayerText = IupText(NULL);
-    IupSetAttribute(videoplayerText, "EXPAND", "HORIZONTAL");
-    IupSetCallback(videoplayerBtn,"ACTION",(Icallback) videoplayerBtnCb);
-
     IupSetCallback(songText,"DROPFILES_CB",(Icallback) lazySetTextCB);
     IupSetCallback(scriptText,"DROPFILES_CB",(Icallback) lazySetTextCB);
-    IupSetCallback(videoplayerText,"DROPFILES_CB",(Icallback) lazySetTextCB);
     IupSetAttribute(songText,"DROPFILESTARGET","YES");
     IupSetAttribute(scriptText,"DROPFILESTARGET","YES");
-    IupSetAttribute(videoplayerText,"DROPFILESTARGET","YES");
 
-    gridbox = IupGridBox(songBtn,songText,scriptBtn,scriptText,videoplayerBtn,videoplayerText,NULL);
+    gridbox = IupGridBox(songBtn,songText,scriptBtn,scriptText,NULL);
     IupSetAttribute(gridbox,"ORIENTATION","HORIZONTAL");
     IupSetAttribute(gridbox,"NUMDIV","2");
     IupSetAttribute(gridbox,"GAPLIN","20");
@@ -429,7 +616,6 @@ static void createBasicBox(void) {
 
     IupSetAttribute(songText,"VALUE",IupConfigGetVariableStrDef(config,"global","songfile",""));
     IupSetAttribute(scriptText,"VALUE",IupConfigGetVariableStrDef(config,"global","scriptfile",""));
-    IupSetAttribute(videoplayerText,"VALUE",IupConfigGetVariableStrDef(config,"global","videoplayer",""));
 
     if(str_len(IupGetAttribute(scriptText,"VALUE")) == 0) {
         if(PathFileExists("Lua/game-that-tune.lua")) {
@@ -440,11 +626,6 @@ static void createBasicBox(void) {
         }
     }
 
-    if(str_len(IupGetAttribute(videoplayerText,"VALUE")) == 0) {
-        IupSetAttribute(videoplayerText,"VALUE",findVideoPlayer());
-        IupConfigSetVariableStr(config,"global","videoplayer",findVideoPlayer());
-        IupConfigSave(config);
-    }
 }
 
 int main(int argc, char **argv) {
@@ -454,26 +635,34 @@ int main(int argc, char **argv) {
     IupSetAttribute(config,"APP_NAME","lua-music-visualizer");
     IupConfigLoad(config);
 
-    startButton = IupButton("Start",NULL);
+    startButton = IupButton("Play",NULL);
     IupSetCallback(startButton,"ACTION",(Icallback) startButtonCb);
     IupSetAttribute(startButton,"ACTIVE","NO");
     IupSetAttribute(startButton,"PADDING","10x10");
     IupSetAttribute(startButton,"FONT","Arial, 24");
 
-    startBox = IupHbox(IupFill(),startButton,IupFill(), NULL);
+    saveButton = IupButton("Save",NULL);
+    IupSetCallback(saveButton,"ACTION",(Icallback) saveButtonCb);
+    IupSetAttribute(saveButton,"ACTIVE","NO");
+    IupSetAttribute(saveButton,"PADDING","10x10");
+    IupSetAttribute(saveButton,"FONT","Arial, 24");
+
+    startBox = IupHbox(IupFill(),startButton,saveButton,IupFill(), NULL);
     startVbox = IupVbox(IupFill(),startBox,IupFill(),NULL);
     IupSetAttribute(startBox,"ALIGNMENT","ACENTER");
     IupSetAttribute(startVbox,"ALIGNMENT","ACENTER");
 
     createBasicBox();
+    createProgramBox();
     createVideoBox();
     createAudioBox();
+    createEncoderBox();
     createMiscBox();
 
     activateStartButton();
 
     // dlg = IupDialog(IupTabs(gridbox,videoBox,miscBox,NULL));
-    dlg = IupDialog(IupVbox(IupTabs(gridbox,videoBox,audioBox,miscBox,NULL),startVbox,NULL));
+    dlg = IupDialog(IupVbox(IupTabs(gridbox,programBox,videoBox,audioBox,encoderBox,miscBox,NULL),startVbox,NULL));
     IupSetAttribute(dlg,"TITLE","Lua Music Visualizer");
     IupSetAttribute(dlg,"SIZE","300x170");
     IupShowXY(dlg,IUP_CENTER,IUP_CENTER);
