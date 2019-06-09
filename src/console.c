@@ -38,8 +38,8 @@ int main(int argc, char **argv) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(generator == NULL) return 1;
 
-    generator->width  = 1920;
-    generator->height = 1080;
+    generator->width  = 1280;
+    generator->height =  720;
     generator->fps    =   60;
     processor->spectrum_bars = 24;
 

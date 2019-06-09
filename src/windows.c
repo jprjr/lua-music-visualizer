@@ -181,7 +181,8 @@ static int startButtonCb(Ihandle *self) {
     char *fps_t = IupGetAttribute(fpsDropdown,IupGetAttribute(fpsDropdown,"VALUE"));
     char *width_t = IupGetAttribute(widthText,"VALUE");
     char *height_t = IupGetAttribute(heightText,"VALUE");
-    unsigned int fps, width, height;
+    char *bars_t = IupGetAttribute(barsText,"VALUE");
+    unsigned int fps, width, height, bars;
     char wdir[PATH_MAX];
     char **args = NULL;
     char **a;
@@ -193,6 +194,7 @@ static int startButtonCb(Ihandle *self) {
     scan_uint(fps_t,&fps);
     scan_uint(width_t,&width);
     scan_uint(height_t,&height);
+    scan_uint(bars_t,&bars);
 
     if(width == 0 || height == 0) {
         IupMessageError(dlg,"Unable to figure out the width or height wtf?");
@@ -226,6 +228,7 @@ static int startButtonCb(Ihandle *self) {
     generator->width = width;
     generator->height = height;
     generator->fps = fps;
+    processor->spectrum_bars = bars;
 
     jpr_proc_info_init(&process);
     jpr_proc_pipe_init(&child_stdin);
