@@ -1089,7 +1089,8 @@ int luaimage_stop_threads(void) {
     return 0;
 }
 
-int luaopen_image(lua_State *L) {
+int
+luaopen_image(lua_State *L, void *v, void (*cb_set)(void *,lua_State *,intptr_t,unsigned int,uint8_t *)) {
     luaL_newmetatable(L,"image");
     lua_newtable(L);
     luaL_setfuncs(L,lua_image_image_methods,0);
@@ -1110,7 +1111,14 @@ int luaopen_image(lua_State *L) {
         exit(1);
     }
 
-    if(lua_pcall(L,0,0,0)) {
+    lua_pushlightuserdata(L,image_probe);
+    lua_pushlightuserdata(L,image_load);
+    lua_pushlightuserdata(L,queue_image_load);
+    lua_pushlightuserdata(L,image_blend);
+    lua_pushlightuserdata(L,cb_set);
+    lua_pushlightuserdata(L,v);
+
+    if(lua_pcall(L,6,0,0)) {
         fprintf(stderr,"error calling image.lua: %s\n",lua_tostring(L,-1));
         exit(1);
     }

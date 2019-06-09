@@ -237,32 +237,35 @@ enum IMAGE_STATE {
 };
 
 void
-queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, unsigned int height, unsigned int channels);
-
-void
 free (void *ptr);
 
 void *
 memcpy(void *dst, void *src, size_t n);
 
-int
-image_probe (const char *filename, unsigned int *width, unsigned int *height, unsigned int *channels);
+typedef int (*image_probe)
+(const char *filename, unsigned int *width, unsigned int *height, unsigned int *channels);
 
-uint8_t *
-image_load (const char *filename, unsigned int *width, unsigned int *height, unsigned int *channels, unsigned int *frames);
+typedef uint8_t *(*image_load)
+(const char *filename, unsigned int *width, unsigned int *height, unsigned int *channels, unsigned int *frames);
 
-void
-lua_image_queue(void *table_ref, int (*load_func)(void *, void *));
+typedef void (*queue_image_load)
+(intptr_t table_ref,const char* filename, unsigned int width, unsigned int height, unsigned int channels);
 
-void
-image_blend(uint8_t *dst, uint8_t *src, unsigned int len, uint8_t a);
+typedef void (*image_blend)
+(uint8_t *dst, uint8_t *src, unsigned int len, uint8_t a);
 
-void
-visualizer_set_image_cb(void (*lua_image_cb)(void *L, intptr_t table_ref, unsigned int frames, uint8_t *image));
+typedef void (*video_set_image_cb)
+(void *,void (*)(void *, intptr_t, unsigned int, uint8_t *));
 
 ]]
 
-local to_uint = ffi.typeof("uint8_t *")
+local args = {...}
+
+local image_probe = ffi.cast('image_probe',args[1])
+local image_load = ffi.cast('image_load',args[2])
+local queue_image_load = ffi.cast('queue_image_load',args[3])
+local image_blend = ffi.cast('image_blend',args[4])
+local video_set_image_cb = ffi.cast('video_set_image_cb',args[5])
 
 local function load_image_mem_chunk(t_image,frames,img)
   local x = t_image.width
@@ -308,7 +311,7 @@ local function load_image_mem_chunk(t_image,frames,img)
   return
 end
 
-ffi.C.visualizer_set_image_cb(function(lua,table_ref,frames,img)
+local function image_cb(lua,table_ref,frames,img)
   local t_image = image.from_ref(tonumber(table_ref))
 
   if img == ffi.NULL then
@@ -323,8 +326,7 @@ ffi.C.visualizer_set_image_cb(function(lua,table_ref,frames,img)
 
   ffi.C.free(img)
   return
-
-end)
+end
 
 image_mt_funcs.draw_rectangle = function(self,x1,y1,x2,y2,r,g,b,a)
   local xstart, xend
@@ -421,7 +423,7 @@ image.new = function(filename,width,height,channels)
   channels = ffi.new("unsigned int[1]",channels);
 
   if filename then
-    if ffi.C.image_probe(filename,width,height,channels) == 0 then
+    if image_probe(filename,width,height,channels) == 0 then
       return nil,"Unable to probe image"
     end
   end
@@ -458,7 +460,7 @@ image_mt_funcs.blend = function(self,b,a)
   if self.image_len ~= b.image_len then
     return
   end
-  ffi.C.image_blend(self.image,b.image,self.image_len,a)
+  image_blend(self.image,b.image,self.image_len,a)
 end
 
 image_mt_funcs.set_pixel = function(self,x,y,r,g,b,a)
@@ -630,7 +632,7 @@ image_c_funcs.load = function(self,async)
     local height   = ffi.new("unsigned int[1]",self.height)
     local channels = ffi.new("unsigned int[1]",self.channels);
 
-    local image = ffi.C.image_load(self.filename,width,height,channels,frames)
+    local image = image_load(self.filename,width,height,channels,frames)
 
     if image == ffi.NULL then
       self.frames = nil
@@ -647,7 +649,7 @@ image_c_funcs.load = function(self,async)
     return true
   end
 
-  ffi.C.queue_image_load(self:get_ref(),self.filename,self.width,self.height,self.channels)
+  queue_image_load(self:get_ref(),self.filename,self.width,self.height,self.channels)
   return true
 
 end
@@ -669,3 +671,4 @@ image_mt_funcs.set = function(self,a)
   ffi.C.memcpy(self.image,a.image,self.image_len)
 end
 
+video_set_image_cb(args[6],image_cb)

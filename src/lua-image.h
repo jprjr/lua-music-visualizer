@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 int
-luaopen_image(lua_State *L);
+luaopen_image(lua_State *L, void *v, void (*cb_set)(void *,lua_State *,intptr_t,unsigned int,uint8_t *));
 
 int
 luaclose_image();

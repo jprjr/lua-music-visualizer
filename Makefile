@@ -4,7 +4,7 @@
 
 all: lua-music-visualizer
 
-LUA = lua
+LUA = luajit
 
 OBJS = \
   src/console.o \

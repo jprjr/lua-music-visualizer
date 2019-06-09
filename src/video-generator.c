@@ -19,7 +19,7 @@
 #include <fcntl.h>
 #endif
 
-void format_dword(uint8_t *buf, int32_t n) {
+static void format_dword(uint8_t *buf, int32_t n) {
     *(buf+0) = n;
     *(buf+1) = n >> 8;
     *(buf+2) = n >> 16;
@@ -28,10 +28,15 @@ void format_dword(uint8_t *buf, int32_t n) {
 
 #define format_long(b,n) format_dword(b,n)
 
-void format_word(uint8_t *buf, int16_t n) {
+static void format_word(uint8_t *buf, int16_t n) {
     *(buf+0) = n;
     *(buf+1) = n >> 8;
 }
+
+static void video_generator_set_image_cb(video_generator *v, void(*f)(lua_State *, intptr_t , unsigned int, uint8_t *)) {
+    v->image_cb = f;
+}
+
 
 static void onmeta(void *ctx, const char *key, const char *value) {
     video_generator *v = ctx;
@@ -188,7 +193,7 @@ int video_generator_loop(video_generator *v) {
     while(thread_queue_count(&(v->image_queue)) > 0) {
         q = thread_queue_consume(&(v->image_queue));
         if(q != NULL) {
-            lua_load_image_cb(v->L,q->table_ref,q->frames,q->image);
+            v->image_cb(v->L,q->table_ref,q->frames,q->image);
             luaL_unref(v->L,LUA_REGISTRYINDEX,q->table_ref);
             free(q->filename);
             free(q);
@@ -351,8 +356,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
 
     v->decoder = d;
     v->processor = p;
+    v->image_cb = lua_load_image_cb;
 
-    luaopen_image(v->L);
+    luaopen_image(v->L,v,video_generator_set_image_cb);
     luaimage_setup_threads(&(v->image_queue));
     luaopen_file(v->L);
 
