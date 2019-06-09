@@ -57,6 +57,14 @@ static Ihandle *outputBtn, *outputText;
 static Ihandle *miscBox;
 static Ihandle *cwdBtn, *cwdText;
 
+static int printable(char *s) {
+    unsigned int i = 0;
+    while(i < str_len(s)) {
+        if(s[i] < 32) return 0;
+        i++;
+    }
+    return 1;
+}
 
 static void activateStartButton(void) {
     if(str_len(IupGetAttribute(songText,"VALUE")) == 0) return;
@@ -84,11 +92,6 @@ static const char *findVideoPlayer(void) {
         p++;
     }
     return *p;
-}
-
-static int dumpValue(Ihandle *self) {
-    fprintf(stderr,"%s\n",IupGetAttribute(self,"VALUE"));
-    return IUP_DEFAULT;
 }
 
 static int lazySetTextCB(Ihandle *self, char *filename, int num, int x, int y) {
@@ -346,8 +349,12 @@ static int saveButtonCb(Ihandle *self) {
     do {
       i = str_chr(f,' ');
       if(i>0) {
+          /* we may get some extra args this way but no big deal */
           total_args++;
           f += i + 1;
+      }
+      else {
+          f++;
       }
     } while(*f);
 
@@ -364,8 +371,13 @@ static int saveButtonCb(Ihandle *self) {
       i = str_chr(f,' ');
       if(i>0) {
           f[i] = 0;
-          *a++ = f;
+          if(f[0] != ' ' && str_len(f) > 0 && printable(f)) {
+              *a++ = f;
+          }
           f += i + 1;
+      }
+      else {
+          f++;
       }
     } while(*f);
 
@@ -414,28 +426,39 @@ cleanshitup_start:
 }
 
 static int updateAndSaveConfig(Ihandle *self) {
+    char *sec = NULL;
+    char *key = NULL;
+    char *val = NULL;
     if(self == fpsDropdown) {
-        IupConfigSetVariableStr(config,"video","fps",
-          IupGetAttribute(self,
-            IupGetAttribute(self,"VALUE")));
+        sec = "video";
+        key = "fps";
+        val = IupGetAttribute(self, IupGetAttribute(self,"VALUE"));
     }
     else if(self == widthText) {
-        IupConfigSetVariableStr(config,"video","width",
-          IupGetAttribute(self,"VALUE"));
+        sec = "video";
+        key = "width";
+        val = IupGetAttribute(self,"VALUE");
     }
     else if(self == heightText) {
-        IupConfigSetVariableStr(config,"video","height",
-          IupGetAttribute(self,"VALUE"));
+        sec = "video";
+        key = "height";
+        val = IupGetAttribute(self,"VALUE");
     }
     else if(self == barsText) {
-        IupConfigSetVariableStr(config,"audio","visualizer bars",
-          IupGetAttribute(self,"VALUE"));
+        sec = "audio";
+        key = "visualizer bars";
+        val = IupGetAttribute(self,"VALUE");
     }
     else if(self == ffmpegArgsText) {
-        IupConfigSetVariableStr(config,"audio","ffmpeg args",
-          IupGetAttribute(self,"VALUE"));
+        sec = "global";
+        key = "ffmpeg args";
+        val = IupGetAttribute(self,"VALUE");
     }
-    IupConfigSave(config);
+    if(sec != NULL && key != NULL) {
+        IupConfigSetVariableStr(config,sec,key,val);
+        IupConfigSave(config);
+    }
+    activateStartButton();
 
     return IUP_DEFAULT;
 }
