@@ -1,0 +1,9 @@
+src/bin2c
+*.o
+*.a
+*.exe
+*.lua.lh
+*.res
+*.swp
+/lua-music-visualizer
+/src/iup

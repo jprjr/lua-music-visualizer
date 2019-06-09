@@ -1,5 +1,9 @@
 TECGRAF_ICON ICON "lua-music-visualizer.ico"  /* the first icon will also defines the executable icon in Explorer */
-CURSOR_PEN CURSOR "iup/deps/iup-3.27/etc/pen.cur"
+#if defined(TEC_64) || defined(__MINGW64__) || defined(__x86_64__) || defined(_WIN64)
+CURSOR_PEN CURSOR "/usr/x86_64-w64-mingw32/etc/iup/pen.cur"
+#else
+CURSOR_PEN CURSOR "/usr/i686-w64-mingw32/etc/iup/pen.cur"
+#endif
 
 1 VERSIONINFO
  FILEVERSION 1,0,0,0
@@ -48,10 +52,10 @@ END
 
 /* don't add this if building the DLL */
 #ifndef IUP_DLL
-#if defined(TEC_64) || defined(__MINGW64__) || defined(__x86_64__) || defined(_WIN64)
-1 24 "iup/deps/iup-3.27/etc/iup64.manifest"
+#if defined(TEC_64) || defined(__MINGW64__) || defined(__x86_64__)
+1 24 "/usr/x86_64-w64-mingw32/etc/iup/iup64.manifest"
 #else
-1 24 "iup/deps/iup-3.27/etc/iup.manifest"
+1 24 "/usr/i686-w64-mingw32/etc/iup/iup.manifest"
 #endif
 #endif
 
