@@ -18,7 +18,7 @@ lua_amp_index(lua_State *L) {
     lua_getfield(L,1,"data");
     a = lua_touserdata(L,-1);
 
-    if((unsigned int)index >= SPECTRUM_BARS) {
+    if((unsigned int)index >= a->spectrum_bars) {
         return 0;
     }
 
@@ -41,11 +41,11 @@ int luaopen_audio(lua_State *L,audio_processor *a) {
     lua_pushinteger(L,a->decoder->channels);
     lua_setfield(L,-2,"channels");
 
-    lua_pushinteger(L,SPECTRUM_BARS);
+    lua_pushinteger(L,a->spectrum_bars);
     lua_setfield(L,-2,"spectrum_len");
 
     lua_newtable(L); /* audio.freqs */
-    for(i=0;i<20;i++) {
+    for(i=0;i<a->spectrum_bars;i++) {
         lua_pushinteger(L,i+1);
         lua_pushnumber(L,a->spectrum[i].freq);
         lua_rawset(L,-3);

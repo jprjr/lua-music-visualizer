@@ -38,6 +38,11 @@ int main(int argc, char **argv) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(generator == NULL) return 1;
 
+    generator->width  = 1920;
+    generator->height = 1080;
+    generator->fps    =   60;
+    processor->spectrum_bars = 24;
+
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,f)) {
         fprintf(stderr,"error starting the video generator\n");
         return 1;

@@ -12,8 +12,12 @@ typedef struct video_generator_s video_generator;
 struct video_generator_s {
     audio_processor *processor;
     audio_decoder *decoder;
+    unsigned int width;
+    unsigned int height;
+    unsigned int fps;
     void *outHandle;
-    uint8_t framebuf[1280 * 720 * 3];
+    uint8_t *framebuf;
+    unsigned int framebuf_len;
     lua_State *L;
     int load_ref;
     int frame_ref;

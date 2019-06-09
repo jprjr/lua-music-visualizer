@@ -12,6 +12,7 @@ all: lua-music-visualizer.exe
 
 OBJS = \
   src/windows.o \
+  src/scan.o \
   src/video-generator.o \
   src/lua-image.o \
   src/lua-file.o \

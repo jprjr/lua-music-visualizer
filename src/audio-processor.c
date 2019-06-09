@@ -35,16 +35,16 @@ static kiss_fft_scalar cpx_abs(kiss_fft_cpx c) {
     return sqrt( (c.r * c.r) + (c.i * c.i));
 }
 
-static kiss_fft_scalar cpx_amp(kiss_fft_cpx c) {
-    return 20.0f * log10(2.0f * cpx_abs(c) / 4096);
+static kiss_fft_scalar cpx_amp(double buffer_len, kiss_fft_cpx c) {
+    return 20.0f * log10(2.0f * cpx_abs(c) /buffer_len);
 }
 
-static kiss_fft_scalar find_amplitude_max(kiss_fft_cpx *out, unsigned int start, unsigned int end) {
+static kiss_fft_scalar find_amplitude_max(double buffer_len, kiss_fft_cpx *out, unsigned int start, unsigned int end) {
     unsigned int i = 0;
     kiss_fft_scalar val = -INFINITY;
     kiss_fft_scalar tmp = 0.0f;
     for(i=start;i<=end;i++) {
-        tmp = cpx_amp(out[i]);
+        tmp = cpx_amp(buffer_len,out[i]);
         /* see https://groups.google.com/d/msg/comp.dsp/cZsS1ftN5oI/rEjHXKTxgv8J */
         val = AUDIO_MAX(tmp,val);
     }
@@ -56,54 +56,85 @@ static kiss_fft_scalar window_blackman_harris(int i, int n) {
     return 0.35875 - 0.48829*cos(a*i) + 0.14128*cos(2*a*i) - 0.01168*cos(3*a*i);
 }
 
-int audio_processor_init(audio_processor *p, audio_decoder *a) {
-    int i = 0;
+int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int samples_per_frame) {
+    unsigned int i = 0;
     double octaves = ceil(log2(FREQ_MAX / FREQ_MIN));
-    double interval = 1.0f / (octaves / SPECTRUM_BARS);
+    double interval = 1.0f / (octaves / p->spectrum_bars);
     double bin_size = 0.0f;
     if(a->type == -1) return 1;
     if(a->samplerate == 0) return 1;
     if(a->channels == 0) return 1;
     if(a->framecount == 0) return 1;
-    bin_size = (double)a->samplerate / 4096.0f;
+
+    p->buffer_len = 4096;
+    while(p->buffer_len < samples_per_frame) {
+        p->buffer_len *= 2;
+    }
     p->decoder = a;
-    memset(p->buffer,0,sizeof(int16_t)*8192);
-    memset(p->mbuffer,0,sizeof(kiss_fft_scalar)*4096);
-    memset(p->wbuffer,0,sizeof(kiss_fft_scalar)*4096);
-    memset(p->obuffer,0,sizeof(kiss_fft_cpx)*2049);
-    p->plan = kiss_fftr_alloc(4096, 0, NULL, NULL);
-    if(p->plan == NULL) return 1;
-    while(i<4096) {
-        p->wbuffer[i] = window_blackman_harris(i,4096);
-        i++;
+
+    p->buffer = (int16_t *)malloc(sizeof(int16_t) * p->buffer_len * a->channels);
+    if(p->buffer == NULL) return 1;
+    memset(p->buffer,0,sizeof(int16_t)*(p->buffer_len * p->decoder->channels));
+
+    if(p->spectrum_bars > 0) {
+        p->mbuffer = (kiss_fft_scalar *)malloc(sizeof(kiss_fft_scalar) * p->buffer_len);
+        if(p->mbuffer == NULL) return 1;
+
+        p->wbuffer = (kiss_fft_scalar *)malloc(sizeof(kiss_fft_scalar) * p->buffer_len);
+        if(p->wbuffer == NULL) return 1;
+
+        p->obuffer = (kiss_fft_cpx *)malloc(sizeof(kiss_fft_cpx) * ( (p->buffer_len / 2) + 1));
+        if(p->obuffer == NULL) return 1;
+
+        p->spectrum = (frange *)malloc(sizeof(frange) * (p->spectrum_bars + 1));
+        if(p->spectrum == NULL) return 1;
+
+        memset(p->mbuffer,0,sizeof(kiss_fft_scalar)*p->buffer_len);
+        memset(p->wbuffer,0,sizeof(kiss_fft_scalar)*p->buffer_len);
+        memset(p->obuffer,0,sizeof(kiss_fft_cpx) * ((p->buffer_len/2)+1) );
+
+        bin_size = (double)a->samplerate / ((double)p->buffer_len);
+        p->plan = kiss_fftr_alloc(p->buffer_len, 0, NULL, NULL);
+        if(p->plan == NULL) return 1;
+        while(i<p->buffer_len) {
+            p->wbuffer[i] = window_blackman_harris(i,p->buffer_len);
+            i++;
+        }
+        p->firstflag = 0;
+
+        for(i=0;i<p->spectrum_bars + 1;i++) {
+            p->spectrum[i].amp = 0.0f;
+            p->spectrum[i].prevamp = 0.0f;
+            if(i==0) {
+                p->spectrum[i].freq = FREQ_MIN;
+            }
+            else {
+                /* see http://www.zytrax.com/tech/audio/calculator.html#centers_calc */
+                p->spectrum[i].freq = p->spectrum[i-1].freq * pow(10, 3 / (10 * interval));
+            }
+
+            /* fudging this a bit to avoid overlap */
+            double upper_freq = p->spectrum[i].freq * pow(10, (3 * 1) / (10 * 2 * floor(interval)));
+            double lower_freq = p->spectrum[i].freq / pow(10, (3 * 1) / (10 * 2 * ceil(interval)));
+
+            p->spectrum[i].first_bin = (unsigned int)floor(lower_freq / bin_size);
+            p->spectrum[i].last_bin = (unsigned int)floor(upper_freq / bin_size);
+
+            if(p->spectrum[i].last_bin > p->buffer_len / 2) {
+                p->spectrum[i].last_bin = p->buffer_len / 2;
+            }
+            /* figure out the ITU-R 468 weighting to apply */
+            p->spectrum[i].boost = itur_468(p->spectrum[i].freq);
+
+        }
     }
-    p->firstflag = 0;
-
-    for(i=0;i<SPECTRUM_BARS + 1;i++) {
-        p->spectrum[i].amp = 0.0f;
-        p->spectrum[i].prevamp = 0.0f;
-        if(i==0) {
-            p->spectrum[i].freq = FREQ_MIN;
-        }
-        else {
-            /* see http://www.zytrax.com/tech/audio/calculator.html#centers_calc */
-            p->spectrum[i].freq = p->spectrum[i-1].freq * pow(10, 3 / (10 * interval));
-        }
-
-        /* fudging this a bit to avoid overlap */
-        double upper_freq = p->spectrum[i].freq * pow(10, (3 * 1) / (10 * 2 * floor(interval)));
-        double lower_freq = p->spectrum[i].freq / pow(10, (3 * 1) / (10 * 2 * ceil(interval)));
-
-        p->spectrum[i].first_bin = (unsigned int)floor(lower_freq / bin_size);
-        p->spectrum[i].last_bin = (unsigned int)floor(upper_freq / bin_size);
-
-        if(p->spectrum[i].last_bin > 4096 / 2) {
-            p->spectrum[i].last_bin = 4096 / 2;
-        }
-        /* figure out the ITU-R 468 weighting to apply */
-        p->spectrum[i].boost = itur_468(p->spectrum[i].freq);
-
+    else {
+        p->mbuffer = NULL;
+        p->wbuffer = NULL;
+        p->obuffer = NULL;
+        p->spectrum = NULL;
     }
+
 
     return 0;
 }
@@ -113,35 +144,37 @@ void audio_processor_close(audio_processor *p) {
         KISS_FFT_FREE(p->plan);
         p->plan = NULL;
     }
+    if(p->buffer != NULL) {
+        free(p->buffer);
+        p->buffer = NULL;
+    }
+
+    if(p->mbuffer != NULL) {
+        free(p->mbuffer);
+        p->mbuffer = NULL;
+    }
+
+    if(p->wbuffer != NULL) {
+        free(p->wbuffer);
+        p->wbuffer = NULL;
+    }
+
+    if(p->obuffer != NULL) {
+        free(p->obuffer);
+        p->obuffer = NULL;
+    }
+
+    if(p->spectrum != NULL) {
+        free(p->spectrum);
+        p->spectrum = NULL;
+    }
 }
 
-unsigned int audio_processor_process(audio_processor *p, unsigned int framecount) {
-    /* first shift everything in the buffer down */
+static void audio_processor_fft(audio_processor *p) {
+    unsigned int i=0;
     kiss_fft_scalar m = 0;
-    unsigned int i = 0;
-    unsigned int r = 0;
-    unsigned int o = 8192 - (framecount * p->decoder->channels);
 
-    while(i+framecount < 8192) {
-        p->buffer[i] = p->buffer[framecount+i];
-        i++;
-    }
-
-    r = audio_decoder_decode(p->decoder,framecount,&(p->buffer[o]));
-
-    if(r < framecount) {
-        i = r;
-        while(i<framecount) {
-            p->buffer[o+(i*p->decoder->channels)] = 0.0f;
-            if(p->decoder->channels > 1) {
-                p->buffer[o+(i*p->decoder->channels) + 1] = 0.0f;
-            }
-            i++;
-        }
-    }
-
-    i=0;
-    while(i < 4096) {
+    while(i < p->buffer_len) {
         if(p->decoder->channels ==2) {
             m = p->buffer[i * 2] + p->buffer[(i*2)+1];
             m /= 2.0f;
@@ -155,8 +188,8 @@ unsigned int audio_processor_process(audio_processor *p, unsigned int framecount
 
     kiss_fftr(p->plan,p->mbuffer,p->obuffer);
 
-    for(i=0;i<SPECTRUM_BARS;i++) {
-        p->spectrum[i].amp = find_amplitude_max(p->obuffer,p->spectrum[i].first_bin,p->spectrum[i].last_bin);
+    for(i=0;i<p->spectrum_bars;i++) {
+        p->spectrum[i].amp = find_amplitude_max((double)p->buffer_len,p->obuffer,p->spectrum[i].first_bin,p->spectrum[i].last_bin);
 
         if(!isfinite(p->spectrum[i].amp)) {
             p->spectrum[i].amp = -999.0f;
@@ -201,6 +234,33 @@ unsigned int audio_processor_process(audio_processor *p, unsigned int framecount
         p->spectrum[i].prevamp = p->spectrum[i].amp;
 
     }
+}
+
+unsigned int audio_processor_process(audio_processor *p, unsigned int framecount) {
+    /* first shift everything in the buffer down */
+    unsigned int i = 0;
+    unsigned int r = 0;
+    unsigned int o = (p->buffer_len * p->decoder->channels) - (framecount * p->decoder->channels);
+
+    while(i+framecount < (p->buffer_len * p->decoder->channels)) {
+        p->buffer[i] = p->buffer[framecount+i];
+        i++;
+    }
+
+    r = audio_decoder_decode(p->decoder,framecount,&(p->buffer[o]));
+
+    if(r < framecount) {
+        i = r;
+        while(i<framecount) {
+            p->buffer[o+(i*p->decoder->channels)] = 0.0f;
+            if(p->decoder->channels > 1) {
+                p->buffer[o+(i*p->decoder->channels) + 1] = 0.0f;
+            }
+            i++;
+        }
+    }
+
+    if(p->spectrum_bars > 0) audio_processor_fft(p);
 
     return r;
 }
