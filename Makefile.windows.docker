@@ -12,7 +12,7 @@ OBJS += src/windows.o src/scan.o
 CLEAN += lua-music-visualizer.exe src/lua-music-visualizer-global.res
 
 CFLAGS += -Wall -Wextra -Wno-cast-function-type
-LDFLAGS += -static -mconsole -liup -lluajit -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi
+LDFLAGS += -s -static -mconsole -liup -lluajit -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi
 
 all: lua-music-visualizer.exe
 
