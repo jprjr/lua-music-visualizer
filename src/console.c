@@ -19,7 +19,6 @@ int main(int argc, char **argv) {
     const char *songfile = argv[1];
     const char *scriptfile = argv[2];
     const char *output = argv[3];
-    unsigned int r = 0;
 
     if(str_cmp(output,"-") == 0) {
         f = stdout;
@@ -48,9 +47,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    do {
-        r = video_generator_loop(generator);
-    } while (r == 0);
+    while(video_generator_loop(generator) == 0);
 
     video_generator_close(generator);
 

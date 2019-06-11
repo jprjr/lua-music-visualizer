@@ -3,6 +3,7 @@ all: lua-music-visualizer
 include Makefile.common
 
 LUA = luajit
+HOST_CC=$(CC)
 
 OBJS += src/console.o
 CFLAGS += $(shell pkg-config --cflags $(LUA))

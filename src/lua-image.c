@@ -81,7 +81,8 @@ lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, uns
 }
 
 void
-lua_load_image_cb(lua_State *L, intptr_t table_ref, unsigned int frames, uint8_t *image) {
+lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *image) {
+    lua_State *L = (lua_State *)Lua;
     unsigned int width = 0;
     unsigned int height = 0;
     unsigned int channels = 0;
@@ -1090,7 +1091,7 @@ int luaimage_stop_threads(void) {
 }
 
 int
-luaopen_image(lua_State *L, void *v, void (*cb_set)(void *,lua_State *,intptr_t,unsigned int,uint8_t *)) {
+luaopen_image(lua_State *L, void *v, void (*cb_set)(void *,void (*)(void *,intptr_t,unsigned int,uint8_t *))) {
     luaL_newmetatable(L,"image");
     lua_newtable(L);
     luaL_setfuncs(L,lua_image_image_methods,0);

@@ -7,7 +7,6 @@
 #include <io.h>
 #include <fcntl.h>
 #include <tchar.h>
-#include <strsafe.h>
 #include "audio-decoder.h"
 #include "audio-processor.h"
 #include "video-generator.h"
@@ -274,7 +273,7 @@ static int setupVideoGenerator(void) {
     }
 
     if(str_len(workdir) > 0) {
-        str_cpy(wdir,workdir);
+        strcpy(wdir,workdir);
     }
     else {
         GetCurrentDirectory(PATH_MAX,wdir);
@@ -303,7 +302,6 @@ videogenerator_fail:
 static void startVideoGenerator(const char *songfile, const char *scriptfile, const char *const *args) {
     jpr_proc_info process;
     jpr_proc_pipe child_stdin;
-    unsigned int r = 0;
     int t = 0;
 
     if(setupVideoGenerator()) return;
@@ -318,9 +316,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
         goto startvideo_cleanup;
     }
 
-    do {
-        r = video_generator_loop(generator);
-    } while (r == 0);
+    while(video_generator_loop(generator) == 0);
 
     video_generator_close(generator);
 

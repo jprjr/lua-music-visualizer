@@ -15,6 +15,14 @@
   #define JPR_PROC_IMPLEMENTATION
   #include "jpr_proc.h"
 
+  By default, this will use standard library/built-ins like strlen
+  and strcat.
+  You can add
+  #define STRLEN(x) my_strlen(x)
+  #define STRCAT(dest,src) my_strcat(dest,src)
+  if you want to use some other implementation. On Windows, you can
+  build binaries that only link against kernel32 if you do this.
+
   There's two basic types you use: jpr_proc_info and jpr_proc_pipe.
 
   You allocate a proc_info struct and call jpr_proc_info_init on it.
@@ -31,6 +39,17 @@
 
 #include <stddef.h>
 #include <limits.h>
+
+#if !defined(STRLEN) || !defined(STRCAT)
+#include <string.h>
+#ifndef STRLEN
+#define STRLEN(x) strlen(x)
+#endif
+#ifndef STRCAT
+#define STRCAT(d,s) strcat(d,s)
+#endif
+#endif
+
 
 typedef struct jpr_proc_info_s jpr_proc_info;
 typedef struct jpr_proc_pipe_s jpr_proc_pipe;
@@ -99,37 +118,19 @@ static int jpr_coe(int fd) {
 #endif
 
 #ifdef _WIN32
-static unsigned int jpr_strlen(const char *str) {
-    const char *s;
-    s = str;
-    while(*s) s++;
-    return s - str;
-}
-
-static unsigned int jpr_strcat(char *d, const char *s) {
-    int n = 0;
-
-    d += jpr_strlen(d);
-    while(*s) {
-        *d++ = *s++;
-        n++;
-    }
-    *d = '\0';
-    return n;
-}
 
 static unsigned int jpr_strcat_escape(char *d, const char *s) {
     int n = 0;
     char echar = '\0';
     int ecount = 0;
 
-    if(d != NULL) d += jpr_strlen(d);
+    if(d != NULL) d += STRLEN(d);
     while(*s) {
         ecount = 0;
         switch(*s) {
             case '"':  ecount=1; echar='\\'; break;
             case '\\': {
-                if(jpr_strlen(s) == 1) {
+                if(STRLEN(s) == 1) {
                     ecount=1;echar='\\';
                 }
                 else {
@@ -312,15 +313,15 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
     }
 
     p = argv;
-    jpr_strcat(cmdLine,"\"");
+    STRCAT(cmdLine,"\"");
     jpr_strcat_escape(cmdLine,*p);
-    jpr_strcat(cmdLine,"\"");
+    STRCAT(cmdLine,"\"");
     p++;
 
     while(*p != NULL) {
-        jpr_strcat(cmdLine," \"");
+        STRCAT(cmdLine," \"");
         jpr_strcat_escape(cmdLine,*p);
-        jpr_strcat(cmdLine,"\"");
+        STRCAT(cmdLine,"\"");
         p++;
     }
 
@@ -518,11 +519,11 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
                     *t = '\0';
                 }
 
-                if(strlen(argv0)) {
-                    strcat(argv0,"/");
+                if(STRLEN(argv0)) {
+                    STRCAT(argv0,"/");
                 }
-                if(strlen(argv0) + argv0len < 4095) {
-                    strcat(argv0,argv[0]);
+                if(STRLEN(argv0) + argv0len < 4095) {
+                    STRCAT(argv0,argv[0]);
                 }
                 execve(argv0,(char * const*)argv,environ);
 

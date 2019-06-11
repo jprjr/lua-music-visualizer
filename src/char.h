@@ -1,15 +1,17 @@
 #ifndef CHAR_H
 #define CHAR_H
 
+#include <ctype.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-unsigned char char_isdigit(char c);
-unsigned char char_isupper(char c);
-unsigned char char_islower(char c);
-char char_lower(char c);
-char char_upper(char c);
+#define char_isdigit(c) isdigit(c)
+#define char_isupper(c) isupper(c)
+#define char_islower(c) islower(c)
+#define char_lower(c) tolower(c)
+#define char_upper(c) toupper(c)
 
 #ifdef __cplusplus
 }
