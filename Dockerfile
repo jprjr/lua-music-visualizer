@@ -27,9 +27,9 @@ WORKDIR /src/lua-music-visualizer
 
 RUN \
     make -f Makefile.windows.docker TARGET=i686-w64-mingw32 clean && \
-    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 && \
+    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 -j4 && \
     mv lua-music-visualizer.exe lua-music-visualizer-luajit32.exe && \
     make -f Makefile.windows.docker TARGET=i686-w64-mingw32 clean && \
-    make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 && \
+    make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 -j4 && \
     mv lua-music-visualizer.exe lua-music-visualizer-luajit64.exe && \
     make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 clean
