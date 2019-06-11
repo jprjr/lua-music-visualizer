@@ -303,7 +303,6 @@ videogenerator_fail:
 static void startVideoGenerator(const char *songfile, const char *scriptfile, const char *const *args) {
     jpr_proc_info process;
     jpr_proc_pipe child_stdin;
-    unsigned int r = 0;
     int t = 0;
 
     if(setupVideoGenerator()) return;
@@ -318,9 +317,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
         goto startvideo_cleanup;
     }
 
-    do {
-        r = video_generator_loop(generator);
-    } while (r == 0);
+    video_generator_loop(generator);
 
     video_generator_close(generator);
 

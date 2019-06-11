@@ -61,7 +61,7 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
     double octaves = ceil(log2(FREQ_MAX / FREQ_MIN));
     double interval = 1.0f / (octaves / p->spectrum_bars);
     double bin_size = 0.0f;
-    if(a->type == -1) return 1;
+
     if(a->samplerate == 0) return 1;
     if(a->channels == 0) return 1;
     if(a->framecount == 0) return 1;

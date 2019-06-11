@@ -29,7 +29,7 @@ CLEAN = $(OBJS) $(LUALHS)
 BIN2CSRC = src/bin2c.c
 
 CFLAGS = -Wall -Wextra -Wno-cast-function-type -Os -g
-LDFLAGS = -s
+LDFLAGS =
 
 %.o: %.c $(LUALHS)
 	$(CC) $(CFLAGS) -o $@ -c $<

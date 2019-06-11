@@ -185,6 +185,8 @@ int video_generator_loop(video_generator *v) {
 
     int pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
 
+    do {
+
     samps = audio_processor_process(v->processor, v->samples_per_frame);
     r = samps < v->samples_per_frame;
 
@@ -255,6 +257,7 @@ int video_generator_loop(video_generator *v) {
         fprintf(stderr,"Error on aud_data - wanted to write %u bytes, only wrote: %u\n",v->samples_per_frame * v->processor->decoder->channels * 2,i);
         return 1;
     }
+    } while(r == 0);
 
     return r;
 }

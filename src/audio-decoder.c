@@ -198,22 +198,28 @@ int audio_decoder_init(audio_decoder *a) {
     a->samplerate = 0;
     a->channels = 0;
     a->framecount = 0;
-    a->ctx.p = NULL;
     a->meta_ctx = NULL;
-    a->type = -1;
+    a->samples = NULL;
+    a->frame_pos = 0;
 
     return 0;
 }
 
 int audio_decoder_open(audio_decoder *a, const char *filename) {
+    drflac *flac = NULL;
     drmp3 *mp3 = NULL;
+    drwav *wav = NULL;
+
     if(str_iends(filename,".flac")) {
-        a->ctx.pFlac = drflac_open_file_with_metadata(filename,flac_meta,a);
-        if(a->ctx.pFlac == NULL) return 1;
-        a->framecount = a->ctx.pFlac->totalPCMFrameCount;
-        a->samplerate = a->ctx.pFlac->sampleRate;
-        a->channels = a->ctx.pFlac->channels;
-        a->type = 0;
+        flac = drflac_open_file_with_metadata(filename,flac_meta,a);
+        if(flac == NULL) return 1;
+        a->samples = (int16_t *)malloc(flac->totalPCMFrameCount * flac->channels * sizeof(int16_t));
+        if(a->samples == NULL) return 1;
+        drflac_read_pcm_frames_s16(flac,flac->totalPCMFrameCount, a->samples);
+        a->framecount = flac->totalPCMFrameCount;
+        a->samplerate = flac->sampleRate;
+        a->channels = flac->channels;
+        drflac_close(flac);
     }
     else if(str_iends(filename,".mp3")) {
         mp3_id3(a,filename);
@@ -222,62 +228,60 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
             fprintf(stderr,"out of memory\n");
             return 1;
         }
-        a->ctx.pMp3 = mp3;
-        if(!drmp3_init_file(a->ctx.pMp3,filename,NULL)) {
+        if(!drmp3_init_file(mp3,filename,NULL)) {
             fprintf(stderr,"error opening as mp3\n");
             free(mp3);
-            a->ctx.pMp3 = NULL;
+            mp3 = NULL;
             return 1;
         }
         a->framecount = drmp3_get_pcm_frame_count(mp3);
         a->samplerate = mp3->sampleRate;
         a->channels = mp3->channels;
-        a->type = 1;
+        a->samples = (int16_t *)malloc(a->framecount * a->channels * sizeof(int16_t));
+        if(a->samples == NULL) {
+            free(mp3);
+            mp3 = NULL;
+            return 1;
+        }
+        drmp3_read_pcm_frames_s16(mp3,a->framecount,a->samples);
+        drmp3_uninit(mp3);
+        free(mp3);
     }
     else if(str_iends(filename,"wav")) {
         wav_id3(a,filename);
-        a->ctx.pWav = drwav_open_file(filename);
-        if(a->ctx.pWav == NULL) return 1;
-        a->framecount = a->ctx.pWav->totalPCMFrameCount;
-        a->samplerate = a->ctx.pWav->sampleRate;
-        a->channels = a->ctx.pWav->channels;
-        a->type = 2;
+        wav = drwav_open_file(filename);
+        if(wav == NULL) return 1;
+        a->framecount = wav->totalPCMFrameCount;
+        a->samplerate = wav->sampleRate;
+        a->channels = wav->channels;
+        a->samples = (int16_t *)malloc(a->framecount * a->channels * sizeof(int16_t));
+        if(a->samples == NULL) {
+            free(wav);
+            wav = NULL;
+            return 1;
+        }
+        drwav_read_pcm_frames_s16(wav,a->framecount,a->samples);
+        drwav_close(wav);
     }
     else {
         fprintf(stderr,"sorry, I don't support that file format\n");
     }
 
-    if(a->ctx.p == NULL) return 1;
     return 0;
 }
 
 unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, int16_t *buf) {
-    switch(a->type) {
-        case 0: return (unsigned int)drflac_read_pcm_frames_s16(a->ctx.pFlac,framecount,buf);
-        case 1: return (unsigned int)drmp3_read_pcm_frames_s16(a->ctx.pMp3,framecount,buf);
-        case 2: return (unsigned int)drwav_read_pcm_frames_s16(a->ctx.pWav,framecount,buf);
-    }
-    return 0;
+    unsigned int count = AUDIO_MIN(framecount,(a->framecount - a->frame_pos));
+    if(count == 0) return count;
+    memcpy((uint8_t *)buf,(uint8_t *)a->samples + (a->frame_pos * sizeof(int16_t) * a->channels),count * sizeof(int16_t) * a->channels);
+    a->frame_pos += count;
+    return count;
 }
 
 void audio_decoder_close(audio_decoder *a) {
-    switch(a->type) {
-        case 0: {
-            drflac_close(a->ctx.pFlac);
-            a->ctx.pFlac = NULL;
-            break;
-        }
-        case 1: {
-            drmp3_uninit(a->ctx.pMp3);
-            free(a->ctx.pMp3);
-            a->ctx.pMp3 = NULL;
-            break;
-        }
-        case 2: {
-            drwav_close(a->ctx.pWav);
-            a->ctx.pWav = NULL;
-            break;
-        }
+    if(a->samples != NULL) {
+        free(a->samples);
+        a->samples = NULL;
     }
 }
 
