@@ -31,7 +31,10 @@ static int str_alloc_resize(str_alloc *s, unsigned int size) {
     if(s->a >= size) return 0;
     t = realloc(s->s,size);
     if(t == NULL) {
-      free(s->s);
+      if(s->s != NULL) {
+        free(s->s);
+        s->s = NULL;
+      }
       return 1;
     }
     s->a = size;
@@ -58,7 +61,7 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     drflac_init_vorbis_comment_iterator(&iter,pMetadata->data.vorbis_comment.commentCount, pMetadata->data.vorbis_comment.pComments);
     while( (comment = drflac_next_vorbis_comment(&iter,&commentLength)) != NULL) {
         if(commentLength > 4095) continue;
-        str_ncpy(buf,comment,commentLength);
+        strncpy(buf,comment,commentLength);
         r = str_chr(buf,'=');
         if(buf[r]) {
             buf[r] = 0;
@@ -79,16 +82,27 @@ static void process_id3(audio_decoder *a, FILE *f) {
     unsigned int (*text_func)(uint8_t *, const uint8_t *, unsigned int) = NULL;
 
     unsigned int id3_size = 0;
+    unsigned int header_size = 0;
     unsigned int frame_size = 0;
     unsigned int dec_len = 0;
+    uint8_t id3_ver = 0;
 
     if(fread(buffer,1,10,f) != 10) return;
     if(str_ncmp(buffer,"ID3",3) != 0) return;
+    id3_ver = (uint8_t)buffer[3];
     id3_size =
       (((unsigned int)buffer[6]) << 21) +
       (((unsigned int)buffer[7]) << 14) +
       (((unsigned int)buffer[8]) << 7 ) +
       (((unsigned int)buffer[9]));
+
+    switch(id3_ver) {
+        case 2: header_size = 6; break;
+        case 3: header_size = 10; break;
+        case 4: header_size = 10; break;
+        default: return;
+    }
+
 
     if(buffer[5] & 0x20) {
         if(fread(buffer,1,6,f) != 6) return;
@@ -102,13 +116,18 @@ static void process_id3(audio_decoder *a, FILE *f) {
     }
 
     while(id3_size > 0) {
-        if(fread(buffer,1,10,f) != 10) goto id3_done;
-        if(memcmp(buffer,allzero,10) == 0) goto id3_done;
+        if(fread(buffer,1,header_size,f) != header_size) goto id3_done;
+        if(memcmp(buffer,allzero,header_size) == 0) goto id3_done;
 
-        id3_size -= 10;
-        frame_size = unpack_uint32be((uint8_t *)buffer + 4);
+        id3_size -= header_size;
+        if(header_size == 10) {
+            frame_size = unpack_uint32be((uint8_t *)buffer + 4);
+            buffer[4] = 0;
+        } else {
+            frame_size = unpack_uint24be((uint8_t *)buffer+3);
+            buffer[3] = 0;
+        }
         id3_size -= frame_size;
-        buffer[4] = 0;
 
         if(str_alloc_resize(&buffer2,frame_size)) goto id3_done;
 
@@ -137,6 +156,15 @@ static void process_id3(audio_decoder *a, FILE *f) {
             a->onmeta(a->meta_ctx,"title",buffer3.s);
         }
         else if(str_icmp(buffer,"talb") == 0) {
+            a->onmeta(a->meta_ctx,"album",buffer3.s);
+        }
+        else if(str_icmp(buffer,"tt2") == 0) {
+            a->onmeta(a->meta_ctx,"title",buffer3.s);
+        }
+        else if(str_icmp(buffer,"tp1") == 0) {
+            a->onmeta(a->meta_ctx,"artist",buffer3.s);
+        }
+        else if(str_icmp(buffer,"tal") == 0) {
             a->onmeta(a->meta_ctx,"album",buffer3.s);
         }
 

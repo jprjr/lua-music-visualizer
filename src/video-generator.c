@@ -95,7 +95,7 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,40); /* struct size */
     b += format_dword(b,40); /* struct size */
     b += format_dword(b,v->width);
-    b += format_dword(b,v->height);
+    b += format_dword(b,v->height * -1);
     b += format_word(b,1);
     b += format_word(b,24); /* bit count */
     b += format_dword(b,0); /* compression */
@@ -297,10 +297,13 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     luaL_openlibs(v->L);
 
 #ifdef _WIN32
-    _fullpath(rpath,luascript,PATH_MAX);
+    if(_fullpath(rpath,luascript,PATH_MAX) == NULL) {
 #else
-    realpath(luascript,rpath);
+    if(realpath(luascript,rpath) == NULL) {
 #endif
+        fprintf(stderr,"error resolving the lua script path\n");
+        return 1;
+    }
     dir = dirname(rpath);
     strcpy(tmp,dir);
 
