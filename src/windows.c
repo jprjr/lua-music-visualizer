@@ -7,7 +7,6 @@
 #include <io.h>
 #include <fcntl.h>
 #include <tchar.h>
-#include <strsafe.h>
 #include "audio-decoder.h"
 #include "audio-processor.h"
 #include "video-generator.h"
@@ -274,7 +273,7 @@ static int setupVideoGenerator(void) {
     }
 
     if(str_len(workdir) > 0) {
-        str_cpy(wdir,workdir);
+        strcpy(wdir,workdir);
     }
     else {
         GetCurrentDirectory(PATH_MAX,wdir);

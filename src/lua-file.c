@@ -71,7 +71,7 @@ static int
 lua_file_basename(lua_State *L) {
     char res[PATH_MAX];
     const char *folder = luaL_checkstring(L,1);
-    str_cpy(res,folder);
+    strcpy(res,folder);
     char *b = basename(res);
 
     lua_pushstring(L,b);
@@ -82,7 +82,7 @@ static int
 lua_file_dirname(lua_State *L) {
     char res[PATH_MAX];
     const char *folder = luaL_checkstring(L,1);
-    str_cpy(res,folder);
+    strcpy(res,folder);
     char *b = dirname(res);
 
     lua_pushstring(L,b);
