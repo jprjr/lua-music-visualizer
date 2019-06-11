@@ -28,7 +28,7 @@ struct video_generator_s {
     double elapsed;
     uint8_t vid_header[8];
     uint8_t aud_header[8];
-    void (*image_cb)(lua_State *L, intptr_t table_ref, unsigned int frames, uint8_t *image);
+    void (*image_cb)(void *L, intptr_t table_ref, unsigned int frames, uint8_t *image);
 };
 
 int video_generator_init(video_generator *, audio_processor *, audio_decoder *, const char *filename, const char *luascript, void *outHandle);

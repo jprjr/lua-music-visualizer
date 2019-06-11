@@ -33,7 +33,8 @@ static void format_word(uint8_t *buf, int16_t n) {
     *(buf+1) = n >> 8;
 }
 
-static void video_generator_set_image_cb(video_generator *v, void(*f)(lua_State *, intptr_t , unsigned int, uint8_t *)) {
+static void video_generator_set_image_cb(void *ctx, void(*f)(void *, intptr_t , unsigned int, uint8_t *)) {
+    video_generator *v = (video_generator *)ctx;
     v->image_cb = f;
 }
 
@@ -195,7 +196,7 @@ int video_generator_loop(video_generator *v) {
     while(thread_queue_count(&(v->image_queue)) > 0) {
         q = thread_queue_consume(&(v->image_queue));
         if(q != NULL) {
-            v->image_cb(v->L,q->table_ref,q->frames,q->image);
+            v->image_cb((void *)v->L,q->table_ref,q->frames,q->image);
             luaL_unref(v->L,LUA_REGISTRYINDEX,q->table_ref);
             free(q->filename);
             free(q);
@@ -361,7 +362,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     v->processor = p;
     v->image_cb = lua_load_image_cb;
 
-    luaopen_image(v->L,v,video_generator_set_image_cb);
+    luaopen_image(v->L,v,&video_generator_set_image_cb);
     luaimage_setup_threads(&(v->image_queue));
     luaopen_file(v->L);
 

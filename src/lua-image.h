@@ -28,13 +28,13 @@ extern "C" {
 #endif
 
 int
-luaopen_image(lua_State *L, void *v, void (*cb_set)(void *,lua_State *,intptr_t,unsigned int,uint8_t *));
+luaopen_image(lua_State *L, void *v, void (*cb_set)(void *, void (*)(void *,intptr_t,unsigned int,uint8_t *)));
 
 int
 luaclose_image();
 
 void
-lua_load_image_cb(lua_State *L, intptr_t table_ref, unsigned int frames, uint8_t *image);
+lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *image);
 
 void
 queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, unsigned int height, unsigned int channels);
