@@ -297,14 +297,17 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     luaL_openlibs(v->L);
 
 #ifdef _WIN32
-    _fullpath(rpath,luascript,PATH_MAX);
+    if(_fullpath(rpath,luascript,PATH_MAX) == NULL) {
 #else
-    realpath(luascript,rpath);
+    if(realpath(luascript,rpath) == NULL) {
 #endif
+        fprintf(stderr,"error resolving the lua script path\n");
+        return 1;
+    }
     dir = dirname(rpath);
-    str_cpy(tmp,dir);
+    strcpy(tmp,dir);
 
-    str_cpy(rpath,"package.path = '");
+    strcpy(rpath,"package.path = '");
     str_ecat(rpath,tmp,"\\",'\\');
 
 #ifdef _WIN32
@@ -439,10 +442,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     }
     lua_settop(v->L,0);
 
-    str_cpy((char *)v->vid_header,"00db");
+    strcpy((char *)v->vid_header,"00db");
     format_dword(v->vid_header + 4, v->width * v->height * 3);
 
-    str_cpy((char *)v->aud_header,"01wb");
+    strcpy((char *)v->aud_header,"01wb");
     format_dword(v->aud_header + 4, v->samples_per_frame * v->processor->decoder->channels * 2);
 
     if(write_avi_header(v)) return 1;
