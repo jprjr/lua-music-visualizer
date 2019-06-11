@@ -8,17 +8,26 @@
 /* audio_decoder is responsible for pulling in (x) frames of audio
  * data (a pull-style API) */
 typedef struct audio_decoder_s audio_decoder;
+typedef union decoder_ctx_u decoder_ctx;
+
+union decoder_ctx_u {
+    void *p;
+    drflac *pFlac;
+    drmp3 *pMp3;
+    drwav *pWav;
+};
+
 
 typedef void(*meta_proc)(void *, const char *key, const char *val);
 
 struct audio_decoder_s {
+    decoder_ctx ctx;
     void *meta_ctx;
+    int type;
     unsigned int samplerate;
     unsigned int channels;
     unsigned int framecount;
     meta_proc onmeta;
-    int16_t *samples; /* holds all samples */
-    unsigned int frame_pos;
 };
 
 
