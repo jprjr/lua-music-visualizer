@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
 
     generator->width  = 1280;
     generator->height =  720;
-    generator->fps    =   60;
+    generator->fps    =   30;
     processor->spectrum_bars = 24;
 
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,f)) {
