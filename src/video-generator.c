@@ -8,6 +8,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include "str.h"
+#include "pack.h"
 #include <limits.h>
 #include <libgen.h>
 
@@ -19,19 +20,9 @@
 #include <fcntl.h>
 #endif
 
-static void format_dword(uint8_t *buf, int32_t n) {
-    *(buf+0) = n;
-    *(buf+1) = n >> 8;
-    *(buf+2) = n >> 16;
-    *(buf+3) = n >> 24;
-}
-
-#define format_long(b,n) format_dword(b,n)
-
-static void format_word(uint8_t *buf, int16_t n) {
-    *(buf+0) = n;
-    *(buf+1) = n >> 8;
-}
+#define format_dword(buf,n) pack_int32le(buf,n)
+#define format_long(buf,n) pack_int32le(buf,n)
+#define format_word(buf,n) pack_int16le(buf,n)
 
 static void video_generator_set_image_cb(void *ctx, void(*f)(void *, intptr_t , unsigned int, uint8_t *)) {
     video_generator *v = (video_generator *)ctx;
@@ -49,108 +40,104 @@ static void onmeta(void *ctx, const char *key, const char *value) {
 
 static int write_avi_header(video_generator *v) {
     uint8_t buf[327];
+    uint8_t *b = buf;
     unsigned int r = 0;
 
-    str_cpy((char *)buf,"RIFF");
-    format_dword(buf+4,0);
+    b += str_cpy((char *)b,"RIFF");
+    b += format_dword(b,0);
+    b += str_cpy((char *)b,"AVI ");
+    b += str_cpy((char *)b,"LIST");
+    b += format_dword(b,294);
+    b += str_cpy((char *)b,"hdrl");
+    b += str_cpy((char *)b,"avih");
+    b += format_dword(b,56);
 
-    str_cpy((char *)buf+8,"AVI ");
+    b += format_dword(b,1000000 / v->fps); /* dwMicroSecPerFrame */
+    b += format_dword(b, (v->framebuf_len) + (v->samples_per_frame * 2 * v->processor->decoder->channels));
+         /* ^ dwMaxBytesPerSec */
+    b += format_dword(b,0); /* dwPaddingGranularity */
+    b += format_dword(b,0); /* dwFlags */
+    b += format_dword(b,0); /* dwFrames */
+    b += format_dword(b,0); /* dwTotalFrames */
+    b += format_dword(b,2); /* dwStreams */
+    b += format_dword(b,(v->framebuf_len) + (v->samples_per_frame * 2 * v->processor->decoder->channels));
+         /* ^ dwSuggestedBufferSize */
+    b += format_dword(b,v->width); /* dwWidth*/
+    b += format_dword(b,v->height); /* dwHeight */
+    b += format_dword(b,0); /* dwReserverd[0] */
+    b += format_dword(b,0); /* dwReserverd[1] */
+    b += format_dword(b,0); /* dwReserverd[2] */
+    b += format_dword(b,0); /* dwReserverd[3] */
 
-    str_cpy((char *)buf+12,"LIST");
-
-    format_dword(buf+16,294);
-
-    str_cpy((char *)buf+20,"hdrl");
-
-    str_cpy((char *)buf+24,"avih");
-    format_dword(buf+28,56);
-
-    format_dword(buf+32,1000000 / v->fps); /* dwMicroSecPerFrame */
-    format_dword(buf+36, (v->framebuf_len) + (v->samples_per_frame * 2 * v->processor->decoder->channels));
-    /* ^ dwMaxBytesPerSec */
-    format_dword(buf+40,0); /* dwPaddingGranularity */
-    format_dword(buf+44,0); /* dwFlags */
-    format_dword(buf+48,0); /* dwFrames */
-    format_dword(buf+52,0); /* dwTotalFrames */
-    format_dword(buf+56,2); /* dwStreams */
-    format_dword(buf+60,(v->framebuf_len) + (v->samples_per_frame * 2 * v->processor->decoder->channels));
-    /* ^ dwSuggestedBufferSize */
-    format_dword(buf+64,v->width); /* dwWidth*/
-    format_dword(buf+68,v->height); /* dwHeight */
-    format_dword(buf+72,0); /* dwReserverd[0] */
-    format_dword(buf+76,0); /* dwReserverd[1] */
-    format_dword(buf+80,0); /* dwReserverd[2] */
-    format_dword(buf+84,0); /* dwReserverd[3] */
-
-    str_cpy((char *)buf+88,"LIST");
-    format_dword(buf+92,116);
-    str_cpy((char *)buf+96,"strl");
-    str_cpy((char *)buf+100,"strh");
-    format_dword(buf+104,56);
-    str_cpy((char *)buf+108,"vids");
-    format_dword(buf+112,0); /* fcchandler*/
-    format_dword(buf+116,0); /* flags */
-    format_word(buf+120,0); /* priority */
-    format_word(buf+122,0); /* language */
-    format_dword(buf+124,0); /* initialframes */
-    format_dword(buf+128,1); /* scale */
-    format_dword(buf+132,v->fps); /* rate */
-    format_dword(buf+136,0); /* start */
-    format_dword(buf+140,0); /* length */
-    format_dword(buf+144,v->framebuf_len); /* bufferSize*/
-    format_dword(buf+148, 0); /* quality */
-    format_dword(buf+152, 0); /* sampleSize */
-    format_word(buf+156,0); /* top left right bottom (or whatever */
-    format_word(buf+158,0);
-    format_word(buf+160,0);
-    format_word(buf+162,0);
-    str_cpy((char *)buf+164,"strf");
-    format_dword(buf+168,40); /* struct size */
-    format_dword(buf+172,40); /* struct size */
-    format_dword(buf+176,v->width);
-    format_dword(buf+180,v->height);
-    format_word(buf+184,1);
-    format_word(buf+186,24); /* bit count */
-    format_dword(buf+188,0); /* compression */
-    format_dword(buf+192,v->framebuf_len); /* image size */
-    format_dword(buf+196,0); /* pixels per meter stuff, next 4 */
-    format_dword(buf+200,0);
-    format_dword(buf+204,0);
-    format_dword(buf+208,0);
-    str_cpy((char *)buf+212,"LIST");
-    format_dword(buf+216,94);
-    str_cpy((char *)buf+220,"strl");
-    str_cpy((char *)buf+224,"strh");
-    format_dword(buf+228,56);
-    str_cpy((char *)buf+232,"auds");
-    format_dword(buf+236,1);
-    format_dword(buf+240,0); /* flags */
-    format_word(buf+244,0); /* prio */
-    format_word(buf+246,0); /* lang */
-    format_dword(buf+248,0); /* frames */
-    format_dword(buf+252,1); /* scale */
-    format_dword(buf+256,v->processor->decoder->samplerate); /* rate */
-    format_dword(buf+260,0); /* start */
-    format_dword(buf+264,0); /* length */
-    format_dword(buf+268,v->processor->decoder->samplerate * v->processor->decoder->channels * 2);
-    format_dword(buf+272,0); /* quality */
-    format_dword(buf+276,v->processor->decoder->channels * 2); /* samplesize */
-    format_word(buf+280,0); /* left top right bottom */
-    format_word(buf+282,0);
-    format_word(buf+284,0);
-    format_word(buf+286,0);
-    str_cpy((char *)buf+288,"strf");
-    format_dword(buf+292,18);
-    format_word(buf+296,1);
-    format_word(buf+298,v->processor->decoder->channels);
-    format_dword(buf+300,v->processor->decoder->samplerate);
-    format_dword(buf+304,v->processor->decoder->samplerate * v->processor->decoder->channels * 2);
-    format_word(buf+308,v->processor->decoder->channels * 2);
-    format_word(buf+310,16);
-    format_word(buf+312,0);
-    str_cpy((char *)buf+314,"LIST");
-    format_dword(buf+318,0);
-    str_cpy((char *)buf+322,"movi");
+    b += str_cpy((char *)b,"LIST");
+    b += format_dword(b,116);
+    b += str_cpy((char *)b,"strl");
+    b += str_cpy((char *)b,"strh");
+    b += format_dword(b,56);
+    b += str_cpy((char *)b,"vids");
+    b += format_dword(b,0); /* fcchandler*/
+    b += format_dword(b,0); /* flags */
+    b += format_word(b,0); /* priority */
+    b += format_word(b,0); /* language */
+    b += format_dword(b,0); /* initialframes */
+    b += format_dword(b,1); /* scale */
+    b += format_dword(b,v->fps); /* rate */
+    b += format_dword(b,0); /* start */
+    b += format_dword(b,0); /* length */
+    b += format_dword(b,v->framebuf_len); /* bufferSize*/
+    b += format_dword(b, 0); /* quality */
+    b += format_dword(b, 0); /* sampleSize */
+    b += format_word(b,0); /* top left right bottom (or whatever */
+    b += format_word(b,0);
+    b += format_word(b,0);
+    b += format_word(b,0);
+    b += str_cpy((char *)b,"strf");
+    b += format_dword(b,40); /* struct size */
+    b += format_dword(b,40); /* struct size */
+    b += format_dword(b,v->width);
+    b += format_dword(b,v->height);
+    b += format_word(b,1);
+    b += format_word(b,24); /* bit count */
+    b += format_dword(b,0); /* compression */
+    b += format_dword(b,v->framebuf_len); /* image size */
+    b += format_dword(b,0); /* pixels per meter stuff, next 4 */
+    b += format_dword(b,0);
+    b += format_dword(b,0);
+    b += format_dword(b,0);
+    b += str_cpy((char *)b,"LIST");
+    b += format_dword(b,94);
+    b += str_cpy((char *)b,"strl");
+    b += str_cpy((char *)b,"strh");
+    b += format_dword(b,56);
+    b += str_cpy((char *)b,"auds");
+    b += format_dword(b,1);
+    b += format_dword(b,0); /* flags */
+    b += format_word(b,0); /* prio */
+    b += format_word(b,0); /* lang */
+    b += format_dword(b,0); /* frames */
+    b += format_dword(b,1); /* scale */
+    b += format_dword(b,v->processor->decoder->samplerate); /* rate */
+    b += format_dword(b,0); /* start */
+    b += format_dword(b,0); /* length */
+    b += format_dword(b,v->processor->decoder->samplerate * v->processor->decoder->channels * 2);
+    b += format_dword(b,0); /* quality */
+    b += format_dword(b,v->processor->decoder->channels * 2); /* samplesize */
+    b += format_word(b,0); /* left top right bottom */
+    b += format_word(b,0);
+    b += format_word(b,0);
+    b += format_word(b,0);
+    b += str_cpy((char *)b,"strf");
+    b += format_dword(b,18);
+    b += format_word(b,1);
+    b += format_word(b,v->processor->decoder->channels);
+    b += format_dword(b,v->processor->decoder->samplerate);
+    b += format_dword(b,v->processor->decoder->samplerate * v->processor->decoder->channels * 2);
+    b += format_word(b,v->processor->decoder->channels * 2);
+    b += format_word(b,16);
+    b += format_word(b,0);
+    b += str_cpy((char *)b,"LIST");
+    b += format_dword(b,0);
+    b += str_cpy((char *)b,"movi");
 
 #ifdef _WIN32
     WriteFile( (HANDLE)v->outHandle,buf,326,&r,NULL);
