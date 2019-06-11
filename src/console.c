@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    video_generator_loop(generator);
+    while(video_generator_loop(generator) == 0);
 
     video_generator_close(generator);
 

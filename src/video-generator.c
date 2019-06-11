@@ -53,14 +53,14 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,56);
 
     b += format_dword(b,1000000 / v->fps); /* dwMicroSecPerFrame */
-    b += format_dword(b, (v->framebuf_len) + (v->samples_per_frame * 2 * v->processor->decoder->channels));
+    b += format_dword(b, (v->framebuf_video_len) + (v->framebuf_audio_len));
          /* ^ dwMaxBytesPerSec */
     b += format_dword(b,0); /* dwPaddingGranularity */
     b += format_dword(b,0); /* dwFlags */
     b += format_dword(b,0); /* dwFrames */
     b += format_dword(b,0); /* dwTotalFrames */
     b += format_dword(b,2); /* dwStreams */
-    b += format_dword(b,(v->framebuf_len) + (v->samples_per_frame * 2 * v->processor->decoder->channels));
+    b += format_dword(b,(v->framebuf_video_len) + (v->framebuf_audio_len));
          /* ^ dwSuggestedBufferSize */
     b += format_dword(b,v->width); /* dwWidth*/
     b += format_dword(b,v->height); /* dwHeight */
@@ -84,7 +84,7 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,v->fps); /* rate */
     b += format_dword(b,0); /* start */
     b += format_dword(b,0); /* length */
-    b += format_dword(b,v->framebuf_len); /* bufferSize*/
+    b += format_dword(b,v->framebuf_video_len); /* bufferSize*/
     b += format_dword(b, 0); /* quality */
     b += format_dword(b, 0); /* sampleSize */
     b += format_word(b,0); /* top left right bottom (or whatever */
@@ -99,7 +99,7 @@ static int write_avi_header(video_generator *v) {
     b += format_word(b,1);
     b += format_word(b,24); /* bit count */
     b += format_dword(b,0); /* compression */
-    b += format_dword(b,v->framebuf_len); /* image size */
+    b += format_dword(b,v->framebuf_video_len); /* image size */
     b += format_dword(b,0); /* pixels per meter stuff, next 4 */
     b += format_dword(b,0);
     b += format_dword(b,0);
@@ -119,9 +119,9 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,v->processor->decoder->samplerate); /* rate */
     b += format_dword(b,0); /* start */
     b += format_dword(b,0); /* length */
-    b += format_dword(b,v->processor->decoder->samplerate * v->processor->decoder->channels * 2);
+    b += format_dword(b,v->framebuf_audio_len);
     b += format_dword(b,0); /* quality */
-    b += format_dword(b,v->processor->decoder->channels * 2); /* samplesize */
+    b += format_dword(b,v->processor->decoder->channels * sizeof(int16_t)); /* samplesize */
     b += format_word(b,0); /* left top right bottom */
     b += format_word(b,0);
     b += format_word(b,0);
@@ -131,8 +131,8 @@ static int write_avi_header(video_generator *v) {
     b += format_word(b,1);
     b += format_word(b,v->processor->decoder->channels);
     b += format_dword(b,v->processor->decoder->samplerate);
-    b += format_dword(b,v->processor->decoder->samplerate * v->processor->decoder->channels * 2);
-    b += format_word(b,v->processor->decoder->channels * 2);
+    b += format_dword(b,v->framebuf_audio_len);
+    b += format_word(b,v->processor->decoder->channels * sizeof(int16_t));
     b += format_word(b,16);
     b += format_word(b,0);
     b += str_cpy((char *)b,"LIST");
@@ -173,12 +173,10 @@ int video_generator_loop(video_generator *v) {
 
     int pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
 
-    do {
-
     samps = audio_processor_process(v->processor, v->samples_per_frame);
     r = samps < v->samples_per_frame;
 
-    memset(v->framebuf,0,v->framebuf_len);
+    memset(v->framebuf+8,0,v->framebuf_video_len);
 
     while(thread_queue_count(&(v->image_queue)) > 0) {
         q = thread_queue_consume(&(v->image_queue));
@@ -206,15 +204,7 @@ int video_generator_loop(video_generator *v) {
 
     wake_queue();
 
-#ifdef _WIN32
-    WriteFile( (HANDLE)v->outHandle,v->vid_header,8,&i,NULL);
-#else
-    i = fwrite(v->vid_header,1,8,(FILE *)v->outHandle);
-#endif
-    if(i != 8) {
-        fprintf(stderr,"Error on vid_header - wanted to write %u bytes, only wrote: %u\n",8,i);
-        return 1;
-    }
+    memcpy(v->framebuf + 16 + v->framebuf_video_len,(uint8_t *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
 
 #ifdef _WIN32
     WriteFile( (HANDLE)v->outHandle,v->framebuf,v->framebuf_len,&i,NULL);
@@ -222,30 +212,10 @@ int video_generator_loop(video_generator *v) {
     i = fwrite(v->framebuf,1,v->framebuf_len,(FILE *)v->outHandle);
 #endif
     if(i != v->framebuf_len) {
-        fprintf(stderr,"Error on vid_frame - wanted to write %u bytes, only wrote: %u\n",v->framebuf_len,i);
+        fprintf(stderr,"Error on writing frame - wanted to write %u bytes, only wrote: %u\n",v->framebuf_len,i);
         return 1;
     }
 
-#ifdef _WIN32
-    WriteFile( (HANDLE)v->outHandle,v->aud_header,8,&i,NULL);
-#else
-    i = fwrite(v->aud_header,1,8,(FILE *)v->outHandle);
-#endif
-    if(i != 8) {
-        fprintf(stderr,"Error on aud_header - wanted to write %u bytes, only wrote: %u\n",8,i);
-        return 1;
-    }
-
-#ifdef _WIN32
-    WriteFile( (HANDLE)v->outHandle,&(v->processor->buffer[pro_offset]),v->samples_per_frame * v->processor->decoder->channels * 2, &i, NULL);
-#else
-    i = fwrite(&(v->processor->buffer[pro_offset]),1,v->samples_per_frame * v->processor->decoder->channels * 2,(FILE *)v->outHandle);
-#endif
-    if(i != v->samples_per_frame * v->processor->decoder->channels * 2) {
-        fprintf(stderr,"Error on aud_data - wanted to write %u bytes, only wrote: %u\n",v->samples_per_frame * v->processor->decoder->channels * 2,i);
-        return 1;
-    }
-    } while(r == 0);
 
     return r;
 }
@@ -254,14 +224,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     v->outHandle = outHandle;
     char *rpath;
     char *tmp;
-    v->framebuf_len = v->width * v->height * 3;
-
-    v->framebuf = malloc(v->framebuf_len);
-    if(v->framebuf == NULL) {
-        fprintf(stderr,"out of memory\n");
-        return 1;
-    }
-
     rpath = malloc(sizeof(char)*PATH_MAX);
     if(rpath == NULL) {
         fprintf(stderr,"out of memory\n");
@@ -334,6 +296,17 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     v->ms_per_frame = 1000.0f / ((double)v->fps);
     v->elapsed = 0.0f;
 
+    v->framebuf_video_len = v->width * v->height * 3;
+    v->framebuf_audio_len = v->samples_per_frame * d->channels * sizeof(int16_t);
+    v->framebuf_len = v->framebuf_video_len + v->framebuf_audio_len + 16;
+
+    v->framebuf = malloc(v->framebuf_len);
+    if(v->framebuf == NULL) {
+        fprintf(stderr,"out of memory\n");
+        return 1;
+    }
+
+
     lua_getglobal(v->L,"song");
     lua_pushnumber(v->L,0.0f);
     lua_setfield(v->L,-2,"elapsed");
@@ -386,7 +359,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     lua_pushinteger(v->L,v->fps);
     lua_setfield(v->L,-2,"framerate");
 
-    lua_pushlightuserdata(v->L,v->framebuf);
+    lua_pushlightuserdata(v->L,v->framebuf+8);
     lua_setfield(v->L,-2,"image");
 
     lua_newtable(v->L);
@@ -442,11 +415,11 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     }
     lua_settop(v->L,0);
 
-    strcpy((char *)v->vid_header,"00db");
-    format_dword(v->vid_header + 4, v->width * v->height * 3);
+    strcpy((char *)v->framebuf,"00db");
+    format_dword(v->framebuf + 4, v->framebuf_video_len);
 
-    strcpy((char *)v->aud_header,"01wb");
-    format_dword(v->aud_header + 4, v->samples_per_frame * v->processor->decoder->channels * 2);
+    strcpy((char *)v->framebuf + v->framebuf_video_len + 8,"01wb");
+    format_dword(v->framebuf + v->framebuf_video_len + 12, v->framebuf_audio_len);
 
     if(write_avi_header(v)) return 1;
 
