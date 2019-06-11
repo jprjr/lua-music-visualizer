@@ -95,7 +95,7 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,40); /* struct size */
     b += format_dword(b,40); /* struct size */
     b += format_dword(b,v->width);
-    b += format_dword(b,v->height * -1);
+    b += format_dword(b,v->height);
     b += format_word(b,1);
     b += format_word(b,24); /* bit count */
     b += format_dword(b,0); /* compression */
