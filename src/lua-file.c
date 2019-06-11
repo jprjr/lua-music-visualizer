@@ -58,12 +58,10 @@ lua_file_realpath(lua_State *L) {
     char res[PATH_MAX];
     const char *path = luaL_checkstring(L,1);
 #ifdef _WIN32
-    if(_fullpath(res,path,PATH_MAX) == NULL) {
+    _fullpath(res,path,PATH_MAX);
 #else
-    if(realpath(path,res) == NULL) {
+    realpath(path,res);
 #endif
-        return 0;
-    }
 
     lua_pushstring(L,res);
     return 1;
@@ -73,7 +71,7 @@ static int
 lua_file_basename(lua_State *L) {
     char res[PATH_MAX];
     const char *folder = luaL_checkstring(L,1);
-    strcpy(res,folder);
+    str_cpy(res,folder);
     char *b = basename(res);
 
     lua_pushstring(L,b);
@@ -84,7 +82,7 @@ static int
 lua_file_dirname(lua_State *L) {
     char res[PATH_MAX];
     const char *folder = luaL_checkstring(L,1);
-    strcpy(res,folder);
+    str_cpy(res,folder);
     char *b = dirname(res);
 
     lua_pushstring(L,b);
@@ -95,12 +93,10 @@ static int
 lua_file_getcwd(lua_State *L) {
     char res[PATH_MAX];
 #ifdef _WIN32
-    if(_getcwd(res,PATH_MAX) == NULL) {
+    _getcwd(res,PATH_MAX);
 #else
-    if(getcwd(res,PATH_MAX) == NULL) {
+    getcwd(res,PATH_MAX);
 #endif
-        return 0;
-    }
 
     lua_pushstring(L,res);
     return 1;

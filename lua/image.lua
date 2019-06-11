@@ -368,11 +368,11 @@ image_mt_funcs.draw_rectangle = function(self,x1,y1,x2,y2,r,g,b,a)
   end
 
   if y1 <= y2 then
-    ystart = y1
-    yend = y2
-  else
     ystart = y2
     yend = y1
+  else
+    ystart = y1
+    yend = y2
   end
 
   if xend > self.width then
@@ -385,8 +385,8 @@ image_mt_funcs.draw_rectangle = function(self,x1,y1,x2,y2,r,g,b,a)
 
   xstart = xstart - 1
   xend = xend - 1
-  ystart = ystart - 1
-  yend = yend - 1
+  ystart = self.height - ystart
+  yend = self.height - yend
 
   local alpha = 1 + a
   local alpha_inv = 256 - a
@@ -481,7 +481,7 @@ image_mt_funcs.set_pixel = function(self,x,y,r,g,b,a)
   end
 
   x = x - 1
-  y = y - 1
+  y = self.height - y
 
   local index = (y * self.width * self.channels) + (x * self.channels)
 
@@ -508,7 +508,7 @@ image_mt_funcs.get_pixel = function(self,x,y)
   end
   local r, g, b, a
   x = x - 1
-  y = y - 1
+  y = self.height - y
   index = (y * self.width * self.channels) + (x * self.channels)
 
   b = self.image[index]
@@ -576,10 +576,10 @@ image_mt_funcs.stamp_image = function(self,img,x,y,flip,mask,alpha)
 
       if dxt <= self.width and dyt <= self.height then
         xt = xt - 1
-        yt = yt - 1
+        yt = img.height - yt
 
         dxt = dxt - 1
-        dyt = dyt - 1
+        dyt = self.height - dyt
 
         local byte = (yt * img.width * img.channels) + (xt * img.channels)
         local r, g, b, a

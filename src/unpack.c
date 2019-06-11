@@ -36,18 +36,6 @@ uint32_t unpack_uint32be(const uint8_t *b) {
            (((uint32_t)b[3])    );
 }
 
-uint32_t unpack_uint24le(const uint8_t *b) {
-    return (((uint32_t)b[2])<<16) |
-           (((uint32_t)b[1])<< 8) |
-           (((uint32_t)b[0])    );
-}
-
-uint32_t unpack_uint24be(const uint8_t *b) {
-    return (((uint32_t)b[0])<<16) |
-           (((uint32_t)b[1])<< 8) |
-           (((uint32_t)b[2])    );
-}
-
 uint16_t unpack_uint16le(const uint8_t *b) {
     return (((uint16_t)b[1])<<8) |
            (((uint16_t)b[0])   );

@@ -531,8 +531,8 @@ lua_image_get_pixel(lua_State *L) {
         return 1;
     }
 
-    x--;
-    y--;
+    x = x - 1;
+    y = height - y;
 
     index = (y * width * channels) + (x * channels);
 
@@ -630,12 +630,12 @@ lua_image_draw_rectangle(lua_State *L) {
 
     /* y gets inverted */
     if(y1 <= y2) {
-        ystart = y1;
-        yend = y2;
-    }
-    else {
         ystart = y2;
         yend = y1;
+    }
+    else {
+        ystart = y1;
+        yend = y2;
     }
 
     if(xend > width) {
@@ -649,8 +649,8 @@ lua_image_draw_rectangle(lua_State *L) {
     xstart--;
     xend--;
 
-    ystart--;
-    yend--;
+    ystart = height - ystart;
+    yend   = height - yend;
 
     alpha = 1 + a;
     alpha_inv = 256 - a;
@@ -729,8 +729,8 @@ static int lua_image_set_pixel(lua_State *L) {
     }
     lua_pushboolean(L,1);
 
-    x--;
-    y--;
+    x = x - 1;
+    y = height - y;
 
     index = (y * width * channels) + (x * channels);
 
@@ -981,11 +981,11 @@ lua_image_stamp_image(lua_State *L) {
                 continue;
             }
 
-            xt--;
-            yt--;
+            xt = xt - 1;
+            yt = src_height - yt;
 
-            dxt--;
-            dyt--;
+            dxt = dxt - 1;
+            dyt = height - dyt;
 
             byte = (yt * src_width * src_channels) + (xt * src_channels);
 

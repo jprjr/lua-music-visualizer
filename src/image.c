@@ -9,25 +9,7 @@
 extern "C" {
 #endif
 
-void
-bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned int channels) {
-    uint8_t *i;
-    uint8_t *max;
-    uint8_t t;
-
-    i = image;
-    max = i + (width * height * channels);
-
-    while(i<max) {
-        t = i[2];
-        i[2] = i[0];
-        i[0] = t;
-        i+= channels;
-    }
-
-}
-
-void
+static void
 flip_and_bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned int channels) {
 
     unsigned int x = 0;
@@ -217,8 +199,7 @@ image_load(
             memcpy(d, b , ow * oh * oc);
         }
 
-        /* flip_and_bgr(d,ow,oh,oc); */
-        bgr(d,ow,oh,oc);
+        flip_and_bgr(d,ow,oh,oc);
 
         if(of > 1) {
             d += (ow * oh * oc);
