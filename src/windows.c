@@ -316,7 +316,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
         goto startvideo_cleanup;
     }
 
-    while(video_generator_loop(generator) != 0);
+    while(video_generator_loop(generator) == 0);
 
     video_generator_close(generator);
 
