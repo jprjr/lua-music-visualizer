@@ -62,6 +62,7 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     while( (comment = drflac_next_vorbis_comment(&iter,&commentLength)) != NULL) {
         if(commentLength > 4095) continue;
         strncpy(buf,comment,commentLength);
+        buf[commentLength] = 0;
         r = str_chr(buf,'=');
         if(buf[r]) {
             buf[r] = 0;
