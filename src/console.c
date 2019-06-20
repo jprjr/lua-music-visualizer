@@ -10,18 +10,24 @@ static audio_decoder *decoder;
 static audio_processor *processor;
 static video_generator *generator;
 
-int main(int argc, char **argv) {
+int main(int argc, const char * const* argv) {
+    const char *self;
+    const char *songfile;
+    const char *scriptfile;
+    jpr_proc_pipe f;
+    jpr_proc_info i;
+
+    self = *argv++;
 
     if(argc < 4) {
-        fprintf(stderr,"Usage: %s songfile scriptfile output\n",argv[0]);
+        fprintf(stderr,"Usage: %s songfile scriptfile program ..\n",self);
         return 1;
     }
-    jpr_proc_pipe f;
-    const char *songfile = argv[1];
-    const char *scriptfile = argv[2];
-    const char *output = argv[3];
+    songfile   = *argv++;
+    scriptfile = *argv++;
 
-    if(jpr_proc_pipe_open_file(&f,output,"wb")) return 1;
+    if(jpr_proc_info_init(&i)) return 1;
+    if(jpr_proc_pipe_init(&f)) return 1;
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(decoder == NULL) return 1;
@@ -36,6 +42,8 @@ int main(int argc, char **argv) {
     processor->spectrum_bars =    24;
     decoder->samplerate      = 48000;
     decoder->channels        =     2;
+
+    if(jpr_proc_spawn(&i,argv,&f,NULL,NULL)) return 1;
 
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&f)) {
         fprintf(stderr,"error starting the video generator\n");

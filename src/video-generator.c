@@ -1,4 +1,6 @@
 #include "video-generator.h"
+#include "mpd_ez.h"
+#include "mpdc.h"
 #include "jpr_proc.h"
 #include "stream.lua.lh"
 #include "font.lua.lh"
@@ -19,11 +21,42 @@
 #include <shlwapi.h>
 #include <io.h>
 #include <fcntl.h>
+#else
+#include "mpd_ez.h"
 #endif
 
 #define format_dword(buf,n) pack_int32le(buf,n)
 #define format_long(buf,n) pack_int32le(buf,n)
 #define format_word(buf,n) pack_int16le(buf,n)
+
+static int
+lua_send_message_offline(lua_State *L) {
+    (void)L;
+    return 0;
+}
+
+static int
+lua_send_message(lua_State *L) {
+  mpdc_connection *ctx;
+  const char *message;
+  ctx = lua_touserdata(L, lua_upvalueindex(1));
+  message = lua_tostring(L,1);
+
+  if(message == NULL) {
+      lua_pushboolean(L,0);
+      return 1;
+  }
+
+  int r = mpdc_sendmessage(ctx,"visualizer",message);
+
+  if(r <= 0) {
+      lua_pushboolean(L,0);
+  }
+  else {
+      lua_pushboolean(L,1);
+  }
+  return 1;
+}
 
 static void video_generator_set_image_cb(void *ctx, void(*f)(void *, intptr_t , unsigned int, uint8_t *)) {
     video_generator *v = (video_generator *)ctx;
@@ -158,6 +191,11 @@ void video_generator_close(video_generator *v) {
           lua_pop(v->L,1);
       }
     }
+    if(v->mpd != NULL) {
+        mpdc_disconnect(v->mpd);
+        free(v->mpd->ctx);
+        free(v->mpd);
+    }
     luaclose_image();
     lua_close(v->L);
     audio_decoder_close(v->processor->decoder);
@@ -171,6 +209,12 @@ int video_generator_loop(video_generator *v) {
     int r = 0;
     unsigned int i = 0;
     image_q *q = NULL;
+
+#ifndef _WIN32
+    if(v->mpd != NULL) {
+        mpd_ez_loop(v);
+    }
+#endif
 
     int pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
 
@@ -201,6 +245,7 @@ int video_generator_loop(video_generator *v) {
       } else {
           lua_pop(v->L,1);
       }
+      lua_pop(v->L,1);
     }
 
     lua_getglobal(v->L,"song");
@@ -244,6 +289,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         return 1;
     }
 
+#ifndef _WIN32
+    mpd_ez_setup(v);
+#endif
+
     d->onmeta = onmeta;
     d->meta_ctx = (void *)v;
     v->lua_ref = -1;
@@ -258,13 +307,18 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
 
     luaL_openlibs(v->L);
 
+    if(luascript[0] == '/') {
+        strcpy(rpath,luascript);
+    }
+    else {
 #ifdef _WIN32
-    if(_fullpath(rpath,luascript,PATH_MAX) == NULL) {
+        if(_fullpath(rpath,luascript,PATH_MAX) == NULL) {
 #else
-    if(realpath(luascript,rpath) == NULL) {
+        if(realpath(luascript,rpath) == NULL) {
 #endif
-        fprintf(stderr,"error resolving the lua script path\n");
-        return 1;
+            fprintf(stderr,"error resolving the lua script path\n");
+            return 1;
+        }
     }
     dir = dirname(rpath);
     strcpy(tmp,dir);
@@ -294,7 +348,8 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     }
     v->samples_per_frame = d->samplerate / v->fps;
     v->ms_per_frame = 1000.0f / ((double)v->fps);
-    v->elapsed = 0.0f;
+    v->elapsed = 0;
+    v->duration = (((double)d->framecount) / ((double)d->samplerate));
 
     v->framebuf_video_len = v->width * v->height * 3;
     v->framebuf_audio_len = v->samples_per_frame * d->channels * sizeof(int16_t);
@@ -306,14 +361,22 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         return 1;
     }
 
-
     lua_getglobal(v->L,"song");
     lua_pushnumber(v->L,0.0f);
     lua_setfield(v->L,-2,"elapsed");
-    lua_pushnumber(v->L, ((double)d->framecount) / ((double)d->samplerate));
+    lua_pushnumber(v->L, v->duration);
     lua_setfield(v->L,-2,"total");
     lua_pushstring(v->L,filename);
     lua_setfield(v->L,-2,"file");
+    if(v->mpd == NULL) {
+        lua_pushcfunction(v->L, lua_send_message_offline);
+        lua_setfield(v->L,-2,"sendmessage");
+    }
+    else {
+        lua_pushlightuserdata(v->L,v->mpd);
+        lua_pushcclosure(v->L, lua_send_message,1);
+        lua_setfield(v->L,-2,"sendmessage");
+    }
     lua_settop(v->L,0);
 
     if(audio_processor_init(p,d,v->samples_per_frame)) {
@@ -430,6 +493,12 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     format_dword(v->framebuf + v->framebuf_video_len + 12, v->framebuf_audio_len);
 
     if(write_avi_header(v)) return 1;
+
+#ifndef _WIN32
+    if(v->mpd != NULL) {
+        mpd_ez_start(v);
+    }
+#endif
 
     free(rpath);
     free(tmp);

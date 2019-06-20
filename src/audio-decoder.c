@@ -50,7 +50,11 @@ static void wav_id3(audio_decoder *a, const char *filename) {
     FILE *f = fopen(filename,"rb");
     uint32_t bytes = 0;
     uint32_t cbytes = 0;
+    uint32_t tbytes = 0;
     uint8_t buffer[12];
+    uint8_t *buffer_tmp = NULL;
+    uint8_t *b = NULL;
+
     if(f == NULL) {
         return;
     }
@@ -61,19 +65,55 @@ static void wav_id3(audio_decoder *a, const char *filename) {
     bytes -= 4;
 
     while(bytes > 0) {
-        if(fread(buffer,1,12,f) != 12) goto closereturn;
+        if(fread(buffer,1,8,f) != 8) goto closereturn;
         bytes -= 8;
         cbytes = unpack_uint32le(buffer+4);
-        cbytes -= 4;
+
         if(str_incmp((char *)buffer,"id3 ",4) == 0) {
             process_id3(a,f);
             goto closereturn;
+        }
+
+        if(str_incmp((char *)buffer,"LIST",4) == 0) {
+            if(fread(buffer,1,4,f) != 4) goto closereturn;
+            cbytes -= 4;
+
+            if(str_incmp((char *)buffer,"INFO",4) == 0) {
+                bytes -= cbytes; /* going to finish out this chunk */
+                buffer_tmp = malloc(cbytes);
+                if(buffer_tmp == NULL) goto closereturn;
+                if(fread(buffer_tmp,1,cbytes,f) != cbytes) goto closereturn;
+                b = buffer_tmp;
+
+                while(b < buffer_tmp + cbytes) {
+                    memcpy(buffer,b,4);
+                    buffer[4] = 0;
+                    b+= 4;
+                    tbytes = unpack_uint32le(b);
+                    b += 4;
+
+                    if(str_icmp((const char *)buffer,"iart") == 0) {
+                        a->onmeta(a->meta_ctx,"artist",(const char *)b);
+                    }
+                    else if(str_icmp((const char *)buffer,"inam") == 0) {
+                        a->onmeta(a->meta_ctx,"title",(const char *)b);
+                    }
+                    else if(str_icmp((const char *)buffer,"iprd") == 0) {
+                        a->onmeta(a->meta_ctx,"album",(const char *)b);
+                    }
+
+                    b += tbytes;
+                    if(tbytes % 2 == 1) b++;
+
+                }
+            }
         }
         fseek(f,cbytes,SEEK_CUR);
         bytes -= cbytes;
     }
 
 closereturn:
+    if(buffer_tmp != NULL) free(buffer_tmp);
     fclose(f);
     return;
 }

@@ -4,6 +4,7 @@
 #include "audio-processor.h"
 #include "audio-decoder.h"
 #include "thread.h"
+#include "mpdc.h"
 #include <lua.h>
 #include "lua-image.h"
 #include "jpr_proc.h"
@@ -28,6 +29,8 @@ struct video_generator_s {
     unsigned int samples_per_frame;
     double ms_per_frame;
     double elapsed;
+    double duration;
+    mpdc_connection *mpd;
     void (*image_cb)(void *L, intptr_t table_ref, unsigned int frames, uint8_t *image);
 };
 
