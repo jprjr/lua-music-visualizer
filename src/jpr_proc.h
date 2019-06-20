@@ -615,7 +615,7 @@ int jpr_proc_pipe_seek(jpr_proc_pipe *pipe, int offset, unsigned int origin) {
         case 2: moveMethod = FILE_END; break;
         default: return 1;
     }
-    return SetFilePointer(pipe->pipe,0,offset,moveMethod) == 0;
+    return SetFilePointer(pipe->pipe,offset,NULL,moveMethod) == 0;
 #else
     int whence;
     switch(origin) {
