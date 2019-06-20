@@ -44,7 +44,7 @@ static int str_alloc_resize(str_alloc *s, unsigned int size) {
 
 static unsigned int utf8_len_or_copy(uint8_t *dest, const uint8_t *src, unsigned int max) {
     if(dest == NULL) return AUDIO_MIN(str_len((const char *)src),max);
-    return str_ncpy((char *)dest,(const char *)src,max);
+    return str_ncpy((char *)dest,(const char *)src,AUDIO_MIN(str_len((const char *)src),max));
 }
 
 static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
