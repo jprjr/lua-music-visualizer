@@ -610,18 +610,18 @@ int jpr_proc_pipe_seek(jpr_proc_pipe *pipe, int offset, unsigned int origin) {
 #ifdef _WIN32
     DWORD moveMethod;
     switch(origin) {
-        case 0: moveMethod = FILE_BEGIN;
-        case 1: moveMethod = FILE_CURRENT;
-        case 2: moveMethod = FILE_END;
+        case 0: moveMethod = FILE_BEGIN; break;
+        case 1: moveMethod = FILE_CURRENT; break;
+        case 2: moveMethod = FILE_END; break;
         default: return 1;
     }
     return SetFilePointer(pipe->pipe,0,offset,moveMethod) == 0;
 #else
     int whence;
     switch(origin) {
-        case 0: whence = SEEK_SET;
-        case 1: whence = SEEK_CUR;
-        case 2: whence = SEEK_END;
+        case 0: whence = SEEK_SET; break;
+        case 1: whence = SEEK_CUR; break;
+        case 2: whence = SEEK_END; break;
         default: return 1;
     }
     return lseek(pipe->pipe,offset,whence) == -1;
