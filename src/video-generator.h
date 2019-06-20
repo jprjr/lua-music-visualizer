@@ -6,6 +6,7 @@
 #include "thread.h"
 #include <lua.h>
 #include "lua-image.h"
+#include "jpr_proc.h"
 
 typedef struct video_generator_s video_generator;
 
@@ -15,7 +16,7 @@ struct video_generator_s {
     unsigned int width;
     unsigned int height;
     unsigned int fps;
-    void *outHandle;
+    jpr_proc_pipe *out;
     uint8_t *framebuf;
     unsigned int framebuf_len;
     unsigned int framebuf_video_len;
@@ -30,7 +31,7 @@ struct video_generator_s {
     void (*image_cb)(void *L, intptr_t table_ref, unsigned int frames, uint8_t *image);
 };
 
-int video_generator_init(video_generator *, audio_processor *, audio_decoder *, const char *filename, const char *luascript, void *outHandle);
+int video_generator_init(video_generator *, audio_processor *, audio_decoder *, const char *filename, const char *luascript, jpr_proc_pipe *out);
 void video_generator_close(video_generator *);
 int video_generator_loop(video_generator *);
 

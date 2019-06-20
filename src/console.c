@@ -3,6 +3,7 @@
 #include "audio-decoder.h"
 #include "audio-processor.h"
 #include "video-generator.h"
+#include "jpr_proc.h"
 #include "str.h"
 
 static audio_decoder *decoder;
@@ -15,20 +16,12 @@ int main(int argc, char **argv) {
         fprintf(stderr,"Usage: %s songfile scriptfile output\n",argv[0]);
         return 1;
     }
-    FILE *f = NULL;
+    jpr_proc_pipe f;
     const char *songfile = argv[1];
     const char *scriptfile = argv[2];
     const char *output = argv[3];
 
-    if(str_cmp(output,"-") == 0) {
-        f = stdout;
-    } else {
-        f = fopen(output,"wb");
-        if(f == NULL) {
-            fprintf(stderr,"error opening %s for output\n",output);
-            return 1;
-        }
-    }
+    if(jpr_proc_pipe_open_file(&f,output,"wb")) return 1;
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(decoder == NULL) return 1;
@@ -37,12 +30,14 @@ int main(int argc, char **argv) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(generator == NULL) return 1;
 
-    generator->width  = 1280;
-    generator->height =  720;
-    generator->fps    =   30;
-    processor->spectrum_bars = 24;
+    generator->width         =  1280;
+    generator->height        =   720;
+    generator->fps           =    30;
+    processor->spectrum_bars =    24;
+    decoder->samplerate      = 48000;
+    decoder->channels        =     2;
 
-    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,f)) {
+    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&f)) {
         fprintf(stderr,"error starting the video generator\n");
         return 1;
     }
@@ -51,7 +46,7 @@ int main(int argc, char **argv) {
 
     video_generator_close(generator);
 
-    fclose(f);
+    jpr_proc_pipe_close(&f);
     free(decoder);
     free(processor);
     free(generator);

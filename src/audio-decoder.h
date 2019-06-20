@@ -4,6 +4,7 @@
 #include "dr_flac.h"
 #include "dr_mp3.h"
 #include "dr_wav.h"
+#include "jpr_pcm.h"
 
 /* audio_decoder is responsible for pulling in (x) frames of audio
  * data (a pull-style API) */
@@ -15,6 +16,7 @@ union decoder_ctx_u {
     drflac *pFlac;
     drmp3 *pMp3;
     drwav *pWav;
+    jprpcm *pPcm;
 };
 
 

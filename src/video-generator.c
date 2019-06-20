@@ -1,4 +1,5 @@
 #include "video-generator.h"
+#include "jpr_proc.h"
 #include "stream.lua.lh"
 #include "font.lua.lh"
 #include "lua-audio.h"
@@ -139,16 +140,8 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,0);
     b += str_cpy((char *)b,"movi");
 
-#ifdef _WIN32
-    WriteFile( (HANDLE)v->outHandle,buf,326,&r,NULL);
-#else
-    r = fwrite(buf,1,326,(FILE *)v->outHandle);
-#endif
-    if(r != 326) {
-        fprintf(stderr,"avi_header: wanted to write 326 bytes, wrote: %u\n",r);
-        return 1;
-    }
-
+    if(jpr_proc_pipe_write(v->out,(const char *)buf,326,&r)) return 1;
+    if (r != 326) return 1;
     return 0;
 }
 
@@ -223,23 +216,15 @@ int video_generator_loop(video_generator *v) {
     wake_queue();
 
     memcpy(v->framebuf + 16 + v->framebuf_video_len,(uint8_t *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
+    if(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i)) return 1;
 
-#ifdef _WIN32
-    WriteFile( (HANDLE)v->outHandle,v->framebuf,v->framebuf_len,&i,NULL);
-#else
-    i = fwrite(v->framebuf,1,v->framebuf_len,(FILE *)v->outHandle);
-#endif
-    if(i != v->framebuf_len) {
-        fprintf(stderr,"Error on writing frame - wanted to write %u bytes, only wrote: %u\n",v->framebuf_len,i);
-        return 1;
-    }
-
+    if(i != v->framebuf_len) return 1;
 
     return r;
 }
 
-int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *d, const char *filename, const char *luascript, void *outHandle) {
-    v->outHandle = outHandle;
+int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *d, const char *filename, const char *luascript, jpr_proc_pipe *out) {
+    v->out = out;
     char *rpath;
     char *tmp;
     rpath = malloc(sizeof(char)*PATH_MAX);

@@ -68,6 +68,7 @@ int jpr_proc_pipe_read(jpr_proc_pipe *, char *, unsigned int len, unsigned int *
 int jpr_proc_pipe_close(jpr_proc_pipe *);
 
 int jpr_proc_pipe_open_file(jpr_proc_pipe *, const char *filename, const char *mode);
+int jpr_proc_pipe_seek(jpr_proc_pipe *, int offset, unsigned int origin);
 
 #ifdef __cplusplus
 }
@@ -605,6 +606,28 @@ success:
     return r;
 }
 
+int jpr_proc_pipe_seek(jpr_proc_pipe *pipe, int offset, unsigned int origin) {
+#ifdef _WIN32
+    DWORD moveMethod;
+    switch(origin) {
+        case 0: moveMethod = FILE_BEGIN;
+        case 1: moveMethod = FILE_CURRENT;
+        case 2: moveMethod = FILE_END;
+        default: return 1;
+    }
+    return SetFilePointer(pipe->pipe,0,offset,moveMethod) == 0;
+#else
+    int whence;
+    switch(origin) {
+        case 0: whence = SEEK_SET;
+        case 1: whence = SEEK_CUR;
+        case 2: whence = SEEK_END;
+        default: return 1;
+    }
+    return lseek(pipe->pipe,offset,whence) == -1;
+#endif
+}
+
 int jpr_proc_pipe_open_file(jpr_proc_pipe *pipe, const char *filename, const char *mode) {
 #ifdef _WIN32
     DWORD disp = 0;
@@ -631,6 +654,18 @@ int jpr_proc_pipe_open_file(jpr_proc_pipe *pipe, const char *filename, const cha
     switch(mode[0]) {
         case '+': access = GENERIC_READ | GENERIC_WRITE;
     }
+
+    if(filename[0] == '-' && filename[1] == '\0') {
+        if(access == GENERIC_READ) {
+            pipe->pipe = GetStdHandle(STD_INPUT_HANDLE);
+            return 0;
+        } else if(access == GENERIC_WRITE){
+            pipe->pipe = GetStdHandle(STD_OUTPUT_HANDLE);
+            return 0;
+        }
+        return 1;
+    }
+
     pipe->pipe = CreateFile(filename,access,0,NULL,disp,0,0);
     if(pipe->pipe == INVALID_HANDLE_VALUE) return 1;
     if(disp == OPEN_ALWAYS) {
@@ -672,6 +707,16 @@ int jpr_proc_pipe_open_file(jpr_proc_pipe *pipe, const char *filename, const cha
             flags |= O_APPEND;
             break;
         }
+    }
+    if(filename[0] == '-' && filename[1] == '\0') {
+        if(wr == 0) {
+            pipe->pipe = 0;
+            return 0;
+        } else {
+            pipe->pipe = 1;
+            return 0;
+        }
+        return 1;
     }
     pipe->pipe = open(filename,flags,0666);
     if(pipe->pipe == -1) return 1;

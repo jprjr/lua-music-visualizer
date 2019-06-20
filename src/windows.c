@@ -14,7 +14,6 @@
 #include "scan.h"
 #include "fmt.h"
 
-#define JPR_PROC_IMPLEMENTATION
 #include "jpr_proc.h"
 
 static audio_decoder *decoder = NULL;
@@ -311,7 +310,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
 
     if(jpr_proc_spawn(&process,args,&child_stdin,NULL,NULL)) goto startvideo_cleanup;
 
-    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,child_stdin.pipe)) {
+    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&child_stdin)) {
         fprintf(stderr,"error starting the video generator\n");
         goto startvideo_cleanup;
     }

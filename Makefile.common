@@ -11,8 +11,10 @@ OBJS = \
   src/kiss_fftr.o \
   src/kiss_fft.o \
   src/audio-decoder.o \
+  src/id3.o \
   src/image.o \
   src/thread.o \
+  src/jpr_proc.o \
   src/utf.o \
   src/str.o \
   src/unpack.o \
@@ -28,7 +30,7 @@ CLEAN = $(OBJS) $(LUALHS)
 
 BIN2CSRC = src/bin2c.c
 
-CFLAGS = -Wall -Wextra -Os -g
+CFLAGS = -Wall -Wextra -g -O2
 LDFLAGS =
 
 %.o: %.c $(LUALHS)
