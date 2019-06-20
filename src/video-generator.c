@@ -147,9 +147,6 @@ static int write_avi_header(video_generator *v) {
 
 
 void video_generator_close(video_generator *v) {
-#ifdef _WIN32
-    CloseHandle( (HANDLE)v->outHandle);
-#endif
     if(v->lua_ref != -1) {
       lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
       lua_getfield(v->L,-1,"onunload");
