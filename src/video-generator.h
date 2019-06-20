@@ -21,8 +21,7 @@ struct video_generator_s {
     unsigned int framebuf_video_len;
     unsigned int framebuf_audio_len;
     lua_State *L;
-    int load_ref;
-    int frame_ref;
+    int lua_ref;
     thread_queue_t image_queue;
     image_q images[100];
     unsigned int samples_per_frame;

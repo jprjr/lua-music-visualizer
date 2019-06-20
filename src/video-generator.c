@@ -157,6 +157,17 @@ void video_generator_close(video_generator *v) {
 #ifdef _WIN32
     CloseHandle( (HANDLE)v->outHandle);
 #endif
+    if(v->lua_ref != -1) {
+      lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
+      lua_getfield(v->L,-1,"onunload");
+      if(lua_isfunction(v->L,-1)) {
+          lua_pushvalue(v->L,-2);
+          lua_pcall(v->L,1,0,0);
+
+      } else {
+          lua_pop(v->L,1);
+      }
+    }
     luaclose_image();
     lua_close(v->L);
     audio_decoder_close(v->processor->decoder);
@@ -190,9 +201,16 @@ int video_generator_loop(video_generator *v) {
     }
 
 
-    lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->frame_ref);
-    if(lua_pcall(v->L,0,0,0)) {
-        fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
+    if(v->lua_ref != -1) {
+      lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
+      lua_getfield(v->L,-1,"onframe");
+      if(lua_isfunction(v->L,-1)) {
+          lua_pushvalue(v->L,-2);
+          lua_pcall(v->L,1,0,0);
+
+      } else {
+          lua_pop(v->L,1);
+      }
     }
 
     lua_getglobal(v->L,"song");
@@ -246,7 +264,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
 
     d->onmeta = onmeta;
     d->meta_ctx = (void *)v;
-    v->frame_ref = -1;
+    v->lua_ref = -1;
 
     thread_queue_init(&(v->image_queue),100,(void **)&(v->images),0);
 
@@ -392,26 +410,34 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         return 1;
     }
     if(lua_isfunction(v->L,-1)) {
-        v->load_ref = -1;
-        v->frame_ref = luaL_ref(v->L,LUA_REGISTRYINDEX);
+        lua_newtable(v->L);
+        lua_pushvalue(v->L,-2);
+        lua_setfield(v->L,-2,"onframe");
+
+        v->lua_ref = luaL_ref(v->L,LUA_REGISTRYINDEX);
+        lua_pop(v->L,1);
     }
     else if(lua_istable(v->L,-1)) {
-        lua_getfield(v->L,-1,"onframe");
-        if(lua_isfunction(v->L,-1)) {
-            v->frame_ref = luaL_ref(v->L,LUA_REGISTRYINDEX);
-        } else {
-            lua_pop(v->L,1);
-        }
+        v->lua_ref = luaL_ref(v->L,LUA_REGISTRYINDEX);
+    }
+    else {
+        lua_pop(v->L,1);
+    }
 
+    if(v->lua_ref != -1) {
+        lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
         lua_getfield(v->L,-1,"onload");
         if(lua_isfunction(v->L,-1)) {
-            if(lua_pcall(v->L,0,0,0)) {
+            lua_pushvalue(v->L,-2);
+            if(lua_pcall(v->L,1,0,0)) {
                 fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
                 return 1;
             }
         } else {
             lua_pop(v->L,1);
         }
+
+        lua_pop(v->L,1);
     }
     lua_settop(v->L,0);
 
