@@ -561,6 +561,7 @@ lua_image_draw_rectangle(lua_State *L) {
     unsigned int xend = 0;
     unsigned int ystart = 0;
     unsigned int yend = 0;
+    unsigned int ytmp = 0;
     unsigned int byte = 0;
 
     unsigned int x;
@@ -628,14 +629,23 @@ lua_image_draw_rectangle(lua_State *L) {
         xend = x1;
     }
 
-    /* y gets inverted */
     if(y1 <= y2) {
+        ystart = y1;
+        yend = y2;
+    }
+    else {
         ystart = y2;
         yend = y1;
     }
-    else {
-        ystart = y1;
-        yend = y2;
+
+    if(xstart > width) {
+        lua_pushboolean(L,0);
+        return 1;
+    }
+
+    if(ystart > height) {
+        lua_pushboolean(L,0);
+        return 1;
     }
 
     if(xend > width) {
@@ -645,6 +655,11 @@ lua_image_draw_rectangle(lua_State *L) {
     if(yend > height) {
         yend = height;
     }
+
+    /* invert the ys */
+    ytmp = ystart;
+    ystart = yend;
+    yend = ytmp;
 
     xstart--;
     xend--;
@@ -899,30 +914,6 @@ lua_image_stamp_image(lua_State *L) {
         return 2;
     }
 
-    lua_getfield(L,1,"width");
-    width = lua_tointeger(L,-1);
-
-    lua_getfield(L,1,"height");
-    height = lua_tointeger(L,-1);
-
-    lua_getfield(L,1,"channels");
-    channels = lua_tointeger(L,-1);
-
-    lua_getfield(L,1,"image");
-    image_one = lua_touserdata(L,-1);
-
-    lua_getfield(L,2,"width");
-    src_width = lua_tointeger(L,-1);
-
-    lua_getfield(L,2,"height");
-    src_height = lua_tointeger(L,-1);
-
-    lua_getfield(L,2,"channels");
-    src_channels = lua_tointeger(L,-1);
-
-    lua_getfield(L,2,"image");
-    image_two = lua_touserdata(L,-1);
-
     x = luaL_optinteger(L,3,1);
     y = luaL_optinteger(L,4,1);
 
@@ -947,6 +938,32 @@ lua_image_stamp_image(lua_State *L) {
     if(lua_isnumber(L,7)) {
         aa = lua_tointeger(L,7);
     }
+
+    lua_getfield(L,1,"width");
+    width = lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"height");
+    height = lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"channels");
+    channels = lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"image");
+    image_one = lua_touserdata(L,-1);
+
+    lua_getfield(L,2,"width");
+    src_width = lua_tointeger(L,-1);
+
+    lua_getfield(L,2,"height");
+    src_height = lua_tointeger(L,-1);
+
+    lua_getfield(L,2,"channels");
+    src_channels = lua_tointeger(L,-1);
+
+    lua_getfield(L,2,"image");
+    image_two = lua_touserdata(L,-1);
+
+    lua_pop(L,8);
 
     if(x < 1) {
         xi = xi + (x * -1) + 1;
@@ -974,6 +991,7 @@ lua_image_stamp_image(lua_State *L) {
             if(vflip) {
                 yt = src_height - yii + 1;
             }
+
             dxt = x - 1 + xii;
             dyt = y - 1 + yii;
 
