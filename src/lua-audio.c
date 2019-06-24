@@ -17,6 +17,7 @@ lua_amp_index(lua_State *L) {
     }
     lua_getfield(L,1,"data");
     a = lua_touserdata(L,-1);
+    lua_pop(L,1);
 
     if((unsigned int)index >= a->spectrum_bars) {
         return 0;

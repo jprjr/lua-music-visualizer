@@ -327,7 +327,7 @@ lua_image_unload(lua_State *L) {
         return 2;
     }
     state = lua_tointeger(L,-1);
-    lua_pop(L,1)
+    lua_pop(L,1);
 
     if(state != IMAGE_LOADED) {
         lua_pushboolean(L,0);
@@ -392,7 +392,7 @@ lua_image_load(lua_State *L) {
     }
 
     state = lua_tointeger(L,-1);
-    lua_pop(L,1)
+    lua_pop(L,1);
 
     if(state == IMAGE_ERR) {
         lua_pushnil(L);
