@@ -343,22 +343,6 @@ image_mt_funcs.draw_rectangle = function(self,x1,y1,x2,y2,r,g,b,a)
     return true
   end
 
-  if x1 < 1 then
-    x1 = 1
-  end
-
-  if x2 < 1 then
-    x2 = 1
-  end
-
-  if y1 < 1 then
-    y1 = 1
-  end
-
-  if y2 < 1 then
-    y2 = 1
-  end
-
   if x1 <= x2 then
     xstart = x1
     xend = x2
@@ -375,12 +359,28 @@ image_mt_funcs.draw_rectangle = function(self,x1,y1,x2,y2,r,g,b,a)
     yend = y1
   end
 
+  if xend < 1 then
+    return
+  end
+
+  if yend < 1 then
+    return
+  end
+
   if xstart > self.width then
     return
   end
 
   if ystart > self.height then
     return
+  end
+
+  if xstart < 1 then
+    xstart = 1
+  end
+
+  if ystart < 1 then
+    ystart = 1
   end
 
   if xend > self.width then
