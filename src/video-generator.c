@@ -1,5 +1,4 @@
 #include "video-generator.h"
-#include "mpd_ez.h"
 #include "mpdc.h"
 #include "jpr_proc.h"
 #include "stream.lua.lh"
@@ -35,6 +34,7 @@ lua_send_message_offline(lua_State *L) {
     return 0;
 }
 
+#ifndef _WIN32
 static int
 lua_send_message(lua_State *L) {
   mpdc_connection *ctx;
@@ -57,6 +57,8 @@ lua_send_message(lua_State *L) {
   }
   return 1;
 }
+
+#endif
 
 static void video_generator_set_image_cb(void *ctx, void(*f)(void *, intptr_t , unsigned int, uint8_t *)) {
     video_generator *v = (video_generator *)ctx;
@@ -191,11 +193,13 @@ void video_generator_close(video_generator *v) {
           lua_pop(v->L,1);
       }
     }
+#ifndef _WIN32
     if(v->mpd != NULL) {
         mpdc_disconnect(v->mpd);
         free(v->mpd->ctx);
         free(v->mpd);
     }
+#endif
     luaclose_image();
     lua_close(v->L);
     audio_decoder_close(v->processor->decoder);
@@ -368,6 +372,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     lua_setfield(v->L,-2,"total");
     lua_pushstring(v->L,filename);
     lua_setfield(v->L,-2,"file");
+#ifdef _WIN32
+    lua_pushcfunction(v->L, lua_send_message_offline);
+    lua_setfield(v->L,-2,"sendmessage");
+#else
     if(v->mpd == NULL) {
         lua_pushcfunction(v->L, lua_send_message_offline);
         lua_setfield(v->L,-2,"sendmessage");
@@ -377,6 +385,8 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         lua_pushcclosure(v->L, lua_send_message,1);
         lua_setfield(v->L,-2,"sendmessage");
     }
+#endif
+
     lua_settop(v->L,0);
 
     if(audio_processor_init(p,d,v->samples_per_frame)) {
