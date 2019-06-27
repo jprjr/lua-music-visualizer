@@ -170,7 +170,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->channels = mp3->channels;
         a->type = 1;
     }
-    else if(str_iends(filename,"wav")) {
+    else if(str_iends(filename,".wav")) {
         wav_id3(a,filename);
 
         a->ctx.pWav = drwav_open_file(filename);
