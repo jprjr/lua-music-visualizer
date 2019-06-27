@@ -54,7 +54,7 @@ int main(int argc, const char * const* argv) {
         else if(str_equals(*argv,"--help")) {
             return usage(self,0);
         }
-        else if(str_equals(*argv,"-h") == 0) {
+        else if(str_equals(*argv,"-h")) {
             return usage(self,0);
         }
         else if(str_istarts(*argv,"--width")) {
