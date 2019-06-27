@@ -5,23 +5,139 @@
 #include "video-generator.h"
 #include "jpr_proc.h"
 #include "str.h"
+#include "scan.h"
 
-static audio_decoder *decoder;
-static audio_processor *processor;
-static video_generator *generator;
+int usage(const char *self, int e) {
+    fprintf(stderr,"Usage: %s [options] songfile scriptfile program ..\n",self);
+    fprintf(stderr,"Options:\n");
+    fprintf(stderr,"  -h\n");
+    fprintf(stderr,"  --help\n");
+    fprintf(stderr,"  --width=width\n");
+    fprintf(stderr,"  --height=height\n");
+    fprintf(stderr,"  --fps=fps\n");
+    fprintf(stderr,"  --bars=bars\n");
+    return e;
+}
 
 int main(int argc, const char * const* argv) {
     const char *self;
     const char *songfile;
     const char *scriptfile;
+    const char *s;
+    unsigned int c;
+
+    audio_decoder *decoder;
+    audio_processor *processor;
+    video_generator *generator;
+
+    unsigned int width      = 0;
+    unsigned int height     = 0;
+    unsigned int fps        = 0;
+    unsigned int bars       = 0;
+    unsigned int samplerate = 0;
+    unsigned int channels   = 0;
+
     jpr_proc_pipe f;
     jpr_proc_info i;
 
     self = *argv++;
 
     if(argc < 4) {
-        fprintf(stderr,"Usage: %s songfile scriptfile program ..\n",self);
-        return 1;
+        return usage(self,1);
+    }
+
+    while(1) {
+        if(str_equals(*argv,"--")) {
+            argv++;
+            break;
+        }
+        else if(str_equals(*argv,"--help")) {
+            return usage(self,0);
+        }
+        else if(str_equals(*argv,"-h") == 0) {
+            return usage(self,0);
+        }
+        else if(str_istarts(*argv,"--width")) {
+            c = str_chr(*argv,'=');
+            if(c < str_len(*argv)) {
+                s = *argv + c + 1;
+            } else {
+                argv++;
+                s = *argv;
+            }
+            if(scan_uint(s,&width) == 0) {
+                return usage(self,1);
+            }
+            argv++;
+        }
+        else if(str_istarts(*argv,"--height")) {
+            c = str_chr(*argv,'=');
+            if(c < str_len(*argv)) {
+                s = *argv + c + 1;
+            } else {
+                argv++;
+                s = *argv;
+            }
+            if(scan_uint(s,&height) == 0) {
+                return usage(self,1);
+            }
+            argv++;
+        }
+        else if(str_istarts(*argv,"--fps")) {
+            c = str_chr(*argv,'=');
+            if(c < str_len(*argv)) {
+                s = *argv + c + 1;
+            } else {
+                argv++;
+                s = *argv;
+            }
+            if(scan_uint(s,&fps) == 0) {
+                return usage(self,1);
+            }
+            argv++;
+        }
+        else if(str_istarts(*argv,"--bars")) {
+            c = str_chr(*argv,'=');
+            if(c < str_len(*argv)) {
+                s = *argv + c + 1;
+            } else {
+                argv++;
+                s = *argv;
+            }
+            if(scan_uint(s,&bars) == 0) {
+                return usage(self,1);
+            }
+            argv++;
+        }
+        else if(str_istarts(*argv,"--channels")) {
+            c = str_chr(*argv,'=');
+            if(c < str_len(*argv)) {
+                s = *argv + c + 1;
+            } else {
+                argv++;
+                s = *argv;
+            }
+            if(scan_uint(s,&channels) == 0) {
+                return usage(self,1);
+            }
+            argv++;
+        }
+        else if(str_istarts(*argv,"--samplerate")) {
+            c = str_chr(*argv,'=');
+            if(c < str_len(*argv)) {
+                s = *argv + c + 1;
+            } else {
+                argv++;
+                s = *argv;
+            }
+            if(scan_uint(s,&samplerate) == 0) {
+                return usage(self,1);
+            }
+            argv++;
+        }
+        else {
+            break;
+        }
     }
     songfile   = *argv++;
     scriptfile = *argv++;
@@ -36,12 +152,16 @@ int main(int argc, const char * const* argv) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(generator == NULL) return 1;
 
-    generator->width         =  1280;
-    generator->height        =   720;
-    generator->fps           =    30;
-    processor->spectrum_bars =    24;
-    decoder->samplerate      = 48000;
-    decoder->channels        =     2;
+    if(width == 0) width     =       1280;
+    if(height == 0) height   =        720;
+    if(fps == 0) fps         =         30;
+
+    generator->width         =      width;
+    generator->height        =     height;
+    generator->fps           =        fps;
+    processor->spectrum_bars =       bars;
+    decoder->samplerate      = samplerate;
+    decoder->channels        =   channels;
 
     if(jpr_proc_spawn(&i,argv,&f,NULL,NULL)) return 1;
 

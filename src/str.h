@@ -13,6 +13,7 @@ extern "C" {
 #define str_ncmp(s,q,max) strncmp(s,q,max)
 #define str_icmp(s,q) strcasecmp(s,q)
 #define str_incmp(s,q,max) strncasecmp(s,q,max)
+#define str_equals(s,q) (strcmp(s,q) == 0)
 
 #define str_len(s) strlen(s)
 #define str_nlen(s,m) strnlen(s,m)
