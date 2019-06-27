@@ -61,7 +61,7 @@ static int mpdc__write_notify_default(mpdc_connection *conn);
 static int mpdc__resolve_default(mpdc_connection *, char *hostname);
 static int mpdc__connection_default(mpdc_connection *, char *hostname, uint16_t port);
 static void mpdc__response_begin_default(mpdc_connection *, const char *cmd);
-static void mpdc__response_end_default(mpdc_connection *, const char *cmd, int ok);
+static void mpdc__response_end_default(mpdc_connection *, const char *cmd, int ok, const char *err);
 static void mpdc__response_default(mpdc_connection *, const char *cmd, const char *key, const uint8_t *value, unsigned int length);
 static int mpdc__receive_block(mpdc_connection *conn);
 static int mpdc__receive_nonblock(mpdc_connection *conn);
@@ -451,7 +451,7 @@ static int mpdc__process(mpdc_connection *conn, int *len) {
             }
             else {
                 if(conn->state >= 0) {
-                    conn->response_end(conn,mpdc__command[conn->state],ok);
+                    conn->response_end(conn,mpdc__command[conn->state],ok,(const char *)conn->scratch);
                 }
                 conn->state = -1;
                 break;
@@ -521,10 +521,11 @@ static void mpdc__response_begin_default(mpdc_connection *conn, const char *cmd)
     return;
 }
 
-static void mpdc__response_end_default(mpdc_connection *conn, const char *cmd, int ok) {
+static void mpdc__response_end_default(mpdc_connection *conn, const char *cmd, int ok, const char *err) {
     (void)conn;
     (void)cmd;
     (void)ok;
+    (void)err;
     return;
 }
 

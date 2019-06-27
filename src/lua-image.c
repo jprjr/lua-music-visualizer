@@ -6,10 +6,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <assert.h>
 
 #if !defined(luaL_newlibtable) \
   && (!defined LUA_VERSION_NUM || LUA_VERSION_NUM==501)
@@ -49,6 +46,10 @@ lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, uns
     uint8_t *l_image;
     int idx;
 
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
+
     lua_newtable(L);
     idx = lua_gettop(L);
 
@@ -76,6 +77,12 @@ lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, uns
 
     luaL_getmetatable(L,"image");
     lua_setmetatable(L,idx);
+
+#ifndef NDEBUG
+    assert(idx == lua_gettop(L));
+    assert(lua_top+1 == lua_gettop(L));
+#endif
+
     lua_settop(L,idx);
     return 1;
 }
@@ -83,6 +90,9 @@ lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, uns
 void
 lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *image) {
     lua_State *L = (lua_State *)Lua;
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
     unsigned int width = 0;
     unsigned int height = 0;
     unsigned int channels = 0;
@@ -109,7 +119,11 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *i
 
       lua_pushliteral(L,"error");
       lua_setfield(L,table_ind,"state");
-      lua_settop(L,0);
+      lua_pop(L,1);
+
+      #ifndef NDEBUG
+          assert(lua_top == lua_gettop(L));
+      #endif
       return;
     }
     b = image;
@@ -123,7 +137,11 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *i
     lua_getfield(L,table_ind,"channels");
     channels = lua_tointeger(L,-1);
 
-    lua_settop(L,table_ind);
+    lua_pop(L,3);
+
+#ifndef NDEBUG
+    assert(table_ind == lua_gettop(L));
+#endif
 
     lua_newtable(L); /* image.frames */
     frame_ind = lua_gettop(L);
@@ -160,6 +178,11 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *i
     lua_setfield(L,table_ind,"framecount");
 
     free(image);
+    lua_pop(L,1);
+
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(L));
+#endif
 
     return;
 }
@@ -221,6 +244,9 @@ lua_image_new(lua_State *L) {
     int table_ind = 0;
     int image_ind = 0;
     int frame_ind = 0;
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
 
     if(lua_isstring(L,1)) {
       filename = lua_tostring(L,1);
@@ -243,7 +269,7 @@ lua_image_new(lua_State *L) {
         }
     }
 
-    lua_newtable(L);
+    lua_newtable(L); /* push */
     table_ind = lua_gettop(L);
 
     lua_pushinteger(L,width);
@@ -266,11 +292,11 @@ lua_image_new(lua_State *L) {
         lua_setfield(L,table_ind,"state");
     }
     else {
-        lua_newtable(L); /* image.frames */
+        lua_newtable(L); /* image.frames  -- push */
         frame_ind = lua_gettop(L);
 
         lua_newtable(L);
-        image_ind = lua_gettop(L); /* image.frames[1] */
+        image_ind = lua_gettop(L); /* image.frames[1]  -- push */
 
         lua_pushinteger(L,IMAGE_FIXED);
         lua_setfield(L,table_ind,"image_state");
@@ -304,6 +330,11 @@ lua_image_new(lua_State *L) {
 
     luaL_getmetatable(L,"image_c");
     lua_setmetatable(L,table_ind);
+
+#ifndef NDEBUG
+    assert(table_ind == lua_gettop(L));
+    assert(lua_top+1 == lua_gettop(L));
+#endif
 
     lua_settop(L,table_ind);
     return 1;
@@ -1129,11 +1160,13 @@ luaopen_image(lua_State *L, void *v, void (*cb_set)(void *,void (*)(void *,intpt
     lua_newtable(L);
     luaL_setfuncs(L,lua_image_image_methods,0);
     lua_setfield(L,-2,"__index");
+    lua_pop(L,1);
 
     luaL_newmetatable(L,"image_c");
     lua_newtable(L);
     luaL_setfuncs(L,lua_image_instance_methods,0);
     lua_setfield(L,-2,"__index");
+    lua_pop(L,1);
 
     lua_newtable(L);
     luaL_setfuncs(L,lua_image_methods,0);
@@ -1165,6 +1198,3 @@ int luaclose_image() {
     return 0;
 }
 
-#ifdef __cplusplus
-}
-#endif

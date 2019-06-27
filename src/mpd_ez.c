@@ -1,6 +1,7 @@
 #include "mpd_ez.h"
 #include "scan.h"
 #include "str.h"
+#include <assert.h>
 
 static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char *key, const uint8_t *value, unsigned int length) {
     (void)length;
@@ -8,6 +9,9 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
     conn_info *info = (conn_info *)conn->ctx;
     video_generator *v = info->v;
     const char *t;
+#ifndef NDEBUG
+    int lua_state = lua_gettop(v->L);
+#endif
 
     unsigned int tmp_int = 0;
     unsigned int tmp_fac = 0;
@@ -97,13 +101,22 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
             }
         }
     }
+#ifndef NDEBUG
+    assert(lua_state == lua_gettop(v->L));
+#endif
 }
 
-static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok) {
+static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok, const char *err) {
     conn_info *info = (conn_info *)conn->ctx;
     video_generator *v = info->v;
+#ifndef NDEBUG
+    int lua_state = lua_gettop(v->L);
+#endif
 
-    if(ok == -1) exit(1);
+    if(ok == -1) {
+        fprintf(stderr,"mpd_ok (%s) returned -1: %s\n",cmd, err);
+        exit(1);
+    }
     if(strcmp(cmd,"idle") == 0) {
         mpdc_idle(conn,MPDC_EVENT_PLAYER | MPDC_EVENT_MESSAGE);
         return;
@@ -125,6 +138,9 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok)
       lua_pop(v->L,1);
 
     }
+#ifndef NDEBUG
+    assert(lua_state == lua_gettop(v->L));
+#endif
 }
 
 static int ez_ndelay_on(int fd)
@@ -136,11 +152,15 @@ static int ez_ndelay_on(int fd)
 static int ez_read_func(void *ctx, uint8_t *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
     int r = read(conn->fd,buf,count);
+    write(2,"<< ",3);
+    write(2,buf,r);
     return r;
 }
 
 static int ez_write_func(void *ctx, const uint8_t *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
+    write(2,">> ",3);
+    write(2,buf,count);
     int r = write(conn->fd,buf,count);
     return r;
 }

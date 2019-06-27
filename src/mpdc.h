@@ -110,7 +110,7 @@ typedef void (*mpdc_response_begin_func)(mpdc_connection *, const char *cmd);
 
 /* called when MPD finishes reading a response from a command */
 /* `ok` indicates if the command finished in OK or error */
-typedef void (*mpdc_response_end_func)(mpdc_connection *, const char *cmd, int ok);
+typedef void (*mpdc_response_end_func)(mpdc_connection *, const char *cmd, int ok, const char *err);
 
 /* called when receiving a response from a command */
 /* key will always be null-terminated, value may not (ie,

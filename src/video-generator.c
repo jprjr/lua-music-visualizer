@@ -24,6 +24,8 @@
 #include "mpd_ez.h"
 #endif
 
+#include <assert.h>
+
 #define format_dword(buf,n) pack_int32le(buf,n)
 #define format_long(buf,n) pack_int32le(buf,n)
 #define format_word(buf,n) pack_int16le(buf,n)
@@ -68,10 +70,18 @@ static void video_generator_set_image_cb(void *ctx, void(*f)(void *, intptr_t , 
 
 static void onmeta(void *ctx, const char *key, const char *value) {
     video_generator *v = ctx;
+#ifndef NDEBUG
+    int stack_state = lua_gettop(v->L);
+#endif
     lua_getglobal(v->L,"song");
     lua_pushstring(v->L,value);
     lua_setfield(v->L,-2,key);
-    lua_settop(v->L,0);
+    lua_pop(v->L,1);
+#ifndef NDEBUG
+    if(stack_state != lua_gettop(v->L)) {
+        fprintf(stderr,"error in balancing onmeta\n");
+    }
+#endif
 }
 
 static int write_avi_header(video_generator *v) {
@@ -182,6 +192,9 @@ static int write_avi_header(video_generator *v) {
 
 
 void video_generator_close(video_generator *v) {
+#ifndef NDEBUG
+    int stack_top = lua_gettop(v->L);
+#endif
     if(v->lua_ref != -1) {
       lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
       lua_getfield(v->L,-1,"onunload");
@@ -192,7 +205,11 @@ void video_generator_close(video_generator *v) {
       } else {
           lua_pop(v->L,1);
       }
+      lua_pop(v->L,1);
     }
+#ifndef NDEBUG
+    assert(stack_top == lua_gettop(v->L));
+#endif
 #ifndef _WIN32
     if(v->mpd != NULL) {
         mpdc_disconnect(v->mpd);
@@ -209,6 +226,9 @@ void video_generator_close(video_generator *v) {
 }
 
 int video_generator_loop(video_generator *v) {
+#ifndef NDEBUG
+    int lua_top;
+#endif
     unsigned int samps;
     int r = 0;
     unsigned int i = 0;
@@ -240,6 +260,9 @@ int video_generator_loop(video_generator *v) {
 
 
     if(v->lua_ref != -1) {
+#ifndef NDEBUG
+      lua_top = lua_gettop(v->L);
+#endif
       lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
       lua_getfield(v->L,-1,"onframe");
       if(lua_isfunction(v->L,-1)) {
@@ -250,11 +273,23 @@ int video_generator_loop(video_generator *v) {
           lua_pop(v->L,1);
       }
       lua_pop(v->L,1);
+#ifndef NDEBUG
+      assert(lua_top == lua_gettop(v->L));
+#endif
     }
 
+#ifndef NDEBUG
+    lua_top = lua_gettop(v->L);
+#endif
     lua_getglobal(v->L,"song");
     lua_pushnumber(v->L,v->elapsed / 1000.0f);
     lua_setfield(v->L,-2,"elapsed");
+    lua_pop(v->L,1);
+
+#ifndef NDEBUG
+      assert(lua_top == lua_gettop(v->L));
+#endif
+
     v->elapsed += v->ms_per_frame;
 
     lua_gc(v->L,LUA_GCCOLLECT,0);
@@ -273,6 +308,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     v->out = out;
     char *rpath;
     char *tmp;
+#ifndef NDEBUG
+    int lua_top;
+#endif
     rpath = malloc(sizeof(char)*PATH_MAX);
     if(rpath == NULL) {
         fprintf(stderr,"out of memory\n");
@@ -341,9 +379,16 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         return 1;
     }
 
+#ifndef NDEBUG
+    lua_top = lua_gettop(v->L);
+#endif
+
     lua_newtable(v->L);
     lua_setglobal(v->L,"song");
-    lua_settop(v->L,0);
+
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
 
     /* open audio file and populate metadata */
     if(audio_decoder_open(d,filename)) {
@@ -387,7 +432,11 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     }
 #endif
 
-    lua_settop(v->L,0);
+    lua_pop(v->L,1);
+
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
 
     if(audio_processor_init(p,d,v->samples_per_frame)) {
         fprintf(stderr,"error with audio_processor_init\n");
@@ -399,8 +448,19 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     v->image_cb = lua_load_image_cb;
 
     luaopen_image(v->L,v,&video_generator_set_image_cb);
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
+
     luaimage_setup_threads(&(v->image_queue));
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
+
     luaopen_file(v->L);
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
 
     if(luaL_loadbuffer(v->L,font_lua,font_lua_length-1,"font.lua")) {
         fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
@@ -413,21 +473,26 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     }
 
     lua_setglobal(v->L,"font");
-    lua_settop(v->L,0);
 
-    lua_getglobal(v->L,"image");
-    lua_getfield(v->L,-1,"new");
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
+
+    lua_getglobal(v->L,"image"); /* push */
+    lua_getfield(v->L,-1,"new"); /* push */
     lua_pushnil(v->L);
     lua_pushinteger(v->L,v->width);
     lua_pushinteger(v->L,v->height);
     lua_pushinteger(v->L,3);
-    if(lua_pcall(v->L,4,1,0)) {
+    if(lua_pcall(v->L,4,1,0)) { /* pop */
         fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
         return 1;
     }
+    /* top of the stack has an image table */
+    /* there's also the global "image" object still on the stack */
 
-    lua_getfield(v->L,-1,"frames");
-    lua_rawgeti(v->L,-1,1);
+    lua_getfield(v->L,-1,"frames"); /* push */
+    lua_rawgeti(v->L,-1,1); /* push */
 
     lua_pushinteger(v->L,v->fps);
     lua_setfield(v->L,-2,"framerate");
@@ -435,15 +500,24 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     lua_pushlightuserdata(v->L,v->framebuf+8);
     lua_setfield(v->L,-2,"image");
 
-    lua_newtable(v->L);
+    lua_newtable(v->L); /* push */
     lua_pushvalue(v->L,-2);
-    lua_setfield(v->L,-2,"video");
+    lua_setfield(v->L,-2,"video"); /* set frames[1] as "video" field on a new table */
+    /* stack state (first is top) */
+    /*  {table}
+     *  frames[1]
+     *  frames
+     *  image */
 
     luaopen_audio(v->L,p);
     lua_setfield(v->L,-2,"audio");
 
     lua_setglobal(v->L,"stream");
-    lua_settop(v->L,0);
+    lua_pop(v->L,4);
+
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
 
     if(luaL_loadbuffer(v->L,stream_lua,stream_lua_length - 1,"stream.lua")) {
         fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
@@ -455,6 +529,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         return 1;
     }
 
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
+
     if(luaL_loadfile(v->L,luascript)) {
         fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
         return 1;
@@ -464,6 +542,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
         return 1;
     }
+
     if(lua_isfunction(v->L,-1)) {
         lua_newtable(v->L);
         lua_pushvalue(v->L,-2);
@@ -494,7 +573,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
 
         lua_pop(v->L,1);
     }
-    lua_settop(v->L,0);
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
 
     strcpy((char *)v->framebuf,"00db");
     format_dword(v->framebuf + 4, v->framebuf_video_len);

@@ -163,7 +163,10 @@ int main(int argc, const char * const* argv) {
     decoder->samplerate      = samplerate;
     decoder->channels        =   channels;
 
-    if(jpr_proc_spawn(&i,argv,&f,NULL,NULL)) return 1;
+    if(jpr_proc_spawn(&i,argv,&f,NULL,NULL)) {
+        fprintf(stderr,"error spawning process\n");
+        return 1;
+    }
 
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&f)) {
         fprintf(stderr,"error starting the video generator\n");
