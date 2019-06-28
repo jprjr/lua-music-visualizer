@@ -201,7 +201,10 @@ static uint8_t mpdc__ringbuf_getchr(mpdc_ringbuf *rb) {
 }
 
 static uint8_t mpdc__op_last(mpdc_connection *conn) {
-    return conn->op.head[-1];
+    if (conn->op.head == conn->op.buf) {
+        return *(conn->op.buf + conn->op.size - 1);
+    }
+    return *(conn->op.head - 1);
 }
 
 
