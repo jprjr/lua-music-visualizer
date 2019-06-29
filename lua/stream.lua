@@ -46,8 +46,3 @@ stream.blend = function(self,b,alpha)
   return self.video:blend(b,alpha)
 end
 
-local ok, ffi = pcall(require,'ffi')
-if ok then
-  stream.video.image = ffi.cast("uint8_t *",stream.video.image)
-end
-
