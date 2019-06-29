@@ -2,7 +2,7 @@ all: lua-music-visualizer
 
 include Makefile.common
 
-LUA = lua
+LUA = luajit
 HOST_CC=$(CC)
 
 OBJS += src/console.o src/mpd_ez.o src/mpdc.o src/scan.o

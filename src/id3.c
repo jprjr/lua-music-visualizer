@@ -104,6 +104,8 @@ void process_id3(audio_decoder *a, FILE *f) {
             continue;
         }
 
+        if(buffer2.s == NULL) continue;
+
         switch(buffer2.s[0]) {
             case 0: text_func = utf_conv_iso88591_utf8; break;
             case 1: text_func = utf_conv_utf16_utf8; break;
@@ -111,8 +113,11 @@ void process_id3(audio_decoder *a, FILE *f) {
             case 3: text_func = utf8_len_or_copy; break;
             default: text_func = NULL;
         }
+
         if(text_func == NULL) continue;
+
         dec_len = text_func(NULL,(uint8_t *)buffer2.s+1,frame_size-1) + 1;
+
         if(str_alloc_resize(&buffer3,dec_len)) goto id3_done;
         buffer3.s[text_func((uint8_t *)buffer3.s,(uint8_t *)buffer2.s+1,frame_size-1)] = 0;
 

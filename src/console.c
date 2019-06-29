@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include "audio-decoder.h"
 #include "audio-processor.h"
 #include "video-generator.h"
@@ -17,6 +18,22 @@ int usage(const char *self, int e) {
     fprintf(stderr,"  --fps=fps\n");
     fprintf(stderr,"  --bars=bars\n");
     return e;
+}
+
+__attribute__((noreturn))
+void quit(int e,...) {
+    va_list ap;
+    void *p = NULL;
+
+    va_start(ap,e);
+    do {
+        p = va_arg(ap,void *);
+        if(p != NULL) {
+            free(p);
+        }
+    } while(p != NULL);
+
+    exit(e);
 }
 
 int main(int argc, const char * const* argv) {
@@ -146,11 +163,11 @@ int main(int argc, const char * const* argv) {
     if(jpr_proc_pipe_init(&f)) return 1;
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
-    if(decoder == NULL) return 1;
+    if(decoder == NULL) quit(1,NULL);
     processor = (audio_processor *)malloc(sizeof(audio_processor));
-    if(processor == NULL) return 1;
+    if(processor == NULL) quit(1,decoder,NULL);
     generator = (video_generator *)malloc(sizeof(video_generator));
-    if(generator == NULL) return 1;
+    if(generator == NULL) quit(1,decoder,processor,NULL);
 
     if(width == 0) width     =       1280;
     if(height == 0) height   =        720;
@@ -165,11 +182,13 @@ int main(int argc, const char * const* argv) {
 
     if(jpr_proc_spawn(&i,argv,&f,NULL,NULL)) {
         fprintf(stderr,"error spawning process\n");
+        quit(1,decoder,processor,generator,NULL);
         return 1;
     }
 
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&f)) {
         fprintf(stderr,"error starting the video generator\n");
+        quit(1,decoder,processor,generator,NULL);
         return 1;
     }
 

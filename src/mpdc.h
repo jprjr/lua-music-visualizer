@@ -94,12 +94,12 @@ typedef int (*mpdc_write_notify_func)(mpdc_connection *);
 /* resolve is called at the end of mpdc_setup */
 /* optional */
 /* return <=0 on errors, 1+ on success */
-typedef int (*mpdc_resolve_func)(mpdc_connection *, char *hostname);
+typedef int (*mpdc_resolve_func)(mpdc_connection *, const char *hostname);
 
 /* connect is called at the end of mpdc_connect */
 /* required */
 /* return <=0 on errors, 1+ on success */
-typedef int (*mpdc_connect_func)(mpdc_connection *, char *hostname, uint16_t port);
+typedef int (*mpdc_connect_func)(mpdc_connection *, const char *hostname, uint16_t port);
 
 /* called when disconnected from MPD */
 typedef void (*mpdc_disconnect_func)(mpdc_connection *);

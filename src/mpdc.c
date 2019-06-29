@@ -645,6 +645,7 @@ int mpdc_send(mpdc_connection *conn) {
             return conn->read_notify(conn) > 0;
         }
         conn->state = mpdc__ringbuf_getchr(&conn->op);
+        conn->response_begin(conn,mpdc__command[conn->state]);
         if(conn->state == MPDC_COMMAND_IDLE && !mpdc_ringbuf_is_empty(&conn->op)) {
             /* we have a "noidle" queued to cancel this idle, so go into write mode */
             return conn->write_notify(conn) > 0;
@@ -670,7 +671,7 @@ int mpdc_password(mpdc_connection *conn, const char *password) {
 STATIC
 int mpdc_idle(mpdc_connection *conn, uint_least16_t events) {
     int d = 0;
-    uint8_t cur_op;
+    uint8_t cur_op = 255;
 
     if(!(mpdc_ringbuf_is_empty(&conn->op))) {
         d = 1;
@@ -760,7 +761,7 @@ int mpdc__put(mpdc_connection *conn, unsigned int cmd, const char *fmt, ...) {
     char *s;
     unsigned int u;
     int d = 0;
-    uint8_t cur_op;
+    uint8_t cur_op = 255;
 
     if(!(mpdc_ringbuf_is_empty(&conn->op))) {
         d = 1;

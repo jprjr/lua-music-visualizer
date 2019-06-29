@@ -30,7 +30,7 @@ CLEAN = $(OBJS) $(LUALHS)
 
 BIN2CSRC = src/bin2c.c
 
-CFLAGS = -Wall -Wextra -g -O2
+CFLAGS = -Wall -Wextra -Os -DNDEBUG
 LDFLAGS =
 
 %.o: %.c $(LUALHS)

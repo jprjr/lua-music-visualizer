@@ -83,7 +83,6 @@ lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, uns
     assert(lua_top+1 == lua_gettop(L));
 #endif
 
-    lua_settop(L,idx);
     return 1;
 }
 
@@ -336,7 +335,6 @@ lua_image_new(lua_State *L) {
     assert(lua_top+1 == lua_gettop(L));
 #endif
 
-    lua_settop(L,table_ind);
     return 1;
 }
 
@@ -1155,7 +1153,10 @@ int luaimage_stop_threads(void) {
 }
 
 int
-luaopen_image(lua_State *L, void *v, void (*cb_set)(void *,void (*)(void *,intptr_t,unsigned int,uint8_t *))) {
+luaopen_image(lua_State *L) {
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
     luaL_newmetatable(L,"image");
     lua_newtable(L);
     luaL_setfuncs(L,lua_image_image_methods,0);
@@ -1174,21 +1175,18 @@ luaopen_image(lua_State *L, void *v, void (*cb_set)(void *,void (*)(void *,intpt
     lua_setglobal(L,"image");
 
     if(luaL_loadbuffer(L,image_lua,image_lua_length-1,"image.lua")) {
-        fprintf(stderr,"error loading image.lua: %s\n",lua_tostring(L,-1));
-        exit(1);
+        fprintf(stderr,"error: %s\n",lua_tostring(L,-1));
+        return 1;
     }
 
-    lua_pushlightuserdata(L,image_probe);
-    lua_pushlightuserdata(L,image_load);
-    lua_pushlightuserdata(L,queue_image_load);
-    lua_pushlightuserdata(L,image_blend);
-    lua_pushlightuserdata(L,cb_set);
-    lua_pushlightuserdata(L,v);
-
-    if(lua_pcall(L,6,0,0)) {
-        fprintf(stderr,"error calling image.lua: %s\n",lua_tostring(L,-1));
-        exit(1);
+    if(lua_pcall(L,0,0,0)) {
+        fprintf(stderr,"error: %s\n",lua_tostring(L,-1));
+        return 1;
     }
+
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(L));
+#endif
 
     return 0;
 }

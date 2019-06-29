@@ -31,7 +31,7 @@ struct video_generator_s {
     double elapsed;
     double duration;
     mpdc_connection *mpd;
-    void (*image_cb)(void *L, intptr_t table_ref, unsigned int frames, uint8_t *image);
+    unsigned int mpd_tags;
 };
 
 int video_generator_init(video_generator *, audio_processor *, audio_decoder *, const char *filename, const char *luascript, jpr_proc_pipe *out);
