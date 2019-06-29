@@ -2,6 +2,22 @@
 #include "scan.h"
 #include "str.h"
 #include <assert.h>
+#include <errno.h>
+
+#define MPD_FILE   0x01
+#define MPD_TITLE  0x02
+#define MPD_ALBUM  0x04
+#define MPD_ARTIST 0x08
+
+static void ez_mpdc_response_begin(mpdc_connection *conn,const char *cmd) {
+    conn_info *info = (conn_info *)conn->ctx;
+    video_generator *v = info->v;
+    if(str_equals(cmd,"currentsong")) {
+        fprintf(stderr,"clearing out mpd_tags\n");
+        v->mpd_tags = 0;
+    }
+}
+
 
 static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char *key, const uint8_t *value, unsigned int length) {
     (void)length;
@@ -18,12 +34,12 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
 
     lua_getglobal(v->L,"song"); /* push */
 
-    if(strcmp(cmd,"status") == 0) {
-        if(strcmp(key,"songid") == 0) {
+    if(str_equals(cmd,"status")) {
+        if(str_equals(key,"songid")) {
             scan_uint((char *)value,&tmp_int);
             lua_pushinteger(v->L,tmp_int);
             lua_setfield(v->L,-2,"songid");
-        } else if(strcmp(key,"elapsed") == 0) {
+        } else if(str_equals(key,"elapsed")) {
             t = (const char *)value;
             t += scan_uint(t,&tmp_int);
             tmp_int *= 1000;
@@ -33,7 +49,7 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
             v->elapsed = (double)tmp_int;
             lua_pushnumber(v->L,v->elapsed / 1000.0f);
             lua_setfield(v->L,-2,"elapsed");
-        } else if(strcmp(key,"duration") == 0) {
+        } else if(str_equals(key,"duration")) {
             t = (const char *)value;
             t += scan_uint(t,&tmp_int);
             tmp_int *= 1000;
@@ -44,7 +60,7 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
             lua_pushnumber(v->L,v->duration);
             lua_setfield(v->L,-2,"total");
         }
-        else if(strcmp(key,"time") == 0) {
+        else if(str_equals(key,"time")) {
             if(v->duration == 0.0f) {
                 tmp_int = str_chr((const char *)value,':');
                 t = (const char *)value + tmp_int + 1;
@@ -53,23 +69,27 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
                 lua_setfield(v->L,-2,"total");
             }
         }
-    } else if(strcmp(cmd,"currentsong") ==0) {
-        if(strcmp(key,"file") == 0) {
+    } else if(str_equals(cmd,"currentsong")) {
+        if(str_equals(key,"file")) {
             lua_pushstring(v->L,(const char *)value);
             lua_setfield(v->L,-2,"file");
-        } else if(strcmp(key,"title") == 0) {
+            v->mpd_tags |= MPD_FILE;
+        } else if(str_equals(key,"title")) {
             lua_pushstring(v->L,(const char *)value);
             lua_setfield(v->L,-2,"title");
-        } else if(strcmp(key,"album") == 0) {
+            v->mpd_tags |= MPD_TITLE;
+        } else if(str_equals(key,"album")) {
             lua_pushstring(v->L,(const char *)value);
             lua_setfield(v->L,-2,"album");
-        } else if(strcmp(key,"artist") == 0) {
+            v->mpd_tags |= MPD_ALBUM;
+        } else if(str_equals(key,"artist")) {
             lua_pushstring(v->L,(const char *)value);
             lua_setfield(v->L,-2,"artist");
+            v->mpd_tags |= MPD_ARTIST;
         }
     }
-    else if(strcmp(cmd,"readmessages") == 0) {
-        if(strcmp(key,"message") == 0) {
+    else if(str_equals(cmd,"readmessages")) {
+        if(str_equals(key,"message")) {
             lua_pushstring(v->L,(const char *)value); /* push */
             lua_setfield(v->L,-2,"message"); /* pop */
         }
@@ -90,13 +110,13 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
 
     lua_pop(v->L,1);
 
-    if(strcmp(cmd,"idle") == 0) {
-        if(strcmp(key,"changed") == 0) {
-            if(strcmp((const char *)value,"player") == 0) {
+    if(str_equals(cmd,"idle")) {
+        if(str_equals(key,"changed")) {
+            if(str_equals((const char *)value,"player")) {
                 mpdc_status(conn);
                 mpdc_currentsong(conn);
             }
-            else if(strcmp((const char *)value,"message") == 0) {
+            else if(str_equals((const char *)value,"message")) {
                 mpdc_readmessages(conn);
             }
         }
@@ -117,12 +137,34 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok,
         fprintf(stderr,"mpd_ok (%s) returned -1: %s\n",cmd, err);
         exit(1);
     }
-    if(strcmp(cmd,"idle") == 0) {
+    if(str_equals(cmd,"idle")) {
         mpdc_idle(conn,MPDC_EVENT_PLAYER | MPDC_EVENT_MESSAGE);
         return;
     }
 
-    if(strcmp(cmd,"status") == 0 || strcmp(cmd,"currentsong") == 0) {
+    if(str_equals(cmd,"currentsong")) {
+        lua_getglobal(v->L,"song"); /* push */
+        if((v->mpd_tags & MPD_FILE) == 0) {
+            lua_pushnil(v->L);
+            lua_setfield(v->L,-2,"file");
+        }
+        if((v->mpd_tags & MPD_TITLE) == 0) {
+            lua_pushnil(v->L);
+            lua_setfield(v->L,-2,"title");
+        }
+        if((v->mpd_tags & MPD_ALBUM) == 0) {
+            lua_pushnil(v->L);
+            lua_setfield(v->L,-2,"album");
+        }
+        if((v->mpd_tags & MPD_ARTIST) == 0) {
+            lua_pushnil(v->L);
+            lua_setfield(v->L,-2,"artist");
+            fprintf(stderr,"setting artist to nil\n");
+        }
+        lua_pop(v->L,1);
+    }
+
+    if(str_equals(cmd,"status") || str_equals(cmd,"currentsong")) {
       lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
       lua_getfield(v->L,-1,"onchange");
       if(lua_isfunction(v->L,-1)) {
@@ -152,21 +194,19 @@ static int ez_ndelay_on(int fd)
 static int ez_read_func(void *ctx, uint8_t *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
     int r = read(conn->fd,buf,count);
-    write(2,"<< ",3);
-    write(2,buf,r);
     return r;
 }
 
 static int ez_write_func(void *ctx, const uint8_t *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
-    write(2,">> ",3);
-    write(2,buf,count);
     int r = write(conn->fd,buf,count);
     return r;
 }
 
-static int ez_resolve(mpdc_connection *c, char *hostname) {
+static int ez_resolve(mpdc_connection *c, const char *hostname) {
     conn_info *conn = (conn_info *)c->ctx;
+    if(hostname[0] == '/') return 1;
+
     if( (conn->he = gethostbyname(hostname)) == NULL) {
         return -1;
     }
@@ -175,26 +215,49 @@ static int ez_resolve(mpdc_connection *c, char *hostname) {
 }
 
 
-static int ez_connect(mpdc_connection *c, char *host, uint16_t port) {
-    (void)host;
+static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
+
+    struct sockaddr_un u_addr;
     conn_info *conn = (conn_info *)c->ctx;
     if(conn->fd > -1) {
         close(conn->fd);
         conn->fd = -1;
     }
 
-    conn->fd = socket(conn->he->h_addrtype, SOCK_STREAM, 0);
-    if(conn->fd == -1) return -1;
+    fprintf(stderr,"connecting to %s\n",host);
 
-    memset(&(conn->addr),0,sizeof(struct sockaddr_in));
-    conn->addr.sin_port = htons(port);
-    conn->addr.sin_family = AF_INET;
-    memcpy(&(conn->addr.sin_addr),conn->he->h_addr,conn->he->h_length);
+    if(host[0] == '/') {
+        conn->fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        if(conn->fd == -1) {
+            fprintf(stderr,"failed to open unix socket\n");
+            return -1;
+        }
+        memset(&u_addr,0,sizeof(u_addr));
+        u_addr.sun_family = AF_UNIX;
+        strncpy(u_addr.sun_path,host,sizeof(u_addr.sun_path)-1);
+        if(connect(conn->fd,(struct sockaddr *)&u_addr,sizeof(u_addr)) < 0) {
+            fprintf(stderr,"failed to connect to unix socket: %s\n",strerror(errno));
+            close(conn->fd);
+            conn->fd = -1;
+            return -1;
+        }
 
-    if(connect(conn->fd,(struct sockaddr *)&(conn->addr),sizeof(struct sockaddr)) < 0) {
-        close(conn->fd);
-        conn->fd = -1;
-        return -1;
+    }
+    else {
+
+        conn->fd = socket(conn->he->h_addrtype, SOCK_STREAM, 0);
+        if(conn->fd == -1) return -1;
+
+        memset(&(conn->addr),0,sizeof(struct sockaddr_in));
+        conn->addr.sin_port = htons(port);
+        conn->addr.sin_family = AF_INET;
+        memcpy(&(conn->addr.sin_addr),conn->he->h_addr,conn->he->h_length);
+
+        if(connect(conn->fd,(struct sockaddr *)&(conn->addr),sizeof(struct sockaddr)) < 0) {
+            close(conn->fd);
+            conn->fd = -1;
+            return -1;
+        }
     }
 
     ez_ndelay_on(conn->fd);
@@ -246,7 +309,7 @@ int mpd_ez_setup(video_generator *v) {
     v->mpd->disconnect = ez_disconnect;
     v->mpd->read = ez_read_func;
     v->mpd->write = ez_write_func;
-    v->mpd->response_begin = NULL;
+    v->mpd->response_begin = ez_mpdc_response_begin;
     v->mpd->response_end = ez_mpdc_response_end;
     v->mpd->response = ez_mpdc_response;
     v->mpd->read_notify = ez_read_notify;
