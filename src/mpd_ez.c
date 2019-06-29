@@ -13,7 +13,6 @@ static void ez_mpdc_response_begin(mpdc_connection *conn,const char *cmd) {
     conn_info *info = (conn_info *)conn->ctx;
     video_generator *v = info->v;
     if(str_equals(cmd,"currentsong")) {
-        fprintf(stderr,"clearing out mpd_tags\n");
         v->mpd_tags = 0;
     }
 }
@@ -159,7 +158,6 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok,
         if((v->mpd_tags & MPD_ARTIST) == 0) {
             lua_pushnil(v->L);
             lua_setfield(v->L,-2,"artist");
-            fprintf(stderr,"setting artist to nil\n");
         }
         lua_pop(v->L,1);
     }
@@ -223,8 +221,6 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
         close(conn->fd);
         conn->fd = -1;
     }
-
-    fprintf(stderr,"connecting to %s\n",host);
 
     if(host[0] == '/') {
         conn->fd = socket(AF_UNIX, SOCK_STREAM, 0);
