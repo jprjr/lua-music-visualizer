@@ -2,7 +2,21 @@
 #define AUDIO_PROCESSOR_H
 
 #include "audio-decoder.h"
+
+#ifdef USE_FFTW3
+#include <complex.h>
+#include <fftw3.h>
+#define SCALAR_TYPE double
+#define COMPLEX_TYPE fftw_complex
+#define PLAN_TYPE fftw_plan
+#define MALLOC fftw_malloc
+#else
 #include "kiss_fftr.h"
+#define SCALAR_TYPE kiss_fft_scalar
+#define COMPLEX_TYPE kiss_fft_cpx
+#define PLAN_TYPE kiss_fftr_cfg
+#define MALLOC malloc
+#endif
 
 typedef struct audio_processor_s audio_processor;
 typedef struct frange_s frange;
@@ -21,10 +35,10 @@ struct audio_processor_s {
     unsigned int spectrum_bars;
     unsigned int buffer_len; /* buffer len does NOT account for channels */
     int16_t *buffer; /* stores incoming samples - buffer_len * channels */
-    kiss_fft_scalar *mbuffer; /* stores a downmixed version of samples */
-    kiss_fft_scalar *wbuffer; /* stores window function factors */
-    kiss_fft_cpx *obuffer; /* buffer_len/2 + 1 output points */
-    kiss_fftr_cfg plan;
+    SCALAR_TYPE *mbuffer; /* stores a downmixed version of samples */
+    SCALAR_TYPE *wbuffer; /* stores window function factors */
+    COMPLEX_TYPE *obuffer; /* buffer_len/2 + 1 output points */
+    PLAN_TYPE plan;
     frange *spectrum;
     int firstflag;
 };

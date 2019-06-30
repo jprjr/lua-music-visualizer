@@ -2,6 +2,7 @@
 #include "audio-decoder.h"
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define AUDIO_MAX(a,b) (a > b ? a : b)
 
@@ -14,7 +15,7 @@
 #define AMP_MIN 70.0f
 #define AMP_BOOST 1.8f
 
-static kiss_fft_scalar itur_468(double freq) {
+static SCALAR_TYPE itur_468(double freq) {
     /* only calculate this for freqs > 1000 */
     if(freq >= 1000.0f) {
         return 0.0f;
@@ -31,18 +32,22 @@ static kiss_fft_scalar itur_468(double freq) {
     return 18.2f + (20.0f * log10(r1));
 }
 
-static kiss_fft_scalar cpx_abs(kiss_fft_cpx c) {
+#ifdef USE_FFTW3
+#define cpx_abs(c) cabs(c)
+#else
+static SCALAR_TYPE cpx_abs(COMPLEX_TYPE c) {
     return sqrt( (c.r * c.r) + (c.i * c.i));
 }
+#endif
 
-static kiss_fft_scalar cpx_amp(double buffer_len, kiss_fft_cpx c) {
+static SCALAR_TYPE cpx_amp(double buffer_len, COMPLEX_TYPE c) {
     return 20.0f * log10(2.0f * cpx_abs(c) /buffer_len);
 }
 
-static kiss_fft_scalar find_amplitude_max(double buffer_len, kiss_fft_cpx *out, unsigned int start, unsigned int end) {
+static SCALAR_TYPE find_amplitude_max(double buffer_len, COMPLEX_TYPE *out, unsigned int start, unsigned int end) {
     unsigned int i = 0;
-    kiss_fft_scalar val = -INFINITY;
-    kiss_fft_scalar tmp = 0.0f;
+    SCALAR_TYPE val = -INFINITY;
+    SCALAR_TYPE tmp = 0.0f;
     for(i=start;i<=end;i++) {
         tmp = cpx_amp(buffer_len,out[i]);
         /* see https://groups.google.com/d/msg/comp.dsp/cZsS1ftN5oI/rEjHXKTxgv8J */
@@ -51,8 +56,8 @@ static kiss_fft_scalar find_amplitude_max(double buffer_len, kiss_fft_cpx *out, 
     return val;
 }
 
-static kiss_fft_scalar window_blackman_harris(int i, int n) {
-    kiss_fft_scalar a = (2.0f * M_PI) / (n - 1);
+static SCALAR_TYPE window_blackman_harris(int i, int n) {
+    SCALAR_TYPE a = (2.0f * M_PI) / (n - 1);
     return 0.35875 - 0.48829*cos(a*i) + 0.14128*cos(2*a*i) - 0.01168*cos(3*a*i);
 }
 
@@ -71,29 +76,34 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
     }
     p->decoder = a;
 
-    p->buffer = (int16_t *)malloc(sizeof(int16_t) * p->buffer_len * a->channels);
+    p->buffer = (int16_t *)MALLOC(sizeof(int16_t) * p->buffer_len * a->channels);
     if(p->buffer == NULL) return 1;
     memset(p->buffer,0,sizeof(int16_t)*(p->buffer_len * p->decoder->channels));
 
     if(p->spectrum_bars > 0) {
-        p->mbuffer = (kiss_fft_scalar *)malloc(sizeof(kiss_fft_scalar) * p->buffer_len);
+        p->mbuffer = (SCALAR_TYPE *)MALLOC(sizeof(SCALAR_TYPE) * p->buffer_len);
         if(p->mbuffer == NULL) return 1;
 
-        p->wbuffer = (kiss_fft_scalar *)malloc(sizeof(kiss_fft_scalar) * p->buffer_len);
+        p->wbuffer = (SCALAR_TYPE *)MALLOC(sizeof(SCALAR_TYPE) * p->buffer_len);
         if(p->wbuffer == NULL) return 1;
 
-        p->obuffer = (kiss_fft_cpx *)malloc(sizeof(kiss_fft_cpx) * ( (p->buffer_len / 2) + 1));
+        p->obuffer = (COMPLEX_TYPE *)MALLOC(sizeof(COMPLEX_TYPE) * ( (p->buffer_len / 2) + 1));
         if(p->obuffer == NULL) return 1;
 
-        p->spectrum = (frange *)malloc(sizeof(frange) * (p->spectrum_bars + 1));
+        p->spectrum = (frange *)MALLOC(sizeof(frange) * (p->spectrum_bars + 1));
         if(p->spectrum == NULL) return 1;
 
-        memset(p->mbuffer,0,sizeof(kiss_fft_scalar)*p->buffer_len);
-        memset(p->wbuffer,0,sizeof(kiss_fft_scalar)*p->buffer_len);
-        memset(p->obuffer,0,sizeof(kiss_fft_cpx) * ((p->buffer_len/2)+1) );
+        memset(p->mbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
+        memset(p->wbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
+        memset(p->obuffer,0,sizeof(COMPLEX_TYPE) * ((p->buffer_len/2)+1) );
 
         bin_size = (double)a->samplerate / ((double)p->buffer_len);
+#ifdef USE_FFTW3
+        p->plan = fftw_plan_dft_r2c_1d(p->buffer_len,p->mbuffer,p->obuffer,FFTW_ESTIMATE);
+
+#else
         p->plan = kiss_fftr_alloc(p->buffer_len, 0, NULL, NULL);
+#endif
         if(p->plan == NULL) return 1;
         while(i<p->buffer_len) {
             p->wbuffer[i] = window_blackman_harris(i,p->buffer_len);
@@ -140,7 +150,7 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
 
 void audio_processor_close(audio_processor *p) {
     if(p->plan != NULL) {
-        KISS_FFT_FREE(p->plan);
+        free(p->plan);
         p->plan = NULL;
     }
     if(p->buffer != NULL) {
@@ -171,7 +181,7 @@ void audio_processor_close(audio_processor *p) {
 
 static void audio_processor_fft(audio_processor *p) {
     unsigned int i=0;
-    kiss_fft_scalar m = 0;
+    SCALAR_TYPE m = 0;
 
     while(i < p->buffer_len) {
         if(p->decoder->channels ==2) {
@@ -185,7 +195,11 @@ static void audio_processor_fft(audio_processor *p) {
         i++;
     }
 
+#ifdef USE_FFTW3
+    fftw_execute(p->plan);
+#else
     kiss_fftr(p->plan,p->mbuffer,p->obuffer);
+#endif
 
     for(i=0;i<p->spectrum_bars;i++) {
         p->spectrum[i].amp = find_amplitude_max((double)p->buffer_len,p->obuffer,p->spectrum[i].first_bin,p->spectrum[i].last_bin);
