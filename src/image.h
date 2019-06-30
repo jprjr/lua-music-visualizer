@@ -28,6 +28,9 @@ image_load(
    unsigned int *channels,
    unsigned int *frames);
 
+void draw_rectangle(uint8_t *image, unsigned int xstart, unsigned int xend, unsigned int ystart, unsigned int yend, unsigned int width, unsigned int channels, unsigned int r, unsigned int g, unsigned int b);
+void draw_rectangle_alpha(uint8_t *image, unsigned int xstart, unsigned int xend, unsigned int ystart, unsigned int yend, unsigned int width, unsigned int channels, unsigned int r, unsigned int g, unsigned int b, unsigned int a);
+
 #ifdef __cplusplus
 }
 #endif

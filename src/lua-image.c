@@ -594,10 +594,10 @@ lua_image_draw_rectangle(lua_State *L) {
     unsigned int ystart = 0;
     unsigned int yend = 0;
     unsigned int ytmp = 0;
-    unsigned int byte = 0;
 
-    unsigned int x;
-    unsigned int y;
+    unsigned int byte;
+    unsigned int offset;
+    unsigned int counter;
     unsigned int alpha;
     unsigned int alpha_inv;
 
@@ -695,39 +695,39 @@ lua_image_draw_rectangle(lua_State *L) {
     if(yend > height) {
         yend = height;
     }
+    xstart--;
+    ystart--;
 
     /* invert the ys */
     ytmp = ystart;
     ystart = yend;
     yend = ytmp;
 
-    xstart--;
-    xend--;
-
     ystart = height - ystart;
     yend   = height - yend;
 
+    xstart *= channels;
+    xend *= channels;
+    offset = xend - xstart;
+    width *= channels;
+    ystart *= width;
+    yend *= width;
     alpha = 1 + a;
     alpha_inv = 256 - a;
 
-    lua_pushboolean(L,1);
-
-    for(x=xstart;x<xend;x++) {
-        for(y=ystart;y<yend;y++) {
-            byte = (y * width * channels) + (x * channels);
-            if(a == 255) {
-                image[byte] = b;
-                image[byte+1] = g;
-                image[byte+2] = r;
-            }
-            else {
-                image[byte] = ((image[byte] * alpha_inv) + (b * alpha)) >> 8;
-                image[byte+1] = ((image[byte+1] * alpha_inv) + (g * alpha)) >> 8;
-                image[byte+2] = ((image[byte+2] * alpha_inv) + (r * alpha)) >> 8;
-            }
-
+    while(ystart < yend) {
+        byte = ystart + xstart;
+        counter = 0;
+        while(counter < offset) {
+            image[byte+counter+0] = ((image[byte+counter+0] * alpha_inv) + (b * alpha)) >> 8;
+            image[byte+counter+1] = ((image[byte+counter+1] * alpha_inv) + (g * alpha)) >> 8;
+            image[byte+counter+2] = ((image[byte+counter+2] * alpha_inv) + (r * alpha)) >> 8;
+            counter += channels;
         }
+        ystart += width;
     }
+
+    lua_pushboolean(L,1);
 
     return 1;
 }

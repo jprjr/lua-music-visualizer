@@ -5,10 +5,6 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void
 flip_and_bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned int channels) {
 
@@ -216,7 +212,4 @@ image_load(
 }
 
 
-#ifdef __cplusplus
-}
-#endif
 
