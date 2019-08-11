@@ -265,7 +265,7 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
 
     }
     else {
-#else
+#endif
         conn->fd = socket(conn->he->h_addrtype, SOCK_STREAM, 0);
         if(conn->fd == INVALID_SOCKET) return -1;
 
@@ -279,7 +279,6 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
             conn->fd = INVALID_SOCKET;
             return -1;
         }
-#endif
 #ifndef _WIN32
     }
 #endif
