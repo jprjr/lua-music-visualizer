@@ -1,3 +1,4 @@
+#include "mpd_ez.h"
 #include "video-generator.h"
 #include "mpdc.h"
 #include "jpr_proc.h"
@@ -20,8 +21,6 @@
 #include <shlwapi.h>
 #include <io.h>
 #include <fcntl.h>
-#else
-#include "mpd_ez.h"
 #endif
 
 #include <assert.h>
@@ -36,7 +35,6 @@ lua_send_message_offline(lua_State *L) {
     return 0;
 }
 
-#ifndef _WIN32
 static int
 lua_send_message(lua_State *L) {
   mpdc_connection *ctx;
@@ -59,8 +57,6 @@ lua_send_message(lua_State *L) {
   }
   return 1;
 }
-
-#endif
 
 static void onmeta(void *ctx, const char *key, const char *value) {
     video_generator *v = ctx;
@@ -205,13 +201,11 @@ void video_generator_close(video_generator *v) {
 #ifndef NDEBUG
     assert(stack_top == lua_gettop(v->L));
 #endif
-#ifndef _WIN32
     if(v->mpd != NULL) {
         mpdc_disconnect(v->mpd);
         free(v->mpd->ctx);
         free(v->mpd);
     }
-#endif
     luaclose_image();
     lua_close(v->L);
     audio_decoder_close(v->processor->decoder);
@@ -229,11 +223,9 @@ int video_generator_loop(video_generator *v) {
     unsigned int i = 0;
     image_q *q = NULL;
 
-#ifndef _WIN32
     if(v->mpd != NULL) {
         mpd_ez_loop(v);
     }
-#endif
 
     int pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
 
@@ -329,9 +321,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         return 1;
     }
 
-#ifndef _WIN32
     mpd_ez_setup(v);
-#endif
 
     d->onmeta = onmeta;
     d->meta_ctx = (void *)v;
@@ -430,10 +420,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     lua_setfield(v->L,-2,"total");
     lua_pushstring(v->L,filename);
     lua_setfield(v->L,-2,"file");
-#ifdef _WIN32
-    lua_pushcfunction(v->L, lua_send_message_offline);
-    lua_setfield(v->L,-2,"sendmessage");
-#else
     if(v->mpd == NULL) {
         lua_pushcfunction(v->L, lua_send_message_offline);
         lua_setfield(v->L,-2,"sendmessage");
@@ -443,7 +429,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         lua_pushcclosure(v->L, lua_send_message,1);
         lua_setfield(v->L,-2,"sendmessage");
     }
-#endif
 
     lua_pop(v->L,1);
 
@@ -639,11 +624,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         return 1;
     }
 
-#ifndef _WIN32
     if(v->mpd != NULL) {
         mpd_ez_start(v);
     }
-#endif
 
     free(rpath);
     free(tmp);

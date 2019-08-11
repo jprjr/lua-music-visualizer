@@ -1,13 +1,21 @@
 #ifndef MPD_EZ_H
 #define MPD_EZ_H
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "mpdc.h"
 #include "video-generator.h"
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -18,12 +26,24 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <errno.h>
+#define SOCKET int
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR -1
+#define closesocket close
+#endif
 
 struct conn_info_s {
-    int fd;
+#ifdef _WIN32
+    WSADATA wsaData;
+    fd_set readfds;
+    fd_set writefds;
+    int mode;
+#else
+    struct pollfd pfd;
+#endif
+    SOCKET fd;
     struct sockaddr_in addr;
     struct hostent *he;
-    struct pollfd pfd;
     video_generator *v;
     char *s;
     unsigned int a;

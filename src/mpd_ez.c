@@ -183,21 +183,27 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok,
 #endif
 }
 
-static int ez_ndelay_on(int fd)
+static int ez_ndelay_on(SOCKET fd)
 {
+#ifdef _WIN32
+    unsigned long mode = 1;
+    int res = ioctlsocket(fd, FIONBIO, &mode);
+    return (res == NO_ERROR) ? 0 : -1;
+#else
     int got = fcntl(fd, F_GETFL) ;
     return (got == -1) ? -1 : fcntl(fd, F_SETFL, got | O_NONBLOCK) ;
+#endif
 }
 
 static int ez_read_func(void *ctx, uint8_t *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
-    int r = read(conn->fd,buf,count);
+    int r = recv(conn->fd,(char *)buf,count,0);
     return r;
 }
 
 static int ez_write_func(void *ctx, const uint8_t *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
-    int r = write(conn->fd,buf,count);
+    int r = send(conn->fd,(char *)buf,count,0);
     return r;
 }
 
@@ -206,25 +212,44 @@ static int ez_resolve(mpdc_connection *c, const char *hostname) {
     if(hostname[0] == '/') return 1;
 
     if( (conn->he = gethostbyname(hostname)) == NULL) {
+        fprintf(stderr,"hostname resolution failed for %s\n",hostname);
+#ifdef _WIN32
+        DWORD dwError = WSAGetLastError();
+        if(dwError != 0) {
+            if(dwError == WSAHOST_NOT_FOUND) {
+                fprintf(stderr,"Host not found\n");
+            } else if(dwError == WSANO_DATA) {
+                fprintf(stderr,"No data record found\n");
+            } else {
+                fprintf(stderr,"gethostbyname failed with error: %ld\n",dwError);
+            }
+        }
+#endif
         return -1;
     }
-    conn->fd = -1;
+    conn->fd = INVALID_SOCKET;
     return 1;
 }
 
 
 static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
 
+#ifndef _WIN32
     struct sockaddr_un u_addr;
+#else
+    (void)host;
+#endif
+
     conn_info *conn = (conn_info *)c->ctx;
-    if(conn->fd > -1) {
-        close(conn->fd);
-        conn->fd = -1;
+    if(conn->fd != INVALID_SOCKET) {
+        closesocket(conn->fd);
+        conn->fd = INVALID_SOCKET;
     }
 
+#ifndef _WIN32
     if(host[0] == '/') {
         conn->fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        if(conn->fd == -1) {
+        if(conn->fd == INVALID_SOCKET) {
             fprintf(stderr,"failed to open unix socket\n");
             return -1;
         }
@@ -234,15 +259,15 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
         if(connect(conn->fd,(struct sockaddr *)&u_addr,sizeof(u_addr)) < 0) {
             fprintf(stderr,"failed to connect to unix socket: %s\n",strerror(errno));
             close(conn->fd);
-            conn->fd = -1;
+            conn->fd = INVALID_SOCKET;
             return -1;
         }
 
     }
     else {
-
+#else
         conn->fd = socket(conn->he->h_addrtype, SOCK_STREAM, 0);
-        if(conn->fd == -1) return -1;
+        if(conn->fd == INVALID_SOCKET) return -1;
 
         memset(&(conn->addr),0,sizeof(struct sockaddr_in));
         conn->addr.sin_port = htons(port);
@@ -250,36 +275,52 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
         memcpy(&(conn->addr.sin_addr),conn->he->h_addr,conn->he->h_length);
 
         if(connect(conn->fd,(struct sockaddr *)&(conn->addr),sizeof(struct sockaddr)) < 0) {
-            close(conn->fd);
-            conn->fd = -1;
+            closesocket(conn->fd);
+            conn->fd = INVALID_SOCKET;
             return -1;
         }
+#endif
+#ifndef _WIN32
     }
+#endif
 
     ez_ndelay_on(conn->fd);
+#ifdef _WIN32
+    FD_ZERO(&conn->readfds);
+    FD_ZERO(&conn->writefds);
+#else
     conn->pfd.fd = conn->fd;
     conn->pfd.events = 0;
     conn->pfd.revents = 0;
+#endif
 
     return 1;
 }
 
 static int ez_read_notify(mpdc_connection *c) {
     conn_info *conn = (conn_info *)c->ctx;
+#ifdef _WIN32
+    conn->mode = 0;
+#else
     conn->pfd.events = POLLIN;
+#endif
     return 1;
 }
 
 static int ez_write_notify(mpdc_connection *c) {
     conn_info *conn = (conn_info *)c->ctx;
+#ifdef _WIN32
+    conn->mode = 1;
+#else
     conn->pfd.events = POLLOUT;
+#endif
     return 1;
 }
 
 static void ez_disconnect(mpdc_connection *c) {
     conn_info *conn = (conn_info *)c->ctx;
-    close(conn->fd);
-    conn->fd = -1;
+    closesocket(conn->fd);
+    conn->fd = INVALID_SOCKET;
 }
 
 int mpd_ez_setup(video_generator *v) {
@@ -294,6 +335,11 @@ int mpd_ez_setup(video_generator *v) {
     conn_info *info = NULL;
     info = malloc(sizeof(conn_info));
     if(info == NULL) return 1;
+
+#ifdef _WIN32
+    r = WSAStartup(MAKEWORD(2,2), &(info->wsaData));
+    if(r != 0) return 1;
+#endif
 
     info->s = NULL;
     info->a = 0;
@@ -333,6 +379,8 @@ void mpd_ez_start(video_generator *v) {
 int mpd_ez_loop(video_generator *v) {
     int r = 0;
     conn_info *info = (conn_info *)v->mpd->ctx;
+
+#ifndef _WIN32
     int events = poll(&(info->pfd),1,0);
     if(events ==0) return 0;
 
@@ -346,6 +394,29 @@ int mpd_ez_loop(video_generator *v) {
         mpdc_disconnect(v->mpd);
         return -1;
     }
+#else
+    FD_ZERO(&info->readfds);
+    FD_ZERO(&info->writefds);
+
+    if(info->mode) {
+        FD_SET(info->fd,&info->writefds);
+    }
+    else {
+        FD_SET(info->fd,&info->readfds);
+    }
+
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    int events = select(1,&info->readfds,&info->writefds,NULL,&tv);
+    if(events == 0) return 0;
+    if(FD_ISSET(info->fd,&info->readfds)) {
+        r = mpdc_receive(v->mpd);
+    }
+    else if(FD_ISSET(info->fd,&info->writefds)) {
+        r = mpdc_send(v->mpd);
+    }
+#endif
     return r;
 }
 
