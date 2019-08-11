@@ -641,6 +641,10 @@ lua_image_draw_rectangle(lua_State *L) {
         return 1;
     }
 
+    x1 = ( x1 < 0 ) ? 0 : x1;
+    y1 = ( y1 < 0 ) ? 0 : y1;
+    x2 = ( x2 < 0 ) ? 0 : x2;
+    y2 = ( y2 < 0 ) ? 0 : y2;
 
     if(x1 <= x2) {
         xstart = x1;
@@ -662,22 +666,26 @@ lua_image_draw_rectangle(lua_State *L) {
 
     if(xend < 1) {
         lua_pushboolean(L,0);
-        return 1;
+        lua_pushstring(L,"xend < 1");
+        return 2;
     }
 
     if(yend < 1) {
         lua_pushboolean(L,0);
-        return 1;
+        lua_pushstring(L,"yend < 1");
+        return 2;
     }
 
     if(xstart > width) {
         lua_pushboolean(L,0);
-        return 1;
+        lua_pushstring(L,"xstart > width");
+        return 2;
     }
 
     if(ystart > height) {
         lua_pushboolean(L,0);
-        return 1;
+        lua_pushstring(L,"ystart > height");
+        return 2;
     }
 
     if(xstart < 1) {
@@ -728,7 +736,6 @@ lua_image_draw_rectangle(lua_State *L) {
     }
 
     lua_pushboolean(L,1);
-
     return 1;
 }
 
