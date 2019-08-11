@@ -17,6 +17,8 @@ int usage(const char *self, int e) {
     fprintf(stderr,"  --height=height\n");
     fprintf(stderr,"  --fps=fps\n");
     fprintf(stderr,"  --bars=bars\n");
+    fprintf(stderr,"  --samplerate=samplerate (enables raw input)\n");
+    fprintf(stderr,"  --channels (enables raw input)\n");
     return e;
 }
 
