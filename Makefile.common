@@ -19,7 +19,8 @@ OBJS = \
   src/str.o \
   src/unpack.o \
   src/pack.o \
-  src/char.o
+  src/char.o \
+  src/version.o
 
 LUALHS = \
   src/font.lua.lh \

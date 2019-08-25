@@ -7,8 +7,9 @@
 #include "jpr_proc.h"
 #include "str.h"
 #include "scan.h"
+#include "version.h"
 
-int usage(const char *self, int e) {
+static int usage(const char *self, int e) {
     fprintf(stderr,"Usage: %s [options] songfile scriptfile program ..\n",self);
     fprintf(stderr,"Options:\n");
     fprintf(stderr,"  -h\n");
@@ -19,11 +20,19 @@ int usage(const char *self, int e) {
     fprintf(stderr,"  --bars=bars\n");
     fprintf(stderr,"  --samplerate=samplerate (enables raw input)\n");
     fprintf(stderr,"  --channels (enables raw input)\n");
+    fprintf(stderr,"  --version (prints version and exits)\n");
     return e;
 }
 
+static int version(void) {
+    fprintf(stderr,"lua-music-visualizer %s\n",lua_music_vis_version);
+    fflush(stderr);
+    return 0;
+}
+
+
 __attribute__((noreturn))
-void quit(int e,...) {
+static void quit(int e,...) {
     va_list ap;
     void *p = NULL;
 
@@ -60,15 +69,16 @@ int main(int argc, const char * const* argv) {
     jpr_proc_info i;
 
     self = *argv++;
+    argc--;
 
-    if(argc < 4) {
-        return usage(self,1);
-    }
-
-    while(1) {
+    while(argc > 0) {
         if(str_equals(*argv,"--")) {
             argv++;
+            argc--;
             break;
+        }
+        else if(str_equals(*argv,"--version")) {
+            return version();
         }
         else if(str_equals(*argv,"--help")) {
             return usage(self,0);
@@ -82,12 +92,14 @@ int main(int argc, const char * const* argv) {
                 s = *argv + c + 1;
             } else {
                 argv++;
+                argc--;
                 s = *argv;
             }
             if(scan_uint(s,&width) == 0) {
                 return usage(self,1);
             }
             argv++;
+            argc--;
         }
         else if(str_istarts(*argv,"--height")) {
             c = str_chr(*argv,'=');
@@ -95,12 +107,14 @@ int main(int argc, const char * const* argv) {
                 s = *argv + c + 1;
             } else {
                 argv++;
+                argc--;
                 s = *argv;
             }
             if(scan_uint(s,&height) == 0) {
                 return usage(self,1);
             }
             argv++;
+            argc--;
         }
         else if(str_istarts(*argv,"--fps")) {
             c = str_chr(*argv,'=');
@@ -108,12 +122,14 @@ int main(int argc, const char * const* argv) {
                 s = *argv + c + 1;
             } else {
                 argv++;
+                argc--;
                 s = *argv;
             }
             if(scan_uint(s,&fps) == 0) {
                 return usage(self,1);
             }
             argv++;
+            argc--;
         }
         else if(str_istarts(*argv,"--bars")) {
             c = str_chr(*argv,'=');
@@ -121,12 +137,14 @@ int main(int argc, const char * const* argv) {
                 s = *argv + c + 1;
             } else {
                 argv++;
+                argc--;
                 s = *argv;
             }
             if(scan_uint(s,&bars) == 0) {
                 return usage(self,1);
             }
             argv++;
+            argc--;
         }
         else if(str_istarts(*argv,"--channels")) {
             c = str_chr(*argv,'=');
@@ -134,12 +152,14 @@ int main(int argc, const char * const* argv) {
                 s = *argv + c + 1;
             } else {
                 argv++;
+                argc--;
                 s = *argv;
             }
             if(scan_uint(s,&channels) == 0) {
                 return usage(self,1);
             }
             argv++;
+            argc--;
         }
         else if(str_istarts(*argv,"--samplerate")) {
             c = str_chr(*argv,'=');
@@ -147,17 +167,24 @@ int main(int argc, const char * const* argv) {
                 s = *argv + c + 1;
             } else {
                 argv++;
+                argc--;
                 s = *argv;
             }
             if(scan_uint(s,&samplerate) == 0) {
                 return usage(self,1);
             }
             argv++;
+            argc--;
         }
         else {
             break;
         }
     }
+
+    if(argc < 3) {
+        return usage(self,1);
+    }
+
     songfile   = *argv++;
     scriptfile = *argv++;
 
