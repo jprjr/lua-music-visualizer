@@ -635,15 +635,6 @@ static void createBasicBox(void) {
     IupSetAttribute(songText,"VALUE",IupConfigGetVariableStrDef(config,"global","songfile",""));
     IupSetAttribute(scriptText,"VALUE",IupConfigGetVariableStrDef(config,"global","scriptfile",""));
 
-    if(str_len(IupGetAttribute(scriptText,"VALUE")) == 0) {
-        if(PathFileExists("Lua/game-that-tune.lua")) {
-            _fullpath(s,"Lua/game-that-tune.lua",PATH_MAX);
-            IupConfigSetVariableStr(config,"global","scriptfile",s);
-            IupSetAttribute(scriptText,"VALUE",s);
-            IupConfigSave(config);
-        }
-    }
-
 }
 
 int main(int argc, char **argv) {
