@@ -589,6 +589,11 @@ for details.
 * `src/unpack.h` - public domain, details found in file
 * `src/utf.c` - public domain, details found in file
 * `src/utf.h` - public domain, details found in file
+* `src/_kiss_fft_guts.h` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
+* `src/kiss_fft.c` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
+* `src/kiss_fft.h` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
+* `src/kiss_fftr.c` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
+* `src/kiss_fftr.h` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
 
 # Known users
 
