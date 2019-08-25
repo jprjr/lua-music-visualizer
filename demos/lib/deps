@@ -1,0 +1,16 @@
+#!/bin/sh
+
+deps() {
+    1>&2 printf "Dependencies: ffplay ffmpeg\n"
+    exit 1
+}
+
+if ! command -v ffplay 1>/dev/null 2>&1 ; then
+    1>&2 printf "Required program ffplay not installed\n"
+    deps
+fi
+
+if ! command -v ffmpeg 1>/dev/null 2>&1 ; then
+    1>&2 printf "Required program ffmpeg not installed\n"
+    deps
+fi

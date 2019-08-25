@@ -2,6 +2,8 @@
 #include "char.h"
 #include <stddef.h>
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 unsigned int str_nlower(char *dest, const char *src, unsigned int max) {
     char *d = dest;
     unsigned int n = 0;

@@ -1,6 +1,8 @@
 #ifndef FMT_H
 #define FMT_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif

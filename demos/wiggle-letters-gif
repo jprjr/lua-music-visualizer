@@ -1,0 +1,10 @@
+#!/bin/sh
+
+. demos/lib/deps
+. demos/lib/launch
+
+1>&2 printf "Saving a gif to gifs/wiggle-string.gif\n"
+
+launch_vis \
+ffmpeg -loglevel error -i pipe:0 -frames:v 25 -filter_complex "[0:v]crop=x=0:y=0:w=250:h=150,split [a] [b] ; [a] palettegen [p] ; [b][p] paletteuse" -y gifs/wiggle-letters.gif
+

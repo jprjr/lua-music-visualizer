@@ -1,6 +1,8 @@
 #include "fmt.h"
 #include <stddef.h>
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 static const char numtab[11] = "0123456789";
 
 unsigned int fmt_uint(char *d, unsigned int num) {

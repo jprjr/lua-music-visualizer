@@ -1,6 +1,8 @@
 #ifndef CHAR_H
 #define CHAR_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include <ctype.h>
 
 #ifdef __cplusplus

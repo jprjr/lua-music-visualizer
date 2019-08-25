@@ -24,6 +24,8 @@
 #endif
 
 #include <assert.h>
+#include <errno.h>
+#include <string.h>
 
 #define format_dword(buf,n) pack_int32le(buf,n)
 #define format_long(buf,n) pack_int32le(buf,n)
@@ -348,7 +350,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
 #else
         if(realpath(luascript,rpath) == NULL) {
 #endif
-            fprintf(stderr,"error resolving the lua script path\n");
+            fprintf(stderr,"error resolving the lua script (%s) path: %s\n",luascript,strerror(errno));
             free(rpath);
             free(tmp);
             lua_close(v->L);

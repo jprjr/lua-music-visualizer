@@ -1,6 +1,8 @@
 #ifndef UNPACK_H
 #define UNPACK_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include <stdint.h>
 
 #ifdef __cplusplus

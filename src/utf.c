@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 uint8_t utf_dec_iso88591(uint32_t *cp, const uint8_t *s) {
     if(cp != NULL) {
         *cp = *s;

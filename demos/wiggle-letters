@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if [ ! -f "demos/rainbow-string" ] ; then
+    1>&2 printf "Please run this script from the root of the repo\n"
+    1>&2 printf "./demos/rainbow-string.sh\n"
+    exit 1
+fi
+
+. demos/lib/deps
+. demos/lib/launch
+
+1>&2 printf "Launching lua-visualizer, demo should quit in 10 seconds\n"
+
+launch_vis ffplay -loglevel error pipe:0
+

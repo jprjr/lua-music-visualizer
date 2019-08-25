@@ -1,13 +1,13 @@
 #ifndef STR_H
 #define STR_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#
 
 #define str_cmp(s,q) strcmp(s,q)
 #define str_ncmp(s,q,max) strncmp(s,q,max)

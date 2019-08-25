@@ -1,6 +1,8 @@
 #include "pack.h"
 #include <stddef.h>
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 uint8_t pack_uint64le(uint8_t *d, uint64_t n) {
     if(d != NULL) {
         d[0] = (uint8_t)(n       );

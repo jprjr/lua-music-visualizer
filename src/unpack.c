@@ -1,5 +1,7 @@
 #include "unpack.h"
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 uint64_t unpack_uint64le(const uint8_t *b) {
     return (((uint64_t)b[7])<<56) |
            (((uint64_t)b[6])<<48) |
@@ -47,7 +49,6 @@ uint32_t unpack_uint24be(const uint8_t *b) {
            (((uint32_t)b[1])<< 8) |
            (((uint32_t)b[2])    );
 }
-
 uint16_t unpack_uint16le(const uint8_t *b) {
     return (((uint16_t)b[1])<<8) |
            (((uint16_t)b[0])   );

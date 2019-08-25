@@ -1,5 +1,7 @@
 #include "scan.h"
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 unsigned int scan_uint(const char *str, unsigned int *num) {
     const char *s = str;
     *num = 0;
