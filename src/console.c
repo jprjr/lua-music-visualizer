@@ -25,8 +25,8 @@ static int usage(const char *self, int e) {
 }
 
 static int version(void) {
-    fprintf(stderr,"lua-music-visualizer %s\n",lua_music_vis_version);
-    fflush(stderr);
+    fprintf(stdout,"%s\n",lua_music_vis_version);
+    fflush(stdout);
     return 0;
 }
 
