@@ -6,6 +6,8 @@ src/bin2c
 *.res
 *.swp
 /lua-music-visualizer
-/src/iup
 *.avi
 *.mp4
+/src/iup/output/*
+/src/iup/deps/*
+!/src/iup/deps/*.sha256sum

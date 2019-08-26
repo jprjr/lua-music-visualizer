@@ -6,3 +6,4 @@ src/bin2c
 *.res
 *.swp
 /lua-music-visualizer
+/output

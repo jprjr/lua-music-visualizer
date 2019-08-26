@@ -4,7 +4,7 @@ TARGET_WINDRES = $(TARGET)-windres
 HOST_CC := $(CC)
 CC = $(TARGET_CC)
 
-all: lua-music-visualizer.exe
+all: lua-music-visualizer.exe lua-music-visualizer-cli.exe
 
 include Makefile.common
 
