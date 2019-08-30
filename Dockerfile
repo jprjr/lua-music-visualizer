@@ -93,11 +93,6 @@ RUN mkdir -p /src && \
     curl -R -L -O http://luajit.org/download/LuaJIT-${LUAJIT_VER}.tar.gz && \
     tar xf LuaJIT-${LUAJIT_VER}.tar.gz
 
-#    cd LuaJIT-${LUAJIT_VER} && \
-#    make && \
-#    make install && \
-#    make clean
-
 RUN cd /src/LuaJIT-${LUAJIT_VER}/src && \
     make TARGET_SYS=Darwin HOST_SYS=Linux HOST_CC="gcc" CC=/usr/osxcross/bin/o64-clang libluajit.a && \
     /usr/osxcross/bin/${CROSS_TRIPLE}-ranlib libluajit.a
@@ -110,7 +105,7 @@ RUN make CC=/usr/osxcross/bin/o64-clang CFLAGS="-I/src/LuaJIT-${LUAJIT_VER}/src 
 RUN mkdir -p /dist && cp lua-music-visualizer /dist/
 
 FROM alpine:3.10
-RUN apk add rsync tar zip gzip && mkdir -p /dist/linux && mkdir -p /dist/osx && mkdir -p /dist/win32 && mkdir -p /dist/win64
+RUN apk add upx rsync tar zip gzip && mkdir -p /dist/linux && mkdir -p /dist/osx && mkdir -p /dist/win32 && mkdir -p /dist/win64
 COPY --from=windows-builder /dist/win32/* /dist/win32/
 COPY --from=windows-builder /dist/win64/* /dist/win64/
 COPY --from=linux-builder /dist/* /dist/linux/
@@ -118,12 +113,16 @@ COPY --from=osx-builder /dist/* /dist/osx/
 
 RUN cd dist && \
     cd win32 && \
+    upx *.exe && \
     zip ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-win32.zip *.exe && \
     cd ../win64 && \
+    upx *.exe && \
     zip ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-win64.zip *.exe && \
     cd ../osx && \
+    upx lua-music-visualizer && \
     tar cvzf ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-osx.tar.gz * && \
     cd ../linux && \
+    upx lua-music-visualizer && \
     tar cvzf ../lua-music-visualizer-$(./lua-music-visualizer --version)-linux.tar.gz * && \
     cd .. && \
     rm -rf win32 win64 linux osx
