@@ -320,6 +320,8 @@ static void ez_disconnect(mpdc_connection *c) {
     conn_info *conn = (conn_info *)c->ctx;
     closesocket(conn->fd);
     conn->fd = INVALID_SOCKET;
+    fprintf(stderr,"disconnected from mpd\n");
+    fflush(stderr);
 }
 
 int mpd_ez_setup(video_generator *v) {
@@ -390,6 +392,8 @@ int mpd_ez_loop(video_generator *v) {
       r = mpdc_send(v->mpd);
     }
     if(info->pfd.revents & (POLLHUP | POLLERR)) {
+        fprintf(stderr,"disconnecting from mpd: %s\n",strerror(errno));
+        fflush(stderr);
         mpdc_disconnect(v->mpd);
         return -1;
     }
