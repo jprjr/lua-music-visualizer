@@ -40,13 +40,16 @@
 #include <stddef.h>
 #include <limits.h>
 
-#if !defined(STRLEN) || !defined(STRCAT)
+#if !defined(STRLEN) || !defined(STRCAT) || !defined(STRCPY)
 #include <string.h>
 #ifndef STRLEN
 #define STRLEN(x) strlen(x)
 #endif
 #ifndef STRCAT
 #define STRCAT(d,s) strcat(d,s)
+#endif
+#ifndef STRCPY
+#define STRCPY(d,s) strcpy(d,s)
 #endif
 #endif
 
@@ -68,7 +71,6 @@ int jpr_proc_pipe_read(jpr_proc_pipe *, char *, unsigned int len, unsigned int *
 int jpr_proc_pipe_close(jpr_proc_pipe *);
 
 int jpr_proc_pipe_open_file(jpr_proc_pipe *, const char *filename, const char *mode);
-int jpr_proc_pipe_seek(jpr_proc_pipe *, int offset, unsigned int origin);
 
 #ifdef __cplusplus
 }
@@ -270,11 +272,12 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
     int r = 1;
 #ifdef _WIN32
     char *cmdLine = NULL;
+    wchar_t *wCmdLine = NULL;
     unsigned int args_len = 0;
 
     SECURITY_ATTRIBUTES *sa = NULL;
     PROCESS_INFORMATION *pi = NULL;
-    STARTUPINFO *si = NULL;
+    STARTUPINFOW *si = NULL;
 
     HANDLE childStdInRd = INVALID_HANDLE_VALUE;
     HANDLE childStdInWr = INVALID_HANDLE_VALUE;
@@ -297,7 +300,7 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
         goto error;
     }
 
-    si = (STARTUPINFO *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(STARTUPINFO));
+    si = (STARTUPINFOW *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(STARTUPINFOW));
     if(si == NULL) {
         goto error;
     }
@@ -325,6 +328,14 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
         STRCAT(cmdLine,"\"");
         p++;
     }
+
+    args_len = MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,cmdLine,-1,NULL,0);
+    wCmdLine = (wchar_t *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,args_len * sizeof(wchar_t));
+    if(wCmdLine == NULL) {
+        goto error;
+    }
+    MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,cmdLine,args_len,wCmdLine,args_len);
+    HeapFree(GetProcessHeap(),0,cmdLine);
 
     sa->nLength = sizeof(SECURITY_ATTRIBUTES);
     sa->lpSecurityDescriptor = NULL;
@@ -384,7 +395,7 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
         }
     }
 
-    si->cb = sizeof(STARTUPINFO);
+    si->cb = sizeof(STARTUPINFOW);
     si->dwFlags |= STARTF_USESTDHANDLES;
 
     if(childStdInRd != INVALID_HANDLE_VALUE) {
@@ -405,8 +416,8 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
         si->hStdError = GetStdHandle(STD_ERROR_HANDLE);
     }
 
-    if(!CreateProcess(NULL,
-        cmdLine,
+    if(!CreateProcessW(NULL,
+        wCmdLine,
         NULL,
         NULL,
         TRUE,
@@ -514,7 +525,7 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
 
         if(strchr(argv[0],'/') == NULL) {
             while(path) {
-                strcpy(argv0,path);
+                STRCPY(argv0,path);
                 t = strchr(argv0,':');
                 if(t != NULL) {
                     *t = '\0';
@@ -598,6 +609,7 @@ error:
 success:
 #ifdef _WIN32
     if(cmdLine != NULL) HeapFree(GetProcessHeap(),0,cmdLine);
+    if(wCmdLine != NULL) HeapFree(GetProcessHeap(),0,wCmdLine);
     if(sa != NULL) HeapFree(GetProcessHeap(),0,sa);
     if(pi != NULL) HeapFree(GetProcessHeap(),0,pi);
     if(si != NULL) HeapFree(GetProcessHeap(),0,si);
@@ -606,32 +618,12 @@ success:
     return r;
 }
 
-int jpr_proc_pipe_seek(jpr_proc_pipe *pipe, int offset, unsigned int origin) {
-#ifdef _WIN32
-    DWORD moveMethod;
-    switch(origin) {
-        case 0: moveMethod = FILE_BEGIN; break;
-        case 1: moveMethod = FILE_CURRENT; break;
-        case 2: moveMethod = FILE_END; break;
-        default: return 1;
-    }
-    return SetFilePointer(pipe->pipe,offset,NULL,moveMethod) == 0;
-#else
-    int whence;
-    switch(origin) {
-        case 0: whence = SEEK_SET; break;
-        case 1: whence = SEEK_CUR; break;
-        case 2: whence = SEEK_END; break;
-        default: return 1;
-    }
-    return lseek(pipe->pipe,offset,whence) == -1;
-#endif
-}
-
 int jpr_proc_pipe_open_file(jpr_proc_pipe *pipe, const char *filename, const char *mode) {
 #ifdef _WIN32
     DWORD disp = 0;
     DWORD access = 0;
+    wchar_t *wFilename = NULL;
+    unsigned int wLen = 0;
     switch(mode[0]) {
         case 'r': {
             access = GENERIC_READ;
@@ -655,18 +647,15 @@ int jpr_proc_pipe_open_file(jpr_proc_pipe *pipe, const char *filename, const cha
         case '+': access = GENERIC_READ | GENERIC_WRITE;
     }
 
-    if(filename[0] == '-' && filename[1] == '\0') {
-        if(access == GENERIC_READ) {
-            pipe->pipe = GetStdHandle(STD_INPUT_HANDLE);
-            return 0;
-        } else if(access == GENERIC_WRITE){
-            pipe->pipe = GetStdHandle(STD_OUTPUT_HANDLE);
-            return 0;
-        }
-        return 1;
-    }
+    wLen = MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,filename,-1,NULL,0);
+    wFilename = (wchar_t *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,wLen);
+    if(wFilename == NULL) return -1;
+    MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,filename,wLen,wFilename,wLen);
 
-    pipe->pipe = CreateFile(filename,access,0,NULL,disp,0,0);
+    pipe->pipe = CreateFileW(wFilename,access,0,NULL,disp,0,0);
+
+    HeapFree(GetProcessHeap(),0,wFilename);
+
     if(pipe->pipe == INVALID_HANDLE_VALUE) return 1;
     if(disp == OPEN_ALWAYS) {
         SetFilePointer(pipe->pipe,0,0,FILE_END);
@@ -707,16 +696,6 @@ int jpr_proc_pipe_open_file(jpr_proc_pipe *pipe, const char *filename, const cha
             flags |= O_APPEND;
             break;
         }
-    }
-    if(filename[0] == '-' && filename[1] == '\0') {
-        if(wr == 0) {
-            pipe->pipe = 0;
-            return 0;
-        } else {
-            pipe->pipe = 1;
-            return 0;
-        }
-        return 1;
     }
     pipe->pipe = open(filename,flags,0666);
     if(pipe->pipe == -1) return 1;

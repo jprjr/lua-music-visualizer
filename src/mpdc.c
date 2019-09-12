@@ -32,6 +32,8 @@ static unsigned int mpdc__str_len(const char *str, unsigned int max);
 #define mpdc__str_len(s,m) strnlen(s,m)
 #endif
 
+static unsigned int mpdc__str_len_e(const char *str, unsigned int max);
+
 /* may depend on strchr if stdlib is allowed */
 static inline unsigned int mpdc__str_chr(const char *str, char ch, unsigned int max);
 
@@ -175,9 +177,24 @@ static inline int mpdc__ringbuf_putchr(mpdc_ringbuf *rb, uint8_t byte) {
 
 #define mpdc__ringbuf_endstr(rb) mpdc__ringbuf_putchr(rb,'\n')
 
+static unsigned int mpdc__str_len_e(const char *src, unsigned int max) {
+    unsigned int len = 0;
+    const char *e = src;
+    while(*e) {
+        if(*e == '"' || *e == '\\') {
+            len++;
+        }
+        len++;
+        e++;
+        if(len >= max) break;
+    }
+
+    return len;
+}
+
 /* does NOT terminate the string */
 static int mpdc__ringbuf_putstr(mpdc_ringbuf *rb, const char *src) {
-    if(mpdc__str_len(src,mpdc__ringbuf_capacity(rb)) > mpdc__ringbuf_bytes_free(rb)) {
+    if(mpdc__str_len_e(src,mpdc__ringbuf_capacity(rb)) > mpdc__ringbuf_bytes_free(rb)) {
         return 0;
     }
     const char *e = src;
@@ -668,10 +685,72 @@ int mpdc_password(mpdc_connection *conn, const char *password) {
     return mpdc__put(conn,MPDC_COMMAND_PASSWORD,"r",password);
 }
 
-STATIC
-int mpdc_idle(mpdc_connection *conn, uint_least16_t events) {
+static
+unsigned int mpdc__idlesize(mpdc_connection *conn, uint_least16_t events) {
+    unsigned int len = 0;
     int d = 0;
     uint8_t cur_op = 255;
+
+    if(!(mpdc_ringbuf_is_empty(&conn->op))) {
+        d = 1;
+        cur_op = mpdc__op_last(conn);
+    }
+
+    if(d == 1 && cur_op == MPDC_COMMAND_IDLE) {
+        len += 7;
+    }
+
+    len += 4;
+
+    if(events & MPDC_EVENT_DATABASE) {
+        len += 9;
+    }
+    if(events & MPDC_EVENT_UPDATE) {
+        len += 7;
+    }
+    if(events & MPDC_EVENT_STORED_PLAYLIST) {
+        len += 16;
+    }
+    if(events & MPDC_EVENT_PLAYLIST) {
+        len += 9;
+    }
+    if(events & MPDC_EVENT_PLAYER) {
+        len += 7;
+    }
+    if(events & MPDC_EVENT_MIXER) {
+        len += 6;
+    }
+    if(events & MPDC_EVENT_OPTIONS) {
+        len += 8;
+    }
+    if(events & MPDC_EVENT_PARTITION) {
+        len += 10;
+    }
+    if(events & MPDC_EVENT_STICKER) {
+        len += 8;
+    }
+    if(events & MPDC_EVENT_SUBSCRIPTION) {
+        len += 13;
+    }
+    if(events & MPDC_EVENT_MESSAGE) {
+        len += 8;
+    }
+    len++;
+
+    return len;
+}
+
+STATIC
+int mpdc_idle(mpdc_connection *conn, uint_least16_t events) {
+    unsigned int idlesize;
+    int d = 0;
+    uint8_t cur_op = 255;
+
+
+    idlesize = mpdc__idlesize(conn,events);
+    if(idlesize > mpdc__ringbuf_bytes_free(&conn->out)) {
+        return -1;
+    }
 
     if(!(mpdc_ringbuf_is_empty(&conn->op))) {
         d = 1;
@@ -754,6 +833,72 @@ STATIC int mpdc_ ## command(mpdc_connection *conn) { \
  */
 
 STATIC
+unsigned int mpdc__putsize(mpdc_connection *conn, unsigned int cmd, const char *fmt, va_list va_og) {
+    unsigned int len = 0;
+    const char *f = fmt;
+    va_list va;
+    va_copy(va,va_og);
+    char *s;
+    unsigned int u;
+    int d = 0;
+    uint8_t cur_op = 255;
+
+    if(!(mpdc_ringbuf_is_empty(&conn->op))) {
+        d = 1;
+        cur_op = mpdc__op_last(conn);
+    }
+
+    if(d == 1 && cur_op == MPDC_COMMAND_IDLE) {
+        len += 7;
+    }
+
+    len += mpdc__str_len(mpdc__command[cmd],MPDC_BUFFER_SIZE);
+    while(*f) {
+        char t = *f++;
+        if(mpdc__is_lower(t)) {
+            len += 1;
+        }
+        else {
+            t = mpdc__to_lower(t);
+        }
+        switch(t) {
+            case ':': {
+                len += 1;
+                break;
+            }
+            case 'r': {
+                s = va_arg(va,char *);
+                len += mpdc__str_len(s,MPDC_BUFFER_SIZE);
+                break;
+            }
+            case 's': {
+                s = va_arg(va,char *);
+                len += mpdc__str_len_e(s,MPDC_BUFFER_SIZE);
+                len += 2;
+                break;
+            }
+            case 'u': {
+                u = va_arg(va, unsigned int);
+                conn->scratch[mpdc__fmt_uint((char *)conn->scratch,u)] = 0;
+                len += mpdc__str_len((const char *)conn->scratch,MPDC_BUFFER_SIZE);
+                conn->scratch[0] = 0;
+                break;
+            }
+            case 'd': {
+                d = va_arg(va, int);
+                conn->scratch[mpdc__fmt_int((char *)conn->scratch,d)] = 0;
+                len += mpdc__str_len((const char *)conn->scratch,MPDC_BUFFER_SIZE);
+                conn->scratch[0] = 0;
+                break;
+            }
+
+        }
+    }
+    len++;
+    return len;
+}
+
+STATIC
 int mpdc__put(mpdc_connection *conn, unsigned int cmd, const char *fmt, ...) {
     const char *f = fmt;
     va_list va;
@@ -762,6 +907,11 @@ int mpdc__put(mpdc_connection *conn, unsigned int cmd, const char *fmt, ...) {
     unsigned int u;
     int d = 0;
     uint8_t cur_op = 255;
+
+    unsigned int putsize = mpdc__putsize(conn,cmd,fmt,va);
+    if(putsize > mpdc__ringbuf_bytes_free(&conn->out)) {
+        return -1;
+    }
 
     if(!(mpdc_ringbuf_is_empty(&conn->op))) {
         d = 1;

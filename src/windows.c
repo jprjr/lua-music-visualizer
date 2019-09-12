@@ -639,6 +639,8 @@ static void createBasicBox(void) {
 
 int main(int argc, char **argv) {
     IupOpen(&argc, &argv);
+    IupSetGlobal("UTF8MODE","YES");
+    IupSetGlobal("UTF8MODE_FILE","YES");
 
     config = IupConfig();
     IupSetAttribute(config,"APP_NAME","lua-music-visualizer");
