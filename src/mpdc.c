@@ -218,10 +218,16 @@ static uint8_t mpdc__ringbuf_getchr(mpdc_ringbuf *rb) {
 }
 
 static uint8_t mpdc__op_last(mpdc_connection *conn) {
-    if (conn->op.head == conn->op.buf) {
-        return *(conn->op.buf + conn->op.size - 1);
+    uint8_t op =  255;
+    if(!(mpdc_ringbuf_is_empty(&conn->op))) {
+      if (conn->op.head == conn->op.buf) {
+          op = *(conn->op.buf + conn->op.size - 1);
+      }
+      else{
+          op =  *(conn->op.head - 1);
+      }
     }
-    return *(conn->op.head - 1);
+    return op;
 }
 
 
@@ -466,23 +472,31 @@ static int mpdc__process(mpdc_connection *conn, int *len) {
                     mpdc__scan_uint((const char *)conn->scratch + t + 2,&conn->_bytes);
                 }
                 else {
+                    conn->cb_level++;
                     conn->response(conn,mpdc__command[conn->state],(const char *)conn->scratch,(const uint8_t *)conn->scratch + t + 2,((unsigned int)*len) - t - 2);
+                    conn->cb_level--;
                 }
             }
             else {
-                if(conn->state >= 0) {
+                if(conn->state != 255) {
+                    conn->cb_level++;
                     conn->response_end(conn,mpdc__command[conn->state],ok,(const char *)conn->scratch);
+                    conn->cb_level--;
                 }
-                conn->state = -1;
+                conn->state = 255;
                 break;
             }
         } else {
+            conn->cb_level++;
             conn->response(conn,mpdc__command[conn->state],"binary",conn->scratch,*len);
+            conn->cb_level--;
         }
 
     } while(*len > -1);
 
-    if(ok == 1 && !mpdc_ringbuf_is_empty(&conn->op)) conn->write_notify(conn);
+    if(ok == 1 && !mpdc_ringbuf_is_empty(&conn->op)) {
+        conn->write_notify(conn);
+    }
     return ok;
 }
 
@@ -560,7 +574,9 @@ static void mpdc__response_default(mpdc_connection *conn, const char *cmd, const
 
 static int mpdc__op_queue(mpdc_connection *conn, char op) {
     if(!mpdc__ringbuf_putchr(&conn->op, op)) return -1;
-    if(!handshook(conn)) return conn->read_notify(conn);
+    if(!handshook(conn)) {
+        return conn->read_notify(conn);
+    }
     return conn->write_notify(conn);
 }
 
@@ -572,7 +588,8 @@ void mpdc_reset(mpdc_connection *conn) {
     conn->major = 0;
     conn->minor = 0;
     conn->patch = 0;
-    conn->state = -1;
+    conn->cb_level = 0;
+    conn->state = 255;
     conn->_mode = 0;
     conn->_bytes = 0;
 }
@@ -651,7 +668,9 @@ int mpdc_connect(mpdc_connection *conn) {
 STATIC
 int mpdc_send(mpdc_connection *conn) {
     if(mpdc_ringbuf_is_empty(&conn->out)) return 0;
-    if(!handshook(conn)) return conn->read_notify(conn) > 0;
+    if(!handshook(conn)) {
+        return conn->read_notify(conn) > 0;
+    }
 
     int exp;
     int r = mpdc__ringbuf_flushline(&conn->out,&exp);
@@ -663,10 +682,6 @@ int mpdc_send(mpdc_connection *conn) {
         }
         conn->state = mpdc__ringbuf_getchr(&conn->op);
         conn->response_begin(conn,mpdc__command[conn->state]);
-        if(conn->state == MPDC_COMMAND_IDLE && !mpdc_ringbuf_is_empty(&conn->op)) {
-            /* we have a "noidle" queued to cancel this idle, so go into write mode */
-            return conn->write_notify(conn) > 0;
-        }
         return conn->read_notify(conn) > 0;
     }
 
@@ -688,15 +703,11 @@ int mpdc_password(mpdc_connection *conn, const char *password) {
 static
 unsigned int mpdc__idlesize(mpdc_connection *conn, uint_least16_t events) {
     unsigned int len = 0;
-    int d = 0;
     uint8_t cur_op = 255;
 
-    if(!(mpdc_ringbuf_is_empty(&conn->op))) {
-        d = 1;
-        cur_op = mpdc__op_last(conn);
-    }
+    cur_op = mpdc__op_last(conn);
 
-    if(d == 1 && cur_op == MPDC_COMMAND_IDLE) {
+    if( cur_op == MPDC_COMMAND_IDLE || (cur_op == 255 && conn->state == MPDC_COMMAND_IDLE && conn->cb_level == 0)) {
         len += 7;
     }
 
@@ -743,21 +754,16 @@ unsigned int mpdc__idlesize(mpdc_connection *conn, uint_least16_t events) {
 STATIC
 int mpdc_idle(mpdc_connection *conn, uint_least16_t events) {
     unsigned int idlesize;
-    int d = 0;
     uint8_t cur_op = 255;
-
 
     idlesize = mpdc__idlesize(conn,events);
     if(idlesize > mpdc__ringbuf_bytes_free(&conn->out)) {
         return -1;
     }
 
-    if(!(mpdc_ringbuf_is_empty(&conn->op))) {
-        d = 1;
-        cur_op = mpdc__op_last(conn);
-    }
+    cur_op = mpdc__op_last(conn);
 
-    if(d == 1 && cur_op == MPDC_COMMAND_IDLE) {
+    if( cur_op == MPDC_COMMAND_IDLE || (cur_op == 255 && conn->state == MPDC_COMMAND_IDLE && conn->cb_level == 0)) {
         if(!mpdc__ringbuf_putstr(&conn->out,"noidle")) return -1;
         if(!mpdc__ringbuf_endstr(&conn->out)) return -1;
     }
@@ -804,6 +810,7 @@ int mpdc_idle(mpdc_connection *conn, uint_least16_t events) {
 STATIC
 void mpdc_disconnect(mpdc_connection *conn) {
     conn->disconnect(conn);
+    mpdc_reset(conn);
 }
 
 STATIC
@@ -816,13 +823,6 @@ void mpdc_block(mpdc_connection *conn, int status) {
     }
 }
 
-#define ZEROARG_FUNC_IMPL(command,COMMAND) \
-STATIC int mpdc_ ## command(mpdc_connection *conn) { \
-    if(!mpdc__ringbuf_putstr(&conn->out,mpdc__command[MPDC_COMMAND_ ## COMMAND ])) return -1; \
-    if(!mpdc__ringbuf_endstr(&conn->out)) return -1; \
-    return mpdc__op_queue(conn,MPDC_COMMAND_ ## COMMAND ); \
-}
-
 /* fmt is a character string describing arguments */
 /* if a character is capitalized or non-alpha, NO
  * space is placed into the buffer.
@@ -833,22 +833,19 @@ STATIC int mpdc_ ## command(mpdc_connection *conn) { \
  */
 
 STATIC
-unsigned int mpdc__putsize(mpdc_connection *conn, unsigned int cmd, const char *fmt, va_list va_og) {
+unsigned int mpdc__putsize(mpdc_connection *conn, uint8_t cmd, const char *fmt, va_list va_og) {
     unsigned int len = 0;
     const char *f = fmt;
     va_list va;
     va_copy(va,va_og);
     char *s;
     unsigned int u;
-    int d = 0;
+    int d;
     uint8_t cur_op = 255;
 
-    if(!(mpdc_ringbuf_is_empty(&conn->op))) {
-        d = 1;
-        cur_op = mpdc__op_last(conn);
-    }
+    cur_op = mpdc__op_last(conn);
 
-    if(d == 1 && cur_op == MPDC_COMMAND_IDLE) {
+    if( cur_op == MPDC_COMMAND_IDLE || (cur_op == 255 && conn->state == MPDC_COMMAND_IDLE && conn->cb_level == 0)) {
         len += 7;
     }
 
@@ -899,13 +896,13 @@ unsigned int mpdc__putsize(mpdc_connection *conn, unsigned int cmd, const char *
 }
 
 STATIC
-int mpdc__put(mpdc_connection *conn, unsigned int cmd, const char *fmt, ...) {
+int mpdc__put(mpdc_connection *conn, uint8_t cmd, const char *fmt, ...) {
     const char *f = fmt;
     va_list va;
     va_start(va,fmt);
     char *s;
     unsigned int u;
-    int d = 0;
+    int d;
     uint8_t cur_op = 255;
 
     unsigned int putsize = mpdc__putsize(conn,cmd,fmt,va);
@@ -913,15 +910,13 @@ int mpdc__put(mpdc_connection *conn, unsigned int cmd, const char *fmt, ...) {
         return -1;
     }
 
-    if(!(mpdc_ringbuf_is_empty(&conn->op))) {
-        d = 1;
-        cur_op = mpdc__op_last(conn);
-    }
+    cur_op = mpdc__op_last(conn);
 
-    if(d == 1 && cur_op == MPDC_COMMAND_IDLE) {
+    if( cur_op == MPDC_COMMAND_IDLE || (cur_op == 255 && conn->state == MPDC_COMMAND_IDLE && conn->cb_level == 0)) {
         if(!mpdc__ringbuf_putstr(&conn->out,"noidle")) return -1;
         if(!mpdc__ringbuf_endstr(&conn->out)) return -1;
     }
+
 
     if(!mpdc__ringbuf_putstr(&conn->out,mpdc__command[cmd])) return -1;
     while(*f) {

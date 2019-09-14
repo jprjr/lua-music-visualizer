@@ -145,7 +145,8 @@ struct mpdc_connection_s {
     mpdc_ringbuf in;
     char *host;
     char *password;
-    int state;
+    uint8_t cb_level;
+    uint8_t state;
     uint16_t port;
     uint16_t major;
     uint16_t minor;
@@ -210,7 +211,7 @@ STATIC
 int mpdc_idle(mpdc_connection *connection, uint_least16_t events);
 
 STATIC
-int mpdc__put(mpdc_connection *connection, unsigned int cmd, const char *fmt, ...);
+int mpdc__put(mpdc_connection *connection, uint8_t cmd, const char *fmt, ...);
 
 #define mpdc__zero_arg(conn,cmd) mpdc__put((conn),cmd,"")
 
