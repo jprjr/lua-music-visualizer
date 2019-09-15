@@ -682,6 +682,11 @@ int mpdc_send(mpdc_connection *conn) {
         }
         conn->state = mpdc__ringbuf_getchr(&conn->op);
         conn->response_begin(conn,mpdc__command[conn->state]);
+        if(conn->state == MPDC_COMMAND_IDLE && !mpdc_ringbuf_is_empty(&conn->op)) {
+            /* we've queued messages during a callback while in an idle state, we
+             * have a "noidle" message to send, so send it */
+            return conn->write_notify(conn) > 0;
+        }
         return conn->read_notify(conn) > 0;
     }
 
