@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 struct jprpcm_s {
     FILE *f;
@@ -45,6 +46,7 @@ jprpcm *jprpcm_open_file(const char *filename, unsigned int samplerate, unsigned
     }
 
     if(f == NULL) {
+        fprintf(stderr,"error opening raw pcm: %s\n",strerror(errno));
         free(pcm);
         return NULL;
     }

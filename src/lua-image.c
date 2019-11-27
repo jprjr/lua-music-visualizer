@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
+
+#define rad(degrees) ( ((double)degrees) * M_PI / 180.0)
 
 #if !defined(luaL_newlibtable) \
   && (!defined LUA_VERSION_NUM || LUA_VERSION_NUM==501)
@@ -243,6 +246,7 @@ lua_image_new(lua_State *L) {
     int table_ind = 0;
     int image_ind = 0;
     int frame_ind = 0;
+    int delay_ind = 0;
 #ifndef NDEBUG
     int lua_top = lua_gettop(L);
 #endif
@@ -307,6 +311,12 @@ lua_image_new(lua_State *L) {
         lua_setfield(L,image_ind,"image");
         memset(image,0,sizeof(uint8_t) * width * height * channels);
 
+        lua_pushinteger(L,IMAGE_FIXED);
+        lua_setfield(L,image_ind,"image_state");
+
+        lua_pushliteral(L,"fixed");
+        lua_setfield(L,image_ind,"state");
+
         lua_pushinteger(L,width);
         lua_setfield(L,image_ind,"width");
 
@@ -324,6 +334,15 @@ lua_image_new(lua_State *L) {
 
         lua_rawseti(L,frame_ind,1);
         lua_setfield(L,table_ind,"frames");
+
+        lua_newtable(L); /* image.delays */
+        delay_ind = lua_gettop(L);
+        lua_pushinteger(L,0);
+        lua_rawseti(L,delay_ind,1);
+        lua_setfield(L,table_ind,"delays");
+
+        lua_pushinteger(L,1);
+        lua_setfield(L,table_ind,"framecount");
 
     }
 
@@ -802,6 +821,8 @@ static int lua_image_set_pixel(lua_State *L) {
         image[index] = b;
         image[index+1] = g;
         image[index+2] = r;
+        if(channels == 4) image[index+3] = 255;
+        return 1;
     }
 
     alpha = 1 + a;
@@ -810,6 +831,7 @@ static int lua_image_set_pixel(lua_State *L) {
     image[index] = ((image[index] * alpha_inv) + (b * alpha)) >> 8;
     image[index+1] = ((image[index+1] * alpha_inv) + (g * alpha)) >> 8;
     image[index+2] = ((image[index+2] * alpha_inv) + (r * alpha)) >> 8;
+    if(channels == 4) image[index+3] = 255;
 
     return 1;
 }
@@ -1113,6 +1135,188 @@ lua_image_from_ref(lua_State *L) {
     return 1;
 }
 
+static int
+lua_image_rotate(lua_State *L) {
+    uint8_t *original;
+    uint8_t *rotated;
+    int width;
+    int height;
+    int h_width;
+    int h_height;
+    int h_diag;
+    int d_x;
+    int d_y;
+    int x;
+    int y;
+    int xs;
+    int ys;
+    int channels;
+    int frame_ind;
+    int diag;
+    unsigned int index;
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+    double rads;
+
+    double cos_rads;
+    double sin_rads;
+    double cosmax;
+    double sinmax;
+    double cosmaxt_p_hwidth_p_sinmahheight;
+    double sinmaxt_p_hheight_m_cosmahheight;
+#ifndef NDEBUG
+    int top;
+#endif
+
+    lua_Integer frameno;
+    lua_Integer rotation;
+
+    if(!lua_istable(L,1)) {
+        lua_pushnil(L);
+        lua_pushliteral(L,"Missing argument self");
+        return 2;
+    }
+
+    frameno = luaL_checkinteger(L,2);
+    rotation = luaL_checkinteger(L,3);
+
+#ifndef NDEBUG
+    top = lua_gettop(L);
+#endif
+
+    lua_getfield(L,1,"frames"); /* push */
+    lua_rawgeti(L,-1,frameno); /* push */
+    frame_ind = lua_gettop(L);
+
+    lua_getfield(L,1,"width"); /* push */
+    width = lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"height"); /* push */
+    height = lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"channels"); /* push */
+    channels = lua_tointeger(L,-1);
+
+    lua_getfield(L,frame_ind,"image"); /* push */
+    original = lua_touserdata(L,-1);
+
+    lua_pop(L,6);
+
+#ifndef NDEBUG
+    assert(top == lua_gettop(L));
+#endif
+
+    lua_getfield(L,1,"rotated");
+    if(lua_isnil(L,-1)) {
+        lua_pop(L,1); /* remove the nil value */
+        diag = (int)(ceil(sqrt((width*width) + (height*height))));
+
+        lua_newtable(L); /* push */
+
+        lua_pushinteger(L,4);
+        lua_setfield(L,-2,"channels");
+
+        lua_pushinteger(L,diag);
+        lua_setfield(L,-2,"width");
+
+        lua_pushinteger(L,diag);
+        lua_setfield(L,-2,"height");
+
+        lua_pushinteger(L, (diag >> 1) - (width >> 1));
+        lua_setfield(L,-2,"width_offset");
+
+        lua_pushinteger(L, (diag >> 1) - (height >> 1));
+        lua_setfield(L,-2,"height_offset");
+
+        rotated = lua_newuserdata(L,diag*diag*4);
+        memset(rotated,0,diag*diag*4);
+        lua_setfield(L,-2,"image");
+
+        lua_pushinteger(L,diag * diag * 4);
+        lua_setfield(L,-2,"image_len");
+
+        lua_pushinteger(L,IMAGE_FIXED);
+        lua_setfield(L,-2,"image_state");
+
+        lua_pushliteral(L,"fixed");
+        lua_setfield(L,-2,"state");
+
+        luaL_getmetatable(L,"image");
+        lua_setmetatable(L,-2);
+        lua_setfield(L,1,"rotated");
+
+    } else {
+        lua_getfield(L,-1,"image");
+        rotated = lua_touserdata(L,-1);
+        lua_getfield(L,-2,"width");
+        diag = lua_tointeger(L,-1);
+        lua_pop(L,3);
+    }
+
+    h_width = width >> 1;
+    h_height = height >> 1;
+    h_diag = diag >> 1;
+    d_x = h_diag - h_width;
+    d_y = h_diag - h_height;
+
+    /* we have pointers to the original image and the rotated, time to rotate */
+
+
+    if(rotation < 0) {
+        rotation += 360;
+    } else if(rotation > 359) {
+        while(rotation > 359) rotation -= 360;
+    }
+    rads = rad(rotation);
+
+    cos_rads = cos(rads);
+    sin_rads = sin(rads);
+
+    cosmax = -cos_rads * h_diag + h_diag + sin_rads * h_diag;
+    sinmax = -sin_rads * h_diag + h_diag - cos_rads * h_diag;
+
+    for(x=0;x<diag;++x) {
+        cosmaxt_p_hwidth_p_sinmahheight = cosmax;
+        sinmaxt_p_hheight_m_cosmahheight = sinmax;
+
+        for(y=0;y<diag;++y) {
+            xs = ((int)(round(cosmaxt_p_hwidth_p_sinmahheight))) - d_x;
+            ys = ((int)(round(sinmaxt_p_hheight_m_cosmahheight))) - d_y;
+
+            if(xs >= 0 && xs < width && ys >= 0 && ys < height) { /* {{{ */
+                /* ysi = height - (ys + 1); */
+                index = (ys * width * channels) + (xs * channels);
+                b = original[index];
+                g = original[index+1];
+                r = original[index+2];
+
+                if(channels == 4) {
+                    a = original[index+3];
+                } else {
+                    a = 255;
+                }
+
+                /* ysi = diag - (y + 1); */
+                index = (y * diag * 4) + (x * 4);
+
+                rotated[index] = b;
+                rotated[index+1] = g;
+                rotated[index+2] = r;
+                rotated[index+3] = a;
+            } /* }}} */
+            cosmaxt_p_hwidth_p_sinmahheight -= sin_rads;
+            sinmaxt_p_hheight_m_cosmahheight += cos_rads;
+        }
+        cosmax += cos_rads;
+        sinmax += sin_rads;
+    }
+
+    lua_pushboolean(L,1);
+    return 1;
+}
+
 
 static const struct luaL_Reg lua_image_image_methods[] = {
     { "set_pixel", lua_image_set_pixel },
@@ -1128,6 +1332,7 @@ static const struct luaL_Reg lua_image_instance_methods[] = {
     { "unload", lua_image_unload },
     { "load", lua_image_load },
     { "get_ref", lua_image_get_ref },
+    { "rotate", lua_image_rotate },
     { NULL, NULL },
 };
 

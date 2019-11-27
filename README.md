@@ -235,11 +235,14 @@ An image instance has the following methods and properties
 * `img.channels` - the image channels (3 for RGB, 4 for RGBA)
 * `img.frames` - only available after calling `img:load`, an array of one or more frames
 * `img.framecount` - only available after calling `img:load`, total number of frames in the `frames` array
-* `img.delays` - only available afte calling `img:load` - an array of frame delays (only applicable to gifs)
+* `img.delays` - only available after calling `img:load` - an array of frame delays (only applicable to gifs)
+* `img.rotation` - only available after calling `img:rotate()`, a frame that's been resized and rotated
 * `img:load(async)` - loads an image into memory
   * If `async` is true, image is loaded in the background and available on some future iteration of `onframe`
   * else, image is loaded immediately
 * `img:unload()` - unloads an image from memory
+* `img:rotate(frameno,degrees)` - rotates a frame (by number) clockwise into a new frame, saved as `rotation`
+  * the rotated frame has two extra fields, `width_offset` and `height_offset`
 
 If `img:load()` fails, either asynchronously or synchronously, then the `state` key will be set to `error`
 
@@ -275,7 +278,7 @@ For convenience, most `frame` functions can be used on the `stream` object direc
 * `frame:set(frame)`
   * copies a whole frame as-is to the frame
   * the source and destination frame must have the same width, height, and channels values
-* `frame:stamp(stamp,x,y,flip,mask,a)`
+* `frame:stamp_image(stamp,x,y,flip,mask,a)`
   * stamps a frame (`stamp`) on top of `frame` at `x,y`
   * `x,y` starts at `1,1` for the top-left corner of the image
   * `flip` is an optional table with the following keys:
