@@ -236,7 +236,7 @@ An image instance has the following methods and properties
 * `img.frames` - only available after calling `img:load`, an array of one or more frames
 * `img.framecount` - only available after calling `img:load`, total number of frames in the `frames` array
 * `img.delays` - only available after calling `img:load` - an array of frame delays (only applicable to gifs)
-* `img.rotation` - only available after calling `img:rotate()`, a frame that's been resized and rotated
+* `img.rotated` - only available after calling `img:rotate()`, a frame that's been resized and rotated
 * `img:load(async)` - loads an image into memory
   * If `async` is true, image is loaded in the background and available on some future iteration of `onframe`
   * else, image is loaded immediately
