@@ -1231,7 +1231,6 @@ lua_image_rotate(lua_State *L) {
         lua_setfield(L,-2,"height_offset");
 
         rotated = lua_newuserdata(L,diag*diag*4);
-        memset(rotated,0,diag*diag*4);
         lua_setfield(L,-2,"image");
 
         lua_pushinteger(L,diag * diag * 4);
@@ -1254,6 +1253,7 @@ lua_image_rotate(lua_State *L) {
         diag = lua_tointeger(L,-1);
         lua_pop(L,3);
     }
+    memset(rotated,0,diag*diag*4);
 
     h_width = width >> 1;
     h_height = height >> 1;
