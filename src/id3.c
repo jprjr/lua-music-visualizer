@@ -34,8 +34,9 @@ static int str_alloc_resize(str_alloc *s, unsigned int size) {
 }
 
 static unsigned int utf8_len_or_copy(uint8_t *dest, const uint8_t *src, unsigned int max) {
-    if(dest == NULL) return ID3_MIN(str_len((const char *)src),max);
-    return str_ncpy((char *)dest,(const char *)src,ID3_MIN(str_len((const char *)src),max));
+    unsigned int len = ID3_MIN(str_len((const char *)src),max);
+    if(dest == NULL) return len;
+    return str_ncpy((char *)dest,(const char *)src,len);
 }
 
 void process_id3(audio_decoder *a, FILE *f) {
