@@ -113,10 +113,52 @@ struct jpr_proc_pipe_s {
 
 #ifndef _WIN32
 extern char** environ;
-static int jpr_coe(int fd) {
+static inline int jpr_coe(int fd) {
     int flags = fcntl(fd, F_GETFD, 0) ;
     if (flags < 0) return -1 ;
     return fcntl(fd, F_SETFD, flags | FD_CLOEXEC) ;
+}
+static inline ssize_t jpr_write(int fd, const void *buf, size_t nbyte) {
+    int r;
+    do {
+        r = write(fd,buf,nbyte);
+    } while( (r == -1) && (errno == EINTR) );
+    return r;
+}
+static inline ssize_t jpr_read(int fd, void *buf, size_t nbyte) {
+    int r;
+    do {
+        r = read(fd,buf,nbyte);
+    } while( (r == -1) && (errno == EINTR) );
+    return r;
+}
+static inline int jpr_dup2(int fd, int fd2) {
+    int r;
+    do {
+        r = dup2(fd,fd2);
+    } while( (r == -1) && (errno == EINTR));
+    return r;
+}
+static inline int jpr_open(const char *path, int flags, int mode) {
+    int r;
+    do {
+        r = open(path,flags,mode);
+    } while ( (r == -1) && (errno == EINTR));
+    return r;
+}
+static inline int jpr_close(int fd) {
+    int r;
+    do {
+        r = close(fd);
+    } while ( (r == -1) && (errno == EINTR));
+    return r;
+}
+static inline pid_t jpr_waitpid(pid_t pid, int *stat_loc, int options) {
+    pid_t r;
+    do {
+        r = waitpid(pid,stat_loc,options);
+    } while( (r == -1) && (errno == EINTR));
+    return r;
 }
 #endif
 
@@ -189,7 +231,7 @@ int jpr_proc_info_wait(jpr_proc_info *info, int *e) {
 #else
     int st;
     if(info->pid == -1) return 1;
-    waitpid(info->pid,&st,0);
+    jpr_waitpid(info->pid,&st,0);
     jpr_proc_info_init(info);
     if(WIFEXITED(st)) {
         *e = (int)WEXITSTATUS(st);
@@ -223,7 +265,7 @@ int jpr_proc_pipe_write(jpr_proc_pipe *pipe, const char *buf, unsigned int len, 
 #else
     int r;
     *bytesWritten = 0;
-    r = write(pipe->pipe,buf,len);
+    r = jpr_write(pipe->pipe,buf,len);
     if(r < 0) return 1;
     *bytesWritten = (unsigned int)r;
     return 0;
@@ -244,7 +286,7 @@ int jpr_proc_pipe_read(jpr_proc_pipe *pipe, char *buf, unsigned int len,unsigned
 #else
     int r;
     *bytesRead = 0;
-    r = read(pipe->pipe,buf,len);
+    r = jpr_read(pipe->pipe,buf,len);
     if(r < 0) return 1;
     *bytesRead = (unsigned int)r;
     return 0;
@@ -260,7 +302,9 @@ int jpr_proc_pipe_close(jpr_proc_pipe *pipe) {
     return !r;
 #else
     int r;
+    do {
     r = close(pipe->pipe);
+    } while( (r == -1) && (errno == EINTR));
     if(r == 0) pipe->pipe = -1;
     return r;
 #endif
@@ -509,17 +553,17 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
     }
     if(pid == 0) {
         if(in_fds[0] != -1) {
-            dup2(in_fds[0],0);
+            jpr_dup2(in_fds[0],0);
             close(in_fds[0]);
         }
 
         if(out_fds[1] != -1) {
-            dup2(out_fds[1],1);
+            jpr_dup2(out_fds[1],1);
             close(out_fds[1]);
         }
 
         if(err_fds[1] != -1) {
-            dup2(err_fds[1],2);
+            jpr_dup2(err_fds[1],2);
             close(err_fds[1]);
         }
 
@@ -697,7 +741,7 @@ int jpr_proc_pipe_open_file(jpr_proc_pipe *pipe, const char *filename, const cha
             break;
         }
     }
-    pipe->pipe = open(filename,flags,0666);
+    pipe->pipe = jpr_open(filename,flags,0666);
     if(pipe->pipe == -1) return 1;
     return 0;
 #endif
