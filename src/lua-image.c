@@ -2,6 +2,7 @@
 #include "lua-image.h"
 #include "image.lua.lh"
 #include "thread.h"
+#include "str.h"
 #include <lauxlib.h>
 
 #include <stdlib.h>
@@ -17,7 +18,7 @@ static void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
   luaL_checkstack(L, nup+1, "too many upvalues");
   for (; l->name != NULL; l++) {  /* fill the table with given functions */
     int i;
-    lua_pushlstring(L, l->name,strlen(l->name));
+    lua_pushlstring(L, l->name,str_len(l->name));
     for (i = 0; i < nup; i++)  /* copy upvalues to the top */
       lua_pushvalue(L, -(nup+1));
     lua_pushcclosure(L, l->func, nup);  /* closure with those upvalues */
@@ -198,8 +199,8 @@ queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, un
         exit(1);
     }
 
-    q->filename = malloc(strlen(filename) + 1);
-    strcpy(q->filename,filename);
+    q->filename = malloc(str_len(filename) + 1);
+    str_cpy(q->filename,filename);
 
     q->table_ref = table_ref;
     q->width = width;
@@ -285,7 +286,7 @@ lua_image_new(lua_State *L) {
     lua_setfield(L,table_ind,"channels");
 
     if(filename != NULL) {
-        lua_pushlstring(L,filename,strlen(filename));
+        lua_pushlstring(L,filename,str_len(filename));
         lua_setfield(L,table_ind,"filename");
 
         lua_pushinteger(L,IMAGE_UNLOADED);

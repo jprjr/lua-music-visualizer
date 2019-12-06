@@ -342,7 +342,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     luaL_openlibs(v->L);
 
     if(luascript[0] == '/') {
-        strcpy(rpath,luascript);
+        str_cpy(rpath,luascript);
     }
     else {
 #ifdef _WIN32
@@ -358,15 +358,15 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         }
     }
     dir = dirname(rpath);
-    strcpy(tmp,dir);
+    str_cpy(tmp,dir);
 
-    strcpy(rpath,"package.path = '");
+    str_cpy(rpath,"package.path = '");
     str_ecat(rpath,tmp,"\\",'\\');
 
 #ifdef _WIN32
-    strcat(rpath,"\\\\?.lua;' .. package.path");
+    str_cat(rpath,"\\\\?.lua;' .. package.path");
 #else
-    strcat(rpath,"/?.lua;' .. package.path");
+    str_cat(rpath,"/?.lua;' .. package.path");
 #endif
 
     if(luaL_dostring(v->L,rpath)) {
@@ -612,10 +612,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     assert(lua_top == lua_gettop(v->L));
 #endif
 
-    strcpy((char *)v->framebuf,"00db");
+    str_cpy((char *)v->framebuf,"00db");
     format_dword(v->framebuf + 4, v->framebuf_video_len);
 
-    strcpy((char *)v->framebuf + v->framebuf_video_len + 8,"01wb");
+    str_cpy((char *)v->framebuf + v->framebuf_video_len + 8,"01wb");
     format_dword(v->framebuf + v->framebuf_video_len + 12, v->framebuf_audio_len);
 
     if(write_avi_header(v)) {

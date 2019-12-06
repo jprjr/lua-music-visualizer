@@ -27,7 +27,7 @@ static void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
   luaL_checkstack(L, nup+1, "too many upvalues");
   for (; l->name != NULL; l++) {  /* fill the table with given functions */
     int i;
-    lua_pushlstring(L, l->name,strlen(l->name));
+    lua_pushlstring(L, l->name,str_len(l->name));
     for (i = 0; i < nup; i++)  /* copy upvalues to the top */
       lua_pushvalue(L, -(nup+1));
     lua_pushcclosure(L, l->func, nup);  /* closure with those upvalues */
@@ -73,7 +73,7 @@ static int
 lua_file_basename(lua_State *L) {
     char res[PATH_MAX];
     const char *folder = luaL_checkstring(L,1);
-    strcpy(res,folder);
+    str_cpy(res,folder);
     char *b = basename(res);
 
     lua_pushstring(L,b);
@@ -84,7 +84,7 @@ static int
 lua_file_dirname(lua_State *L) {
     char res[PATH_MAX];
     const char *folder = luaL_checkstring(L,1);
-    strcpy(res,folder);
+    str_cpy(res,folder);
     char *b = dirname(res);
 
     lua_pushstring(L,b);
@@ -128,7 +128,7 @@ lua_file_list(lua_State *L) {
         stat(file.path,&st);
         lua_pushinteger(L,j);
         lua_newtable(L);
-        lua_pushlstring(L,file.path,strlen(file.path));
+        lua_pushlstring(L,file.path,str_len(file.path));
         lua_setfield(L,-2,"file");
         lua_pushinteger(L,st.st_mtime);
         lua_setfield(L,-2,"mtime");

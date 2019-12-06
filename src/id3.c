@@ -85,7 +85,7 @@ void process_id3(audio_decoder *a, FILE *f) {
 
     while(id3_size > 0) {
         if(fread(buffer,1,header_size,f) != header_size) goto id3_done;
-        if(memcmp(buffer,allzero,header_size) == 0) goto id3_done;
+        if(mem_cmp((const uint8_t *)buffer,allzero,header_size) == 0) goto id3_done;
 
         id3_size -= header_size;
         if(header_size == 10) {

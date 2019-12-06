@@ -255,7 +255,7 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
         }
         memset(&u_addr,0,sizeof(u_addr));
         u_addr.sun_family = AF_UNIX;
-        strncpy(u_addr.sun_path,host,sizeof(u_addr.sun_path)-1);
+        str_ncpy(u_addr.sun_path,host,sizeof(u_addr.sun_path)-1);
         if(connect(conn->fd,(struct sockaddr *)&u_addr,sizeof(u_addr)) < 0) {
             fprintf(stderr,"failed to connect to unix socket: %s\n",strerror(errno));
             close(conn->fd);

@@ -8,6 +8,12 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
+static const uint8_t null[4] = { 0, 0, 0, 0 };
+static const uint8_t bom_le_16[2] = { 0xFF, 0xFE };
+static const uint8_t bom_be_16[2] = { 0xFE, 0xFF };
+static const uint8_t bom_le_32[4] = { 0xFF, 0xFE, 0x00, 0x00 };
+static const uint8_t bom_be_32[4] = { 0x00, 0x00, 0xFE, 0xFF };
+
 uint8_t utf_dec_iso88591(uint32_t *cp, const uint8_t *s) {
     if(cp != NULL) {
         *cp = *s;
@@ -18,31 +24,43 @@ uint8_t utf_dec_iso88591(uint32_t *cp, const uint8_t *s) {
 uint8_t utf_dec_utf8(uint32_t *cp, const uint8_t *s) {
     uint8_t r = 0;
     uint32_t t;
+
     if(s[0] < 0x80) {
         t = (uint32_t)s[0];
         r = 1;
+        goto utf_dec_utf8_validate;
     }
-    else if( (s[0] & 0xE0) == 0xC0) {
+    if( (s[0] & 0xE0) == 0xC0) {
+        if ((s[1] & 0x80) != 0x80) return 0;
         t = ((uint32_t)(s[0] & 0x1F) << 6) |
             ((uint32_t)(s[1] & 0x3F));
         r = 2;
+        goto utf_dec_utf8_validate;
     }
-    else if( (s[0] & 0xF0) == 0xE0) {
+    if( (s[0] & 0xF0) == 0xE0 ) {
+        if ((s[1] & 0x80) != 0x80) return 0;
+        if ((s[2] & 0x80) != 0x80) return 0;
         t = ((uint32_t)(s[0] & 0x0F) << 12) |
             ((uint32_t)(s[1] & 0x3F) << 6 ) |
             ((uint32_t)(s[2] & 0x3F));
         r = 3;
+        goto utf_dec_utf8_validate;
     }
-    else if( ((s[0] & 0xF8) == 0xF0) && (s[0] <= 0xF4)) {
+    if( ((s[0] & 0xF8) == 0xF0) ) {
+        if ((s[1] & 0x80) != 0x80) return 0;
+        if ((s[2] & 0x80) != 0x80) return 0;
+        if ((s[3] & 0x80) != 0x80) return 0;
         t = ((uint32_t)(s[0] & 0x07) << 18) |
             ((uint32_t)(s[1] & 0x3F) << 12) |
             ((uint32_t)(s[2] & 0x3F) << 6 ) |
             ((uint32_t)(s[3] & 0x3F));
         r = 4;
+        goto utf_dec_utf8_validate;
     }
-    else {
-        return 0;
-    }
+
+    return 0;
+
+    utf_dec_utf8_validate:
     if(t >= 0xD800 && t <= 0xDFFF) {
         return 0;
     }
@@ -110,6 +128,9 @@ uint8_t utf_enc_iso88591(uint8_t *d, uint32_t cp) {
 
 static uint8_t utf_enc_utf16(uint8_t *d, uint32_t cp, uint8_t (*f)(uint8_t *,uint16_t)) {
     uint32_t cp1, cp2;
+    if(cp > 0x10FFFF) return 0;
+    if(cp >= 0xD800 && cp <= 0xDFFF) return 0;
+
     if(cp < 0x010000) {
         return f(d,cp);
     }
@@ -130,11 +151,13 @@ uint8_t utf_enc_utf16be(uint8_t *d, uint32_t cp) {
 }
 
 uint8_t utf_enc_utf32le(uint8_t *d, uint32_t cp) {
+    if(cp > 0x10FFFF) return 0;
     if(cp < 0xD800 || cp > 0xDFFF) return pack_uint32le(d,cp);
     return 0;
 }
 
 uint8_t utf_enc_utf32be(uint8_t *d, uint32_t cp) {
+    if(cp > 0x10FFFF) return 0;
     if(cp < 0xD800 || cp > 0xDFFF) return pack_uint32be(d,cp);
     return 0;
 }
@@ -174,7 +197,7 @@ uint8_t utf_enc_utf8(uint8_t *d, uint32_t cp) {
 
 static unsigned int get_utf16_len(const uint8_t *src) {
     const uint8_t *s = src;
-    while(! (s[0] == 0 && s[1] == 0) ) {
+    while(mem_cmp(s,null,2)) {
         s+= 2;
     }
     return s - src;
@@ -182,7 +205,7 @@ static unsigned int get_utf16_len(const uint8_t *src) {
 
 static unsigned int get_utf32_len(const uint8_t *src) {
     const uint8_t *s = src;
-    while(! (s[0] == 0 && s[1] == 0 && s[2] == 0 && s[3] == 0) ) {
+    while(mem_cmp(s,null,4)) {
         s+= 4;
     }
     return s - src;
@@ -286,16 +309,19 @@ unsigned int utf_conv_utf8_utf32(uint8_t *dest, const uint8_t *src, unsigned int
 }
 
 unsigned int utf_conv_utf16_utf8(uint8_t *dest, const uint8_t *src, unsigned int len) {
-    if(len > 2) len -= 2;
-    if(src[0] == 0xFF && src[1] == 0xFE) return utf_conv(dest,src+2,len, utf_dec_utf16le, utf_enc_utf8, get_utf16_len);
-    if(src[0] == 0xFE && src[1] == 0xFF) return utf_conv(dest,src+2,len, utf_dec_utf16be, utf_enc_utf8, get_utf16_len);
+    if(len % 2) return 0;
+    if(len) len -= 2;
+    if(mem_cmp(src,bom_le_16,2) == 0)
+        return utf_conv(dest,src+2,len, utf_dec_utf16le, utf_enc_utf8, get_utf16_len);
+    if(mem_cmp(src,bom_be_16,2) == 0)
+        return utf_conv(dest,src+2,len, utf_dec_utf16be, utf_enc_utf8, get_utf16_len);
     return 0;
 }
 
 unsigned int utf_conv_utf32_utf8(uint8_t *dest, const uint8_t *src, unsigned int len) {
-    if(src[0] == 0xFF && src[1] == 0xFE && src[2] == 0x00 && src[3] == 0x00)
+    if(mem_cmp(src,bom_le_32,4) == 0)
         return utf_conv(dest,src+4,len, utf_dec_utf32le, utf_enc_utf8, get_utf32_len);
-    if(src[0] == 0x00 && src[1] == 0x00 && src[2] == 0xFE && src[3] == 0xFF)
+    if(mem_cmp(src,bom_be_32,4) == 0)
         return utf_conv(dest,src+4,len, utf_dec_utf32be, utf_enc_utf8, get_utf32_len);
     return 0;
 }
