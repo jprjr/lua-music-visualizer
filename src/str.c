@@ -5,6 +5,16 @@
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
 #ifdef NO_STDLIB
+void *mem_cpy(uint8_t *dest, const uint8_t *src, unsigned int n) {
+    uint8_t *d = dest;
+    while(n--) {
+        *d = *src;
+        d++;
+        src++;
+    }
+    return dest;
+}
+
 void *mem_chr(const uint8_t *src, uint8_t c, unsigned int n) {
     const uint8_t *s = src;
     while(n && *s != c) {
@@ -88,16 +98,6 @@ unsigned int str_cat(char *d, const char *s) {
     return s - src;
 }
 
-unsigned int str_ncat(char *d, const char *s, unsigned int max) {
-    const char *src = s;
-    d += str_len(d);
-    while(max && (*d = *s) != 0) {
-        s++;
-        d++;
-        max--;
-    }
-    return s - src;
-}
 #endif
 
 #if defined(NO_STDLIB) || defined(_WIN32)
@@ -120,6 +120,17 @@ unsigned int str_ncpy(char *d, const char *s, unsigned int max) {
     return s - src;
 }
 #endif
+
+unsigned int str_ncat(char *d, const char *s, unsigned int max) {
+    const char *src = s;
+    d += str_len(d);
+    while(max && (*d = *s) != 0) {
+        s++;
+        d++;
+        max--;
+    }
+    return s - src;
+}
 
 unsigned int str_nlower(char *dest, const char *src, unsigned int max) {
     char *d = dest;

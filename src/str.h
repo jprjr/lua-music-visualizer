@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 #ifdef NO_STDLIB
+void *mem_cpy(uint8_t *dest, const uint8_t *src, unsigned int n);
 void *mem_chr(const uint8_t *src, uint8_t c, unsigned int n);
 int mem_cmp(const uint8_t *p1, const uint8_t *p2, unsigned int n);
 unsigned int str_len(const char *s);
@@ -24,6 +25,7 @@ int str_icmp(const char *s1, const char *s2);
 int str_incmp(const char *s1, const char *s2, unsigned int m);
 unsigned int str_cat(char *d, const char *s);
 #else
+#define mem_cpy(dest,src,n) memcpy(dest,src,n)
 #define mem_chr(src,c,n) memchr(src,c,n)
 #define mem_cmp(p1,p2,n) memcmp(p1,p2,n)
 #define str_len(s) strlen(s)
