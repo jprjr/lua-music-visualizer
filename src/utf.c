@@ -311,6 +311,7 @@ unsigned int utf_conv_utf8_utf32(uint8_t *dest, const uint8_t *src, unsigned int
 unsigned int utf_conv_utf16_utf8(uint8_t *dest, const uint8_t *src, unsigned int len) {
     if(len % 2) return 0;
     if(len) len -= 2;
+    if(!len) return 0;
     if(mem_cmp(src,bom_le_16,2) == 0)
         return utf_conv(dest,src+2,len, utf_dec_utf16le, utf_enc_utf8, get_utf16_len);
     if(mem_cmp(src,bom_be_16,2) == 0)
@@ -319,6 +320,9 @@ unsigned int utf_conv_utf16_utf8(uint8_t *dest, const uint8_t *src, unsigned int
 }
 
 unsigned int utf_conv_utf32_utf8(uint8_t *dest, const uint8_t *src, unsigned int len) {
+    if(len % 4) return 0;
+    if(len) len -= 4;
+    if(!len) return 0;
     if(mem_cmp(src,bom_le_32,4) == 0)
         return utf_conv(dest,src+4,len, utf_dec_utf32le, utf_enc_utf8, get_utf32_len);
     if(mem_cmp(src,bom_be_32,4) == 0)
