@@ -285,12 +285,26 @@ int video_generator_loop(video_generator *v) {
 
     wake_queue();
 
-    memcpy(v->framebuf + 16 + v->framebuf_video_len,(uint8_t *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
+    mem_cpy(v->framebuf + 16 + v->framebuf_video_len,(uint8_t *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
     if(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i)) return 1;
 
     if(i != v->framebuf_len) return 1;
 
     return r;
+}
+
+int video_generator_reload(video_generator *v) {
+    lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
+    lua_getfield(v->L,-1,"onreload");
+    if(lua_isfunction(v->L,-1)) {
+        lua_pushvalue(v->L,-2);
+        lua_pcall(v->L,1,0,0);
+
+    } else {
+        lua_pop(v->L,1);
+    }
+    lua_pop(v->L,1);
+    return 0;
 }
 
 int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *d, const char *filename, const char *luascript, jpr_proc_pipe *out) {
@@ -612,10 +626,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     assert(lua_top == lua_gettop(v->L));
 #endif
 
-    str_cpy((char *)v->framebuf,"00db");
+    mem_cpy(v->framebuf,"00db",4);
     format_dword(v->framebuf + 4, v->framebuf_video_len);
 
-    str_cpy((char *)v->framebuf + v->framebuf_video_len + 8,"01wb");
+    mem_cpy(&v->framebuf[v->framebuf_video_len + 8],"01wb",4);
     format_dword(v->framebuf + v->framebuf_video_len + 12, v->framebuf_audio_len);
 
     if(write_avi_header(v)) {

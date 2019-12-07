@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <signal.h>
 #include "audio-decoder.h"
 #include "audio-processor.h"
 #include "video-generator.h"
@@ -8,6 +9,17 @@
 #include "str.h"
 #include "scan.h"
 #include "version.h"
+
+static int should_reload = 0;
+static int should_quit = 0;
+
+static void catch_sig(int signo) {
+    signal(signo,catch_sig);
+    switch(signo) {
+        case SIGINT: should_reload = 1; return;
+        case SIGTERM: should_quit = 1; return;
+    }
+}
 
 static int usage(const char *self, int e) {
     fprintf(stderr,"Usage: %s [options] songfile scriptfile program ..\n",self);
@@ -215,13 +227,26 @@ int main(int argc, const char * const* argv) {
         return 1;
     }
 
+    /* ignore signals while init-ing the video generator */
+    signal(SIGINT,SIG_IGN);
+    signal(SIGTERM,SIG_IGN);
+
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&f)) {
         fprintf(stderr,"error starting the video generator\n");
         quit(1,decoder,processor,generator,NULL);
         return 1;
     }
 
-    while(video_generator_loop(generator) == 0);
+    signal(SIGINT,catch_sig);
+    signal(SIGTERM,catch_sig);
+
+    while(video_generator_loop(generator) == 0) {
+        if(should_reload) {
+            if(video_generator_reload(generator) != 0) break;
+            should_reload = 0;
+        }
+        if(should_quit) break;
+    }
 
     video_generator_close(generator);
 

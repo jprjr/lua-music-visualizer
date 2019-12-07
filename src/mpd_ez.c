@@ -197,13 +197,19 @@ static int ez_ndelay_on(SOCKET fd)
 
 static int ez_read_func(void *ctx, uint8_t *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
-    int r = recv(conn->fd,(char *)buf,count,0);
+    int r;
+    do {
+        r = recv(conn->fd,(char *)buf,count,0);
+    } while( (r == -1) && (errno == EINTR) );
     return r;
 }
 
 static int ez_write_func(void *ctx, const uint8_t *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
-    int r = send(conn->fd,(char *)buf,count,0);
+    int r;
+    do {
+        r = send(conn->fd,(char *)buf,count,0);
+    } while( (r == -1) && (errno == EINTR));
     return r;
 }
 
@@ -382,7 +388,11 @@ int mpd_ez_loop(video_generator *v) {
     conn_info *info = (conn_info *)v->mpd->ctx;
 
 #ifndef _WIN32
-    int events = poll(&(info->pfd),1,0);
+    int events;
+    do {
+        events = poll(&(info->pfd),1,0);
+    } while( (events == -1) && (errno == EINTR));
+
     if(events ==0) return 0;
 
     if(info->pfd.revents & POLLIN) {
@@ -391,6 +401,7 @@ int mpd_ez_loop(video_generator *v) {
     if(info->pfd.revents & POLLOUT) {
       r = mpdc_send(v->mpd);
     }
+
     if(info->pfd.revents & (POLLHUP | POLLERR)) {
         fprintf(stderr,"disconnecting from mpd: %s\n",strerror(errno));
         fflush(stderr);
@@ -411,7 +422,10 @@ int mpd_ez_loop(video_generator *v) {
     struct timeval tv;
     tv.tv_sec = 0;
     tv.tv_usec = 0;
-    int events = select(1,&info->readfds,&info->writefds,NULL,&tv);
+    int events;
+    do {
+        events = select(1,&info->readfds,&info->writefds,NULL,&tv);
+    } while ( (events == -1) && (errno == EINTR));
     if(events == 0) return 0;
     if(FD_ISSET(info->fd,&info->readfds)) {
         r = mpdc_receive(v->mpd);
