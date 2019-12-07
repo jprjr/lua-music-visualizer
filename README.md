@@ -106,6 +106,10 @@ function M:onchange(e)
   print('MPD saw a change, type: ' .. e)
 end
 
+function M:onreload()
+  print('visualizer requested reload')
+end
+
 return M.new()
 ```
 
@@ -118,12 +122,18 @@ a new message comes in, or the player status changes
 `onload` is called at app start-up, and `onunload` is called
 when quitting.
 
+`onreload` is used to signal a reload. The program does
+*not* reload your main script, it just calls your own
+`onreload` function, which you could use to perform your
+own reloading procedures.
+
 For reference, here's all the function signatures you can expose:
 
 * `onframe(self)`
 * `onchange(self,event)`
 * `onload(self)`
 * `onunload(self)`
+* `onreload(self)`
 
 
 # The Lua environment
