@@ -308,6 +308,7 @@ int video_generator_reload(video_generator *v) {
 }
 
 int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *d, const char *filename, const char *luascript, jpr_proc_pipe *out) {
+    v->mpd = NULL;
     v->out = out;
     char *rpath;
     char *tmp;
