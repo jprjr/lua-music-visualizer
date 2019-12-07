@@ -70,6 +70,7 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
     if(a->samplerate == 0) return 1;
     if(a->channels == 0) return 1;
 
+    p->plan = NULL;
     p->buffer_len = 4096;
     while(p->buffer_len < samples_per_frame) {
         p->buffer_len *= 2;
