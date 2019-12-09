@@ -115,7 +115,7 @@ static void quit(int e,...) {
     exit(e);
 }
 
-int main(int argc, const char * const* argv) {
+int cli_start(int argc, char **argv) {
     const char *self;
     const char *songfile;
     const char *scriptfile;
@@ -294,7 +294,7 @@ int main(int argc, const char * const* argv) {
     decoder->samplerate      = samplerate;
     decoder->channels        =   channels;
 
-    if(jpr_proc_spawn(&i,argv,&f,NULL,NULL)) {
+    if(jpr_proc_spawn(&i,(const char * const *)argv,&f,NULL,NULL)) {
         fprintf(stderr,"error spawning process\n");
         quit(1,decoder,processor,generator,NULL);
         return 1;

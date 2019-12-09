@@ -4,23 +4,17 @@ TARGET_WINDRES = $(TARGET)-windres
 HOST_CC := $(CC)
 CC = $(TARGET_CC)
 
-all: lua-music-visualizer.exe lua-music-visualizer-cli.exe
+all: lua-music-visualizer.exe
 
 include Makefile.common
 
-GUI_OBJS = $(OBJS) src/windows.o src/mpd_ez.o src/mpdc.o src/scan.o
-CLI_OBJS = $(OBJS) src/console.o src/mpd_ez.o src/mpdc.o src/scan.o
-CLEAN += lua-music-visualizer.exe lua-music-visualizer-cli.exe src/lua-music-visualizer-global.res src/console.o src/windows.o src/scan.o src/mpd_ez.o src/mpdc.o
+CLEAN += lua-music-visualizer.exe src/lua-music-visualizer-global.res
 
-CFLAGS += -Wall -Wextra
-GUI_LDFLAGS += -s -mconsole -liup -lluajit -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi -lws2_32
-CLI_LDFLAGS += -s -mconsole -lluajit -lwinmm -lshlwapi -lws2_32
+CFLAGS += -Wall -Wextra $(OPT_CFLAGS)
+LDFLAGS += $(STRIP_FLAG) -mwindows -municode -liup -lluajit -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi -lws2_32
 
-lua-music-visualizer.exe: $(GUI_OBJS) src/lua-music-visualizer-global.res
-	$(TARGET_CC) -o $@ $^ $(GUI_LDFLAGS)
-
-lua-music-visualizer-cli.exe: $(CLI_OBJS) $(LIBLUA)
-	$(TARGET_CC) -o $@ $^ $(CLI_LDFLAGS)
+lua-music-visualizer.exe: $(OBJS) src/lua-music-visualizer-global.res
+	$(TARGET_CC) -o $@ $^ $(LDFLAGS)
 
 %.res: %.rc
 	$(TARGET_WINDRES) $< -O coff -o $@

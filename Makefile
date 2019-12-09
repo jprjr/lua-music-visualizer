@@ -6,9 +6,7 @@ LUA = luajit
 HOST_CC=$(CC)
 PKGCONFIG = pkg-config
 
-OBJS += src/console.o src/mpd_ez.o src/mpdc.o src/scan.o
-
-CFLAGS += $(shell $(PKGCONFIG) --cflags $(LUA))
+CFLAGS += $(shell $(PKGCONFIG) --cflags $(LUA)) $(OPT_CFLAGS)
 LDFLAGS += $(shell $(PKGCONFIG) --libs $(LUA)) -lm -pthread
 
 CLEAN += lua-music-visualizer
@@ -20,3 +18,8 @@ release:
 	docker build -t lua-music-vis .
 	mkdir -p output
 	docker run --rm -ti -v $(shell pwd)/output:/output lua-music-vis
+
+debug:
+	docker build -t lua-music-vis-debug -f Dockerfile.debug .
+	mkdir -p output
+	docker run --rm -ti -v $(shell pwd)/tests:/tests lua-music-vis-debug

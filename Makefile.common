@@ -3,7 +3,12 @@
 .PRECIOUS: src/%.lh
 
 OBJS = \
+  src/main.o \
+  src/cli.o \
+  src/gui.o \
   src/video-generator.o \
+  src/mpd_ez.o \
+  src/mpdc.o \
   src/lua-image.o \
   src/lua-file.o \
   src/lua-audio.o \
@@ -20,6 +25,7 @@ OBJS = \
   src/unpack.o \
   src/pack.o \
   src/char.o \
+  src/scan.o \
   src/version.o
 
 LUALHS = \
@@ -31,11 +37,13 @@ CLEAN = $(OBJS) $(LUALHS)
 
 BIN2CSRC = src/bin2c.c
 
-CFLAGS = -Wall -Wextra -O3 -DNDEBUG
+OPT_CFLAGS = -O3 -DNDEBUG
+CFLAGS = -Wall -Wextra
 LDFLAGS =
+STRIP_FLAG = -s
 
 %.o: %.c $(LUALHS)
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) $(CFLAGS) $(OPT_CFLAGS) -o $@ -c $<
 
 src/%.lh: lua/% src/bin2c
 	./src/bin2c $< $@ $(patsubst %.lua,%_lua,$(notdir $<))

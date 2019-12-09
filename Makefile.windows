@@ -1,29 +1,20 @@
 TARGET = i686-w64-mingw32
 HOST_CC := $(CC)
-
+UPX=upx
 CC = $(TARGET_CC)
 include src/iup/Makefile
 
-all: lua-music-visualizer.exe lua-music-visualizer-cli.exe
+all: lua-music-visualizer.exe
 
 include Makefile.common
 
-GUI_OBJS = $(OBJS) src/windows.o src/mpd_ez.o src/mpdc.o src/scan.o
-CLI_OBJS = $(OBJS) src/console.o src/mpd_ez.o src/mpdc.o src/scan.o
-CLEAN += lua-music-visualizer.exe lua-music-visualizer-cli.exe src/lua-music-visualizer.res src/console.o src/windows.o src/scan.o src/mpd_ez.o src/mpdc.o
+CLEAN += lua-music-visualizer.exe lua-music-visualizer-cli.exe src/lua-music-visualizer.res
 
-CFLAGS += -I$(LUA_INCDIR) -I$(IUP_INCDIR)
-GUI_LDFLAGS += -s -mconsole -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi -lws2_32
-CLI_LDFLAGS += -s -mconsole -lwinmm -lshlwapi -lws2_32
+CFLAGS += -I$(LUA_INCDIR) -I$(IUP_INCDIR) $(OPT_CFLAGS)
+LDFLAGS += $(STRIP_FLAG) -mwindows -municode -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi -lws2_32
 
-
-lua-music-visualizer.exe: $(GUI_OBJS) $(LIBIUP) $(LIBLUA) src/lua-music-visualizer.res
-	$(TARGET_CC) -o $@ $^ $(GUI_LDFLAGS)
-	upx $@
-
-lua-music-visualizer-cli.exe: $(CLI_OBJS) $(LIBLUA)
-	$(TARGET_CC) -o $@ $^ $(CLI_LDFLAGS)
-	upx $@
+lua-music-visualizer.exe: $(OBJS) $(LIBIUP) $(LIBLUA) src/lua-music-visualizer.res
+	$(TARGET_CC) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c $(LUALHS) $(LUA)/.extracted
 

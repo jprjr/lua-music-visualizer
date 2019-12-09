@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include <stdio.h>
 #include <string.h>
 #include <iup.h>
@@ -315,7 +316,12 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
         goto startvideo_cleanup;
     }
 
-    while(video_generator_loop(generator) == 0);
+    while(video_generator_loop(generator) == 0) {
+        if(IupLoopStep() == IUP_CLOSE) {
+            t = 1;
+            break;
+        }
+    }
 
     video_generator_close(generator);
 
@@ -324,6 +330,7 @@ startvideo_cleanup:
     jpr_proc_info_wait(&process,&t);
     tearDownGenerator();
 
+    if(t) IupExitLoop();
     return;
 
 }
@@ -637,7 +644,7 @@ static void createBasicBox(void) {
 
 }
 
-int main(int argc, char **argv) {
+int gui_start(int argc, char **argv) {
     IupOpen(&argc, &argv);
     IupSetGlobal("UTF8MODE","YES");
     IupSetGlobal("UTF8MODE_FILE","YES");
@@ -683,3 +690,10 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+#else
+int gui_start(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    return -1;
+}
+#endif

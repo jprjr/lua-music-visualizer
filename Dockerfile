@@ -1,10 +1,10 @@
 FROM ubuntu:18.04 as windows-builder
 
 ENV LUAJIT_VER=2.1.0-beta3
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y gcc-multilib upx \
-    mingw-w64 curl make patch build-essential git
-
+    mingw-w64 curl make patch build-essential git pkg-config
 
 RUN mkdir -p /src && \
     cd /src && \
@@ -44,12 +44,12 @@ RUN mkdir -p /src && \
     curl -R -L -O http://luajit.org/download/LuaJIT-${LUAJIT_VER}.tar.gz && \
     tar xf LuaJIT-${LUAJIT_VER}.tar.gz && \
     cd LuaJIT-${LUAJIT_VER}/src && \
-    make TARGET_SYS=Windows HOST_CC="gcc -m32" CROSS="i686-w64-mingw32-" libluajit.a && \
+    make -j$(nproc) TARGET_SYS=Windows HOST_CC="gcc -m32" CROSS="i686-w64-mingw32-" libluajit.a && \
     cp lauxlib.h /usr/i686-w64-mingw32/include && \
     cp lua*.h /usr/i686-w64-mingw32/include && \
     cp libluajit.a /usr/i686-w64-mingw32/lib && \
     make clean && \
-    make TARGET_SYS=Windows HOST_CC="gcc" CROSS="x86_64-w64-mingw32-" libluajit.a && \
+    make -j$(nproc) TARGET_SYS=Windows HOST_CC="gcc" CROSS="x86_64-w64-mingw32-" libluajit.a && \
     cp lauxlib.h /usr/x86_64-w64-mingw32/include && \
     cp lua*.h /usr/x86_64-w64-mingw32/include && \
     cp libluajit.a /usr/x86_64-w64-mingw32/lib && \
@@ -60,18 +60,26 @@ RUN mkdir -p /src && \
 COPY . /src/lua-music-visualizer
 WORKDIR /src/lua-music-visualizer
 
+ENV UPX_BIN=upx
+ENV STRIP_FLAG=-s
+ENV OPT_CFLAGS="-O3 -DNDEBUG"
+
 RUN \
     mkdir -p /dist/win32 && \
     mkdir -p /dist/win64 && \
-    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 clean && \
-    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 -j4 && \
+    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN" clean && \
+    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN" -j4 && \
     cp *.exe /dist/win32/ && \
-    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 clean && \
-    make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 -j4 && \
+    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN" clean && \
+    make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN" -j4 && \
     cp *.exe /dist/win64/ && \
     make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 clean
 
 FROM alpine:3.10 as linux-builder
+
+ENV UPX_BIN=upx
+ENV STRIP_FLAG=-s
+ENV OPT_CFLAGS="-O3 -DNDEBUG"
 
 RUN apk add file pkgconfig make gcc musl-dev luajit-dev linux-headers && \
     mkdir -p /src
@@ -79,11 +87,15 @@ RUN apk add file pkgconfig make gcc musl-dev luajit-dev linux-headers && \
 COPY . /src/lua-music-visualizer
 WORKDIR /src/lua-music-visualizer
 
-RUN make clean && make CC="gcc -static -fPIE" PKGCONFIG="pkg-config --static" && strip lua-music-visualizer
+RUN make clean && make CC="gcc -static -fPIE" PKGCONFIG="pkg-config --static" OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN"
 RUN mkdir -p /dist && \
     cp lua-music-visualizer /dist
 
 FROM multiarch/crossbuild as osx-builder
+
+ENV UPX_BIN=upx
+ENV STRIP_FLAG=-s
+ENV OPT_CFLAGS="-O3 -DNDEBUG"
 
 ENV CROSS_TRIPLE=x86_64-apple-darwin14
 ENV LUAJIT_VER=2.1.0-beta3
@@ -101,10 +113,15 @@ COPY . /src/lua-music-visualizer
 WORKDIR /src/lua-music-visualizer
 
 RUN make clean
-RUN make CC=/usr/osxcross/bin/o64-clang CFLAGS="-I/src/LuaJIT-${LUAJIT_VER}/src -Wall -Wextra -DNDEBUG -Os" LDFLAGS="-L/src/LuaJIT-${LUAJIT_VER}/src -lluajit -pagezero_size 10000 -image_base 100000000 -lm -pthread" HOST_CC="gcc"
+RUN make CC=/usr/osxcross/bin/o64-clang CFLAGS="-I/src/LuaJIT-${LUAJIT_VER}/src -Wall -Wextra $OPT_CFLAGS" LDFLAGS="-L/src/LuaJIT-${LUAJIT_VER}/src -lluajit -pagezero_size 10000 -image_base 100000000 -lm -pthread" HOST_CC="gcc" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN" OPT_CFLAGS="$OPT_CFLAGS"
 RUN mkdir -p /dist && cp lua-music-visualizer /dist/
 
 FROM alpine:3.10
+
+ENV UPX_BIN=upx
+ENV STRIP_FLAG=-s
+ENV OPT_CFLAGS="-O3 -DNDEBUG"
+
 RUN apk add upx rsync tar zip gzip && mkdir -p /dist/linux && mkdir -p /dist/osx && mkdir -p /dist/win32 && mkdir -p /dist/win64
 COPY --from=windows-builder /dist/win32/* /dist/win32/
 COPY --from=windows-builder /dist/win64/* /dist/win64/
@@ -113,16 +130,16 @@ COPY --from=osx-builder /dist/* /dist/osx/
 
 RUN cd dist && \
     cd win32 && \
-    upx *.exe && \
+    $UPX_BIN *.exe && \
     zip ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-win32.zip *.exe && \
     cd ../win64 && \
-    upx *.exe && \
+    $UPX_BIN *.exe && \
     zip ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-win64.zip *.exe && \
     cd ../osx && \
-    upx lua-music-visualizer && \
+    $UPX_BIN lua-music-visualizer && \
     tar cvzf ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-osx.tar.gz * && \
     cd ../linux && \
-    upx lua-music-visualizer && \
+    $UPX_BIN lua-music-visualizer && \
     tar cvzf ../lua-music-visualizer-$(./lua-music-visualizer --version)-linux.tar.gz * && \
     cd .. && \
     rm -rf win32 win64 linux osx

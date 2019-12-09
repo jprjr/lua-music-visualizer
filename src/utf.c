@@ -203,6 +203,15 @@ static unsigned int get_utf16_len(const uint8_t *src) {
     return s - src;
 }
 
+static unsigned int get_utf16w_len(const wchar_t *src) {
+    unsigned int i = 0;
+    const wchar_t *s = src;
+    while(mem_cmp(&s[i],null,2)) {
+        i++;
+    }
+    return i;
+}
+
 static unsigned int get_utf32_len(const uint8_t *src) {
     const uint8_t *s = src;
     while(mem_cmp(s,null,4)) {
@@ -216,6 +225,7 @@ static unsigned int get_utf8_len(const uint8_t *src) {
 }
 
 typedef unsigned int (*len_func)(const uint8_t *);
+typedef unsigned int (*lenw_func)(const wchar_t *);
 typedef uint8_t (*dec_func)(uint32_t *, const uint8_t *);
 typedef uint8_t (*enc_func)(uint8_t *, uint32_t);
 
@@ -239,7 +249,29 @@ static unsigned int utf_conv(uint8_t *dest, const uint8_t *src, unsigned int len
         n += r;
     }
     return n;
+}
 
+static unsigned int utf_convw(uint8_t *dest, const wchar_t *src, unsigned int len, enc_func enc, lenw_func _len) {
+    const wchar_t *s = src;
+    uint8_t *d = dest;
+    uint32_t cp = 0;
+    unsigned int r = 0;
+    unsigned int n = 0;
+
+    if(len == 0) {
+        len = _len(src);
+    }
+
+    while(len > 0) {
+        cp = *s;
+        len--;
+        s++;
+        if( (r = enc(d,cp)) == 0 ) break;
+        if(d != NULL) d += r;
+        n += r;
+    }
+
+    return n;
 }
 
 unsigned int utf_conv_iso88591_utf8(uint8_t *dest, const uint8_t *src, unsigned int len) {
@@ -306,6 +338,13 @@ unsigned int utf_conv_utf8_utf32(uint8_t *dest, const uint8_t *src, unsigned int
         }
     }
     return r;
+}
+
+unsigned int utf_conv_utf16w_utf8(uint8_t *dest, const wchar_t *src, unsigned int len) {
+    if(len % 2) return 0;
+    if(len == 2) return 0;
+    if(len) len -= 2;
+    return utf_convw(dest,src,len, utf_enc_utf8, get_utf16w_len);
 }
 
 unsigned int utf_conv_utf16_utf8(uint8_t *dest, const uint8_t *src, unsigned int len) {

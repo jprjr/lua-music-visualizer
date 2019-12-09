@@ -4,6 +4,7 @@
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +40,8 @@ unsigned int utf_conv_utf16le_utf8(uint8_t *d, const uint8_t *src, unsigned int 
 unsigned int utf_conv_utf16be_utf8(uint8_t *d, const uint8_t *src, unsigned int len);
 unsigned int utf_conv_utf32le_utf8(uint8_t *d, const uint8_t *src, unsigned int len);
 unsigned int utf_conv_utf32be_utf8(uint8_t *d, const uint8_t *src, unsigned int len);
+
+unsigned int utf_conv_utf16w_utf8(uint8_t *d, const wchar_t *src, unsigned int len);
 
 /* same as above but checks for a byte order marker */
 unsigned int utf_conv_utf16_utf8(uint8_t *d, const uint8_t *src, unsigned int len);
