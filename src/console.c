@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#ifndef _WIN32
 #include <signal.h>
+#endif
 #include "audio-decoder.h"
 #include "audio-processor.h"
 #include "video-generator.h"
@@ -9,17 +11,71 @@
 #include "str.h"
 #include "scan.h"
 #include "version.h"
+#ifndef _WIN32
+#include "thread.h"
+#endif
 
-static int should_reload = 0;
-static int should_quit = 0;
-
-static void catch_sig(int signo) {
-    signal(signo,catch_sig);
-    switch(signo) {
-        case SIGINT: should_reload = 1; return;
-        case SIGTERM: should_quit = 1; return;
+#ifndef _WIN32
+static int signal_thread_proc(void *userdata) {
+    sigset_t sigset;
+    int *sig;
+    thread_queue_t *queue = (thread_queue_t *)userdata;
+    sigemptyset(&sigset);
+#ifdef SIGINT
+    sigaddset(&sigset,SIGINT);
+#endif
+#ifdef SIGTERM
+    sigaddset(&sigset,SIGTERM);
+#endif
+#ifdef SIGHUP
+    sigaddset(&sigset,SIGHUP);
+#endif
+#ifdef SIGUSR1
+    sigaddset(&sigset,SIGUSR1);
+#endif
+    sig = (int *)malloc(sizeof(int));
+    while( sigwait(&sigset,sig) == 0) {
+        thread_queue_produce(queue,sig);
+        switch(*sig) {
+#ifdef SIGUSR1
+            case SIGUSR1: break;
+#endif
+#ifdef SIGHUP
+            case SIGHUP: break;
+#endif
+#ifdef SIGINT
+            case SIGINT: thread_exit(0); break;
+#endif
+#ifdef SIGTERM
+            case SIGTERM: thread_exit(0); break;
+#endif
+            default: thread_exit(1); break;
+        }
+        sig = (int *)malloc(sizeof(int));
     }
+    thread_exit(1);
+    return 1;
 }
+
+static void block_signals(void) {
+    sigset_t sigset;
+    sigemptyset(&sigset);
+#ifdef SIGINT
+    sigaddset(&sigset,SIGINT);
+#endif
+#ifdef SIGTERM
+    sigaddset(&sigset,SIGTERM);
+#endif
+#ifdef SIGHUP
+    sigaddset(&sigset,SIGHUP);
+#endif
+#ifdef SIGUSR1
+    sigaddset(&sigset,SIGUSR1);
+#endif
+    sigprocmask(SIG_BLOCK,&sigset,NULL);
+    return;
+}
+#endif
 
 static int usage(const char *self, int e) {
     fprintf(stderr,"Usage: %s [options] songfile scriptfile program ..\n",self);
@@ -69,6 +125,12 @@ int main(int argc, const char * const* argv) {
     audio_decoder *decoder;
     audio_processor *processor;
     video_generator *generator;
+#ifndef _WIN32
+    thread_ptr_t signal_thread;
+    thread_queue_t queue;
+    int sig_queue[10];
+    int *sig;
+#endif
 
     unsigned int width      = 0;
     unsigned int height     = 0;
@@ -200,6 +262,17 @@ int main(int argc, const char * const* argv) {
     songfile   = *argv++;
     scriptfile = *argv++;
 
+#ifndef _WIN32
+    sig_queue[0] = 0;
+    thread_queue_init(&queue,10,(void **)&sig_queue,0);
+
+    block_signals();
+    signal_thread = thread_create(signal_thread_proc,&queue,NULL,THREAD_STACK_SIZE_DEFAULT);
+    if(signal_thread == NULL) {
+        quit(1,NULL);
+    }
+#endif
+
     if(jpr_proc_info_init(&i)) return 1;
     if(jpr_proc_pipe_init(&f)) return 1;
 
@@ -227,26 +300,44 @@ int main(int argc, const char * const* argv) {
         return 1;
     }
 
-    /* ignore signals while init-ing the video generator */
-    signal(SIGINT,SIG_IGN);
-    signal(SIGTERM,SIG_IGN);
-
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&f)) {
         fprintf(stderr,"error starting the video generator\n");
+        fflush(stderr);
         quit(1,decoder,processor,generator,NULL);
         return 1;
     }
 
-    signal(SIGINT,catch_sig);
-    signal(SIGTERM,catch_sig);
-
     while(video_generator_loop(generator) == 0) {
-        if(should_reload) {
-            if(video_generator_reload(generator) != 0) break;
-            should_reload = 0;
+#ifndef _WIN32
+        if(thread_queue_count(&queue) > 0) {
+            sig = thread_queue_consume(&queue);
+            switch(*sig) {
+#ifdef SIGINT
+                case SIGINT: free(sig); goto quitting; break;
+#endif
+#ifdef SIGTERM
+                case SIGTERM: free(sig); goto quitting; break;
+#endif
+#ifdef SIGHUP
+                case SIGHUP: free(sig); video_generator_reload(generator); break;
+#endif
+#ifdef SIGUSR1
+                case SIGUSR1: free(sig); video_generator_reload(generator); break;
+#endif
+                default: break;
+            }
         }
-        if(should_quit) break;
+#endif
     }
+#ifndef _WIN32
+    quitting:
+    kill(getpid(),SIGTERM);
+
+    while(thread_queue_count(&queue) > 0) {
+        sig = thread_queue_consume(&queue);
+        free(sig);
+    }
+#endif
 
     video_generator_close(generator);
 
@@ -254,6 +345,11 @@ int main(int argc, const char * const* argv) {
     free(decoder);
     free(processor);
     free(generator);
+#ifndef _WIN32
+    thread_join(signal_thread);
+    thread_destroy(signal_thread);
+    thread_queue_term(&queue);
+#endif
 
     return 0;
 }
