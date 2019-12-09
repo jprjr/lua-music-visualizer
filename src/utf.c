@@ -204,12 +204,7 @@ static unsigned int get_utf16_len(const uint8_t *src) {
 }
 
 static unsigned int get_utf16w_len(const wchar_t *src) {
-    unsigned int i = 0;
-    const wchar_t *s = src;
-    while(mem_cmp(&s[i],null,2)) {
-        i++;
-    }
-    return i;
+    return wstr_len(src);
 }
 
 static unsigned int get_utf32_len(const uint8_t *src) {

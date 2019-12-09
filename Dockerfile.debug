@@ -68,7 +68,7 @@ RUN apt-get install -y curl gnupg2 && \
     echo "deb https://dl.winehq.org/wine-builds/ubuntu/ bionic main" > /etc/apt/sources.list.d/winehq.list && \
     apt-get update
 
-RUN apt-get install -y valgrind winehq-stable ffmpeg eyed3 flac unzip
+RUN apt-get install -y gdb valgrind winehq-stable ffmpeg eyed3 flac unzip
 
 RUN cd /usr/local/bin && \
     curl -R -L -O https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks && \

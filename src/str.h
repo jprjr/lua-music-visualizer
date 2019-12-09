@@ -4,9 +4,11 @@
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
 #include <stdint.h>
+#include <stddef.h>
 
 #ifndef NO_STDLIB
 #include <string.h>
+#include <wchar.h>
 #endif
 
 #ifdef __cplusplus
@@ -19,6 +21,7 @@ void *mem_chr(const uint8_t *src, uint8_t c, unsigned int n);
 int mem_cmp(const uint8_t *p1, const uint8_t *p2, unsigned int n);
 unsigned int str_len(const char *s);
 unsigned int str_nlen(const char *s, unsigned int m);
+unsigned int wstr_len(const wchar_t *s);
 int str_cmp(const char *s1, const char *s2);
 int str_ncmp(const char *s1, const char *s2, unsigned int m);
 int str_icmp(const char *s1, const char *s2);
@@ -31,6 +34,7 @@ unsigned int str_cat(char *d, const char *s);
 #define str_len(s) strlen(s)
 #define str_nlen(s,m) strnlen(s,m)
 #define str_cmp(s,q) strcmp(s,q)
+#define wstr_len(s) wcslen(s)
 #define str_ncmp(s,q,max) strncmp(s,q,max)
 #define str_icmp(s,q) strcasecmp(s,q)
 #define str_incmp(s,q,max) strncasecmp(s,q,max)

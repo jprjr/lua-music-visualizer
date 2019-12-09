@@ -16,6 +16,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+
 #include "gui.h"
 #include "cli.h"
 #include "utf.h"
@@ -64,13 +66,14 @@ MAIN_SIG {
     SetConsoleOutputCP(CP_UTF8);
 #endif
 
-    newargv = (char **)malloc(sizeof(char *) * argc);
+    newargv = (char **)malloc(sizeof(char *) * (argc + 1));
     if(newargv == NULL) return 1;
 
     for(i = 0; i < argc; i++) {
         newargv[i] = w_to_mb(argv[i]);
         if(newargv[i] == NULL) return 1;
     }
+    newargv[argc] = NULL;
     ret = 0;
 
     if(argc < 2) {
