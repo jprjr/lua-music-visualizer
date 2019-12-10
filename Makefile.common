@@ -33,7 +33,7 @@ LUALHS = \
   src/image.lua.lh \
   src/stream.lua.lh
 
-CLEAN = $(OBJS) $(LUALHS) *.exe
+CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res
 
 BIN2CSRC = src/bin2c.c
 
