@@ -1,12 +1,12 @@
-#ifndef STR_H
-#define STR_H
+#ifndef JPR_STR_H
+#define JPR_STR_H
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
 #include <stdint.h>
 #include <stddef.h>
 
-#ifndef NO_STDLIB
+#ifndef JPR_NO_STDLIB
 #include <string.h>
 #include <wchar.h>
 #endif
@@ -15,10 +15,11 @@
 extern "C" {
 #endif
 
-#ifdef NO_STDLIB
-void *mem_cpy(uint8_t *dest, const uint8_t *src, unsigned int n);
-void *mem_chr(const uint8_t *src, uint8_t c, unsigned int n);
-int mem_cmp(const uint8_t *p1, const uint8_t *p2, unsigned int n);
+#ifdef JPR_NO_STDLIB
+void *mem_cpy(void *dest, const void *src, unsigned int n);
+void *mem_chr(const void *src, uint8_t c, unsigned int n);
+int mem_cmp(const void *p1, const void *p2, unsigned int n);
+void *mem_set(void *s, uint8_t c, unsigned int n);
 unsigned int str_len(const char *s);
 unsigned int str_nlen(const char *s, unsigned int m);
 unsigned int wstr_len(const wchar_t *s);
@@ -31,6 +32,7 @@ unsigned int str_cat(char *d, const char *s);
 #define mem_cpy(dest,src,n) memcpy(dest,src,n)
 #define mem_chr(src,c,n) memchr(src,c,n)
 #define mem_cmp(p1,p2,n) memcmp(p1,p2,n)
+#define mem_set(s,c,n) memset(s,c,n)
 #define str_len(s) strlen(s)
 #define str_nlen(s,m) strnlen(s,m)
 #define str_cmp(s,q) strcmp(s,q)
@@ -41,7 +43,7 @@ unsigned int str_cat(char *d, const char *s);
 #define str_cat(d,s) (strcat(d,s),strlen(s))
 #endif
 
-#if defined(NO_STDLIB) || defined(_WIN32)
+#if defined(JPR_NO_STDLIB) || defined(_WIN32)
 unsigned int str_cpy(char *d, const char *p);
 unsigned int str_ncpy(char *d, const char *s, unsigned int max);
 #else

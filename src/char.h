@@ -1,9 +1,9 @@
-#ifndef CHAR_H
-#define CHAR_H
+#ifndef JPR_CHAR_H
+#define JPR_CHAR_H
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#ifndef NO_STDLIB
+#ifndef JPR_NO_STDLIB
 #include <ctype.h>
 #endif
 
@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#ifdef NO_STDLIB
+#ifdef JPR_NO_STDLIB
 int char_isdigit(char c);
 int char_isupper(char c);
 int char_islower(char c);

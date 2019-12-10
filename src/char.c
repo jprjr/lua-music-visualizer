@@ -2,7 +2,7 @@
 #include <stdint.h>
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#ifdef NO_STDLIB
+#ifdef JPR_NO_STDLIB
 int char_isdigit(char c) {
     return (uint8_t)(c - 48) < 10;
 }

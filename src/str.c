@@ -5,19 +5,20 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#ifdef NO_STDLIB
-void *mem_cpy(uint8_t *dest, const uint8_t *src, unsigned int n) {
-    uint8_t *d = dest;
+#ifdef JPR_NO_STDLIB
+void *mem_cpy(void *dest, const void *src, unsigned int n) {
+    uint8_t *d = (uint8_t *)dest;
+    const uint8_t *s = (const uint8_t *)src;
     while(n--) {
-        *d = *src;
+        *d = *s;
         d++;
-        src++;
+        s++;
     }
     return dest;
 }
 
-void *mem_chr(const uint8_t *src, uint8_t c, unsigned int n) {
-    const uint8_t *s = src;
+void *mem_chr(const void *src, uint8_t c, unsigned int n) {
+    const uint8_t *s = (const uint8_t *)src;
     while(n && *s != c) {
         s++;
         n--;
@@ -25,15 +26,24 @@ void *mem_chr(const uint8_t *src, uint8_t c, unsigned int n) {
     return n ? (void *)s : NULL;
 }
 
-int mem_cmp(const uint8_t *p1, const uint8_t *p2, unsigned int n) {
-    const uint8_t *l = p1;
-    const uint8_t *r = p2;
+int mem_cmp(const void *p1, const void *p2, unsigned int n) {
+    const uint8_t *l = (const uint8_t *)p1;
+    const uint8_t *r = (const uint8_t *)p2;
     while(n && *l == *r) {
         n--;
         l++;
         r++;
     }
     return n ? *l-*r : 0;
+}
+
+void *mem_set(void *dest, uint8_t c, unsigned int n) {
+    uint8_t *d = (uint8_t *)dest;
+    while(n--) {
+        *d = c;
+        d++;
+    }
+    return dest;
 }
 
 unsigned int str_len(const char *s) {
@@ -109,7 +119,7 @@ unsigned int str_cat(char *d, const char *s) {
 
 #endif
 
-#if defined(NO_STDLIB) || defined(_WIN32)
+#if defined(JPR_NO_STDLIB) || defined(_WIN32)
 unsigned int str_cpy(char *d, const char *s) {
     const char *src = s;
     while((*d = *s) != 0) {
@@ -160,7 +170,7 @@ unsigned int str_lower(char *dest, const char *src) {
 
 
 unsigned int str_chr(const char *s, char c) {
-#ifdef NO_STDLIB
+#ifdef JPR_NO_STDLIB
     char *t = mem_chr((const uint8_t *)s,c,str_len(s));
 #else
     char *t = strchr(s,c);

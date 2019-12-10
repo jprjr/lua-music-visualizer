@@ -1,5 +1,5 @@
-#ifndef UTF_H
-#define UTF_H
+#ifndef JPR_UTF_H
+#define JPR_UTF_H
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 

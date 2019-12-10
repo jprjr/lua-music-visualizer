@@ -1,5 +1,5 @@
-#ifndef PACK_H_
-#define PACK_H_
+#ifndef JPR_PACK_H
+#define JPR_PACK_H
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 

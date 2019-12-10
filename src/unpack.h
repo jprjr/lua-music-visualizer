@@ -1,5 +1,5 @@
-#ifndef UNPACK_H
-#define UNPACK_H
+#ifndef JPR_UNPACK_H
+#define JPR_UNPACK_H
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
