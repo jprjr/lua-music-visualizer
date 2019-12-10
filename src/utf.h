@@ -42,6 +42,7 @@ unsigned int utf_conv_utf32le_utf8(uint8_t *d, const uint8_t *src, unsigned int 
 unsigned int utf_conv_utf32be_utf8(uint8_t *d, const uint8_t *src, unsigned int len);
 
 unsigned int utf_conv_utf16w_utf8(uint8_t *d, const wchar_t *src, unsigned int len);
+unsigned int utf_conv_utf8_utf16w(wchar_t *d, const uint8_t *src, unsigned int len);
 
 /* same as above but checks for a byte order marker */
 unsigned int utf_conv_utf16_utf8(uint8_t *d, const uint8_t *src, unsigned int len);

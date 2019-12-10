@@ -139,6 +139,25 @@ static uint8_t utf_enc_utf16(uint8_t *d, uint32_t cp, uint8_t (*f)(uint8_t *,uin
     return f(d,cp1) + f( (d == NULL ? NULL : d+2 ) ,cp2);
 }
 
+static uint8_t utf_enc_utf16w(wchar_t *d, uint32_t cp) {
+    uint32_t cp1, cp2;
+    if(cp > 0x10FFFF) return 0;
+    if(cp >= 0xD800 && cp <= 0xDFFF) return 0;
+
+    if(cp < 0x010000) {
+        if(d != NULL) d[0] = cp;
+        return 1;
+    }
+
+    cp -= 0x10000;
+    cp1 = (cp >> 10) + 0xD800;
+    cp2 = (cp & 0x000003FF) + 0xDC00;
+    if(d != NULL) {
+        d[0] = cp1;
+        d[1] = cp2;
+    }
+    return 2;
+}
 
 uint8_t utf_enc_utf16le(uint8_t *d, uint32_t cp) {
     return utf_enc_utf16(d,cp,pack_uint16le);
@@ -221,6 +240,7 @@ typedef unsigned int (*len_func)(const uint8_t *);
 typedef unsigned int (*lenw_func)(const wchar_t *);
 typedef uint8_t (*dec_func)(uint32_t *, const uint8_t *);
 typedef uint8_t (*enc_func)(uint8_t *, uint32_t);
+typedef uint8_t (*encw_func)(wchar_t *, uint32_t);
 
 static unsigned int utf_conv(uint8_t *dest, const uint8_t *src, unsigned int len, dec_func dec, enc_func enc, len_func _len) {
     const uint8_t *s = src;
@@ -277,6 +297,28 @@ static unsigned int utf_convw(uint8_t *dest, const wchar_t *src, unsigned int le
         n += r;
     }
 
+    return n;
+}
+
+static unsigned int utf_wconv(wchar_t *dest, const uint8_t *src, unsigned int len, encw_func enc, dec_func dec, len_func _len) {
+    const uint8_t *s = src;
+    wchar_t *d = dest;
+    uint32_t cp = 0;
+    unsigned int r = 0;
+    unsigned int n = 0;
+
+    if(len == 0) {
+        len = _len(src);
+    }
+
+    while(len > 0) {
+        if(( r = dec(&cp,s)) == 0) break;
+        len-=r;
+        s += r;
+        if( (r = enc(d,cp)) == 0 ) break;
+        if(d != NULL) d += r;
+        n += r;
+    }
     return n;
 }
 
@@ -344,6 +386,10 @@ unsigned int utf_conv_utf8_utf32(uint8_t *dest, const uint8_t *src, unsigned int
         }
     }
     return r;
+}
+
+unsigned int utf_conv_utf8_utf16w(wchar_t *dest, const uint8_t *src, unsigned int len) {
+    return utf_wconv(dest,src,len, utf_enc_utf16w, utf_dec_utf8, get_utf8_len);
 }
 
 unsigned int utf_conv_utf16w_utf8(uint8_t *dest, const wchar_t *src, unsigned int len) {
