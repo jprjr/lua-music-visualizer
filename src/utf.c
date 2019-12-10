@@ -4,8 +4,6 @@
 #include "str.h"
 #include <stddef.h>
 
-#include <stdio.h>
-
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
 static const uint8_t null[4] = { 0, 0, 0, 0 };
@@ -250,6 +248,8 @@ static unsigned int utf_convw(uint8_t *dest, const wchar_t *src, unsigned int le
     const wchar_t *s = src;
     uint8_t *d = dest;
     uint32_t cp = 0;
+    wchar_t cp1 = 0;
+    wchar_t cp2 = 0;
     unsigned int r = 0;
     unsigned int n = 0;
 
@@ -258,7 +258,18 @@ static unsigned int utf_convw(uint8_t *dest, const wchar_t *src, unsigned int le
     }
 
     while(len > 0) {
-        cp = *s;
+        cp1 = s[0];
+        if(cp1 >= 0xD800 && cp1 <= 0xDFFF) {
+            cp2 = s[1];
+            cp = surrogate_pair((uint32_t)cp1,(uint32_t)cp2);
+            if(cp == 0) return 0;
+            s++;
+            len--;
+        }
+        else {
+            cp = (uint32_t)cp1;
+        }
+
         len--;
         s++;
         if( (r = enc(d,cp)) == 0 ) break;
@@ -336,9 +347,6 @@ unsigned int utf_conv_utf8_utf32(uint8_t *dest, const uint8_t *src, unsigned int
 }
 
 unsigned int utf_conv_utf16w_utf8(uint8_t *dest, const wchar_t *src, unsigned int len) {
-    if(len % 2) return 0;
-    if(len == 2) return 0;
-    if(len) len -= 2;
     return utf_convw(dest,src,len, utf_enc_utf8, get_utf16w_len);
 }
 

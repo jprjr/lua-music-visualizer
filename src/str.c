@@ -1,6 +1,7 @@
 #include "str.h"
 #include "char.h"
 #include <stdint.h>
+#include <stddef.h>
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
@@ -21,7 +22,7 @@ void *mem_chr(const uint8_t *src, uint8_t c, unsigned int n) {
         s++;
         n--;
     }
-    return n ? (void *)s : (void *)0;
+    return n ? (void *)s : NULL;
 }
 
 int mem_cmp(const uint8_t *p1, const uint8_t *p2, unsigned int n) {
@@ -39,6 +40,14 @@ unsigned int str_len(const char *s) {
     const char *a = s;
     while(*s) s++;
     return s - a;
+}
+
+unsigned int wstr_len(const wchar_t *s) {
+    unsigned int i = 0;
+    while(s[i]) {
+        i++;
+    }
+    return i;
 }
 
 unsigned int str_nlen(const char *s, unsigned int m) {
@@ -156,30 +165,30 @@ unsigned int str_chr(const char *s, char c) {
 #else
     char *t = strchr(s,c);
 #endif
-    if(t == (void *)0) return str_len(s);
+    if(t == NULL) return str_len(s);
     return t - s;
 }
 
 unsigned int str_necat(char *dest, const char *s, unsigned int max, const char *e, char t) {
     const char *f = s + max;
     char *d = dest;
-    if(dest != (void *)0) d += str_len(dest);
+    if(dest != NULL) d += str_len(dest);
     const char *q = e;
     char *p = d;
     while(*s && s < f) {
         q = e;
         while(*q) {
             if(*q == *s) {
-                if(dest != (void *)0) *p = t;
+                if(dest != NULL) *p = t;
                 p++;
             }
             q++;
         }
-        if(dest != (void *)0) *p = *s;
+        if(dest != NULL) *p = *s;
         s++;
         p++;
     }
-    if(dest != (void *)0) *p = 0;
+    if(dest != NULL) *p = 0;
     return p - d;
 }
 
