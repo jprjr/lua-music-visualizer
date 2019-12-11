@@ -16,6 +16,7 @@ OBJS = \
   src/kiss_fftr.o \
   src/kiss_fft.o \
   src/audio-decoder.o \
+  src/file.o \
   src/id3.o \
   src/image.o \
   src/thread.o \
@@ -26,6 +27,7 @@ OBJS = \
   src/pack.o \
   src/char.o \
   src/scan.o \
+  src/mem.o \
   src/version.o
 
 LUALHS = \
@@ -37,10 +39,10 @@ CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res
 
 BIN2CSRC = src/bin2c.c
 
-OPT_CFLAGS = -O3 -DNDEBUG
+OPT_CFLAGS = -O2 -g -DNDEBUG -DJPR_NO_STDLIB
 CFLAGS = -Wall -Wextra
 LDFLAGS =
-STRIP_FLAG = -s
+STRIP_FLAG =
 
 %.o: %.c $(LUALHS)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) -o $@ -c $<

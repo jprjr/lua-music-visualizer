@@ -2,7 +2,8 @@
 #include "utf.h"
 #include "str.h"
 #include "unpack.h"
-#include <stdlib.h>
+#include "file.h"
+#include "mem.h"
 
 #define ID3_MIN(a,b) ( a < b ? a : b)
 
@@ -20,10 +21,10 @@ typedef struct str_alloc_s str_alloc;
 static int str_alloc_resize(str_alloc *s, unsigned int size) {
     char *t = NULL;
     if(s->a >= size) return 0;
-    t = realloc(s->s,size);
+    t = mem_realloc(s->s,size);
     if(t == NULL) {
       if(s->s != NULL) {
-        free(s->s);
+        mem_free(s->s);
         s->s = NULL;
       }
       return 1;
@@ -39,7 +40,7 @@ static unsigned int utf8_len_or_copy(uint8_t *dest, const uint8_t *src, unsigned
     return str_ncpy((char *)dest,(const char *)src,len);
 }
 
-void process_id3(audio_decoder *a, FILE *f) {
+void process_id3(audio_decoder *a, jpr_file *f) {
     /* assumption: the file has already read the 'ID3' bytes */
     /* does not close out the file, that's the responsibility of the
      * calling function */
@@ -55,7 +56,7 @@ void process_id3(audio_decoder *a, FILE *f) {
     unsigned int dec_len = 0;
     uint8_t id3_ver = 0;
 
-    if(fread(buffer,1,10,f) != 10) return;
+    if(file_read(f,buffer,10) != 10) return;
     if(str_ncmp(buffer,"ID3",3) != 0) return;
     id3_ver = (uint8_t)buffer[3];
     id3_size =
@@ -73,18 +74,18 @@ void process_id3(audio_decoder *a, FILE *f) {
 
 
     if(buffer[5] & 0x20) {
-        if(fread(buffer,1,6,f) != 6) return;
+        if(file_read(f,buffer,6) != 6) return;
         frame_size =
           (((unsigned int)buffer[0]) << 21) +
           (((unsigned int)buffer[1]) << 14) +
           (((unsigned int)buffer[2]) << 7 ) +
           (((unsigned int)buffer[3]));
         frame_size -= 6;
-        fseek(f,frame_size,SEEK_CUR);
+        file_seek(f,frame_size,JPR_FILE_CUR);
     }
 
     while(id3_size > 0) {
-        if(fread(buffer,1,header_size,f) != header_size) goto id3_done;
+        if(file_read(f,buffer,header_size) != header_size) goto id3_done;
         if(mem_cmp((const uint8_t *)buffer,allzero,header_size) == 0) goto id3_done;
 
         id3_size -= header_size;
@@ -99,7 +100,7 @@ void process_id3(audio_decoder *a, FILE *f) {
 
         if(str_alloc_resize(&buffer2,frame_size)) goto id3_done;
 
-        if(fread(buffer2.s,1,frame_size,f) != frame_size) goto id3_done;
+        if(file_read(f,buffer2.s,frame_size) != frame_size) goto id3_done;
 
         if(buffer[0] != 'T') {
             continue;
@@ -145,8 +146,8 @@ void process_id3(audio_decoder *a, FILE *f) {
 
     id3_done:
 
-    if(buffer2.s != NULL) free(buffer2.s);
-    if(buffer3.s != NULL) free(buffer3.s);
+    if(buffer2.s != NULL) mem_free(buffer2.s);
+    if(buffer3.s != NULL) mem_free(buffer3.s);
 
     return;
 }

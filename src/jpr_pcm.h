@@ -5,8 +5,13 @@
 #include <string.h>
 #include <errno.h>
 
+typedef size_t (* jprpcm_read_proc)(void* userdata, void* buf, size_t len);
+typedef uint32_t (* jprpcm_seek_proc)(void* userdata, int offset, unsigned int origin);
+
 struct jprpcm_s {
-    FILE *f;
+    void *userdata;
+    jprpcm_read_proc readProc;
+    jprpcm_seek_proc seekProc;
     unsigned int totalPCMFrameCount;
     unsigned int samplerate;
     unsigned int channels;
@@ -18,7 +23,7 @@ typedef struct jprpcm_s jprpcm;
 extern "C" {
 #endif
 
-jprpcm *jprpcm_open_file(const char *filename, unsigned int samplerate, unsigned int channels);
+jprpcm *jprpcm_open(jprpcm_read_proc readProc, jprpcm_seek_proc seekProc, void *userdata, unsigned int samplerate, unsigned int channels);
 unsigned int jprpcm_read_pcm_frames_s16(jprpcm *pcm, unsigned int framecount, int16_t *buf);
 void jprpcm_close(jprpcm *pcm);
 
@@ -30,32 +35,22 @@ void jprpcm_close(jprpcm *pcm);
 
 #ifdef JPR_PCM_IMPLEMENTATION
 
-jprpcm *jprpcm_open_file(const char *filename, unsigned int samplerate, unsigned int channels) {
+jprpcm *jprpcm_open(jprpcm_read_proc readProc, jprpcm_seek_proc seekProc, void *userdata, unsigned int samplerate, unsigned int channels) {
     jprpcm *pcm;
-    FILE *f;
+    uint32_t bytes;
 
     pcm = (jprpcm *)malloc(sizeof(jprpcm));
     if(pcm == NULL) {
         return NULL;
     }
+    pcm->readProc = readProc;
+    pcm->seekProc = seekProc;
+    pcm->userdata = userdata;
 
-    if(strcmp(filename,"-") == 0) {
-        f = stdin;
-    } else {
-        f = fopen(filename,"rb");
-    }
-
-    if(f == NULL) {
-        fprintf(stderr,"error opening raw pcm: %s\n",strerror(errno));
-        free(pcm);
-        return NULL;
-    }
-
-    pcm->f = f;
-
-    if(fseek(pcm->f,0,SEEK_END) == 0) {
-        pcm->totalPCMFrameCount = ftell(pcm->f) / samplerate / channels / sizeof(int16_t);
-        fseek(pcm->f,0,SEEK_SET);
+    bytes = pcm->seekProc(pcm->userdata,0,2);
+    if(bytes > 0) {
+        pcm->totalPCMFrameCount = bytes / samplerate / channels / sizeof(int16_t);
+        pcm->seekProc(pcm->userdata,0,0);
     }
 
     pcm->samplerate = samplerate;
@@ -65,11 +60,10 @@ jprpcm *jprpcm_open_file(const char *filename, unsigned int samplerate, unsigned
 }
 
 unsigned int jprpcm_read_pcm_frames_s16(jprpcm *pcm, unsigned int framecount, int16_t *buf) {
-    return fread(buf,sizeof(int16_t) * pcm->channels,framecount,pcm->f);
+    return pcm->readProc(pcm->userdata,buf,sizeof(int16_t) * pcm->channels *framecount);
 }
 
 void jprpcm_close(jprpcm *pcm) {
-    fclose(pcm->f);
     free(pcm);
 }
 

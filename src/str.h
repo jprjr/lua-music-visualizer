@@ -6,16 +6,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#ifndef JPR_NO_STDLIB
-#include <string.h>
-#include <wchar.h>
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef JPR_NO_STDLIB
 void *mem_cpy(void *dest, const void *src, unsigned int n);
 void *mem_chr(const void *src, uint8_t c, unsigned int n);
 int mem_cmp(const void *p1, const void *p2, unsigned int n);
@@ -28,43 +22,19 @@ int str_ncmp(const char *s1, const char *s2, unsigned int m);
 int str_icmp(const char *s1, const char *s2);
 int str_incmp(const char *s1, const char *s2, unsigned int m);
 unsigned int str_cat(char *d, const char *s);
-#else
-#define mem_cpy(dest,src,n) memcpy(dest,src,n)
-#define mem_chr(src,c,n) memchr(src,c,n)
-#define mem_cmp(p1,p2,n) memcmp(p1,p2,n)
-#define mem_set(s,c,n) memset(s,c,n)
-#define str_len(s) strlen(s)
-#define str_nlen(s,m) strnlen(s,m)
-#define str_cmp(s,q) strcmp(s,q)
-#define wstr_len(s) wcslen(s)
-#define str_ncmp(s,q,max) strncmp(s,q,max)
-#define str_icmp(s,q) strcasecmp(s,q)
-#define str_incmp(s,q,max) strncasecmp(s,q,max)
-#define str_cat(d,s) (strcat(d,s),strlen(s))
-#endif
-
-#if defined(JPR_NO_STDLIB) || defined(_WIN32)
 unsigned int str_cpy(char *d, const char *p);
 unsigned int str_ncpy(char *d, const char *s, unsigned int max);
-#else
-#define str_cpy(d,s) (stpcpy(d,s) - d)
-#define str_ncpy(d,s,m) (stpncpy(d,s,m) - d)
-#endif
-
-#define str_equals(s,q) (str_cmp(s,q) == 0)
-
-#define str_starts(s,q) (str_ncmp(s,q,str_len(q)) == 0)
-#define str_istarts(s,q) (str_incmp(s,q,str_len(q)) == 0)
-
-#define str_ends(s,q) (str_cmp(&s[str_len(s) - str_len(q)],q) == 0)
-#define str_iends(s,q) (str_icmp(&s[str_len(s) - str_len(q)],q) == 0)
 
 unsigned int str_ncat(char *d,const char *s,unsigned int max); /* returns number of characters cat'd */
-
 unsigned int str_chr(const char *s, char c);
 unsigned int str_nlower(char *d, const char *str, unsigned int max);
 unsigned int str_lower(char *d, const char *str);
 
+#define str_equals(s,q) (str_cmp(s,q) == 0)
+#define str_starts(s,q) (str_ncmp(s,q,str_len(q)) == 0)
+#define str_istarts(s,q) (str_incmp(s,q,str_len(q)) == 0)
+#define str_ends(s,q) (str_cmp(&s[str_len(s) - str_len(q)],q) == 0)
+#define str_iends(s,q) (str_icmp(&s[str_len(s) - str_len(q)],q) == 0)
 
 /* str_cat with escaping of characters in *e */
 /* prepends encountered characters with 't' */

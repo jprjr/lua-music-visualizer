@@ -2,7 +2,10 @@
 #include "id3.h"
 #include "utf.h"
 #include "str.h"
+#include "file.h"
+#include "mem.h"
 #include "unpack.h"
+#include "util.h"
 #include "jpr_proc.h"
 
 #define AUDIO_MAX(a,b) ( a > b ? a : b)
@@ -20,6 +23,19 @@
 #define JPR_PCM_IMPLEMENTATION
 #include "jpr_pcm.h"
 
+static size_t read_proc(void *userdata, void *buf, size_t bytes) {
+    audio_decoder *a = (audio_decoder *)userdata;
+    return (size_t)file_read(a->file,buf,bytes);
+}
+
+static uint32_t seek_proc(void *userdata, int offset, unsigned int origin) {
+    audio_decoder *a = (audio_decoder *)userdata;
+    int64_t r = 0;
+    r = file_seek(a->file,offset,origin);
+    if(r <= 0) return 0;
+    return (uint32_t)r;
+}
+
 static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     audio_decoder *a = ctx;
     drflac_vorbis_comment_iterator iter;
@@ -34,7 +50,7 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     drflac_init_vorbis_comment_iterator(&iter,pMetadata->data.vorbis_comment.commentCount, pMetadata->data.vorbis_comment.pComments);
     while( (comment = drflac_next_vorbis_comment(&iter,&commentLength)) != NULL) {
         if(commentLength > 4095) continue;
-        strncpy(buf,comment,commentLength);
+        str_ncpy(buf,comment,commentLength);
         buf[commentLength] = 0;
         r = str_chr(buf,'=');
         if(buf[r]) {
@@ -46,26 +62,28 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
 }
 
 static void wav_id3(audio_decoder *a, const char *filename) {
-    if(a->onmeta == NULL) return;
-    FILE *f = fopen(filename,"rb");
+    jpr_file *f = NULL;
     uint32_t bytes = 0;
     uint32_t cbytes = 0;
     uint32_t tbytes = 0;
     uint8_t buffer[12];
     uint8_t *buffer_tmp = NULL;
     uint8_t *b = NULL;
+    if(a->onmeta == NULL) return;
 
+    f = file_open(filename,"rb");
     if(f == NULL) {
         return;
     }
-    if(fread(buffer,1,12,f) != 12) goto closereturn;
+
+    if(file_read(f,buffer,12) != 12) goto closereturn;
     if(str_ncmp((char *)buffer,"RIFF",4)) goto closereturn;
     if(str_ncmp((char *)buffer+8,"WAVE",4)) goto closereturn;
     bytes = unpack_uint32le(buffer+4);
     bytes -= 4;
 
     while(bytes > 0) {
-        if(fread(buffer,1,8,f) != 8) goto closereturn;
+        if(file_read(f,buffer,8) != 8) goto closereturn;
         bytes -= 8;
         cbytes = unpack_uint32le(buffer+4);
 
@@ -75,14 +93,14 @@ static void wav_id3(audio_decoder *a, const char *filename) {
         }
 
         if(str_incmp((char *)buffer,"LIST",4) == 0) {
-            if(fread(buffer,1,4,f) != 4) goto closereturn;
+            if(file_read(f,buffer,4) != 4) goto closereturn;
             cbytes -= 4;
 
             if(str_incmp((char *)buffer,"INFO",4) == 0) {
                 bytes -= cbytes; /* going to finish out this chunk */
-                buffer_tmp = malloc(cbytes);
+                buffer_tmp = mem_alloc(cbytes);
                 if(buffer_tmp == NULL) goto closereturn;
-                if(fread(buffer_tmp,1,cbytes,f) != cbytes) goto closereturn;
+                if(file_read(f,buffer_tmp,cbytes) != cbytes) goto closereturn;
                 b = buffer_tmp;
 
                 while(b < buffer_tmp + cbytes) {
@@ -108,28 +126,30 @@ static void wav_id3(audio_decoder *a, const char *filename) {
                 }
             }
         }
-        fseek(f,cbytes,SEEK_CUR);
+        file_seek(f,cbytes,JPR_FILE_CUR);
         bytes -= cbytes;
     }
 
 closereturn:
     if(buffer_tmp != NULL) free(buffer_tmp);
-    fclose(f);
+    if(f != NULL) file_close(f);
     return;
 }
 
 static void mp3_id3(audio_decoder *a, const char *filename) {
+    jpr_file *f = NULL;
     if(a->onmeta == NULL) return;
-    FILE *f = fopen(filename,"rb");
+    f = file_open(filename,"rb");
     if(f == NULL) {
         return;
     }
     process_id3(a,f);
-    fclose(f);
+    file_close(f);
 
 }
 
 int audio_decoder_init(audio_decoder *a) {
+    a->file = NULL;
     a->framecount = 0;
     a->ctx.p = NULL;
     a->meta_ctx = NULL;
@@ -142,8 +162,14 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
     drmp3 *mp3 = NULL;
 
     if(str_iends(filename,".flac")) {
-        a->ctx.pFlac = drflac_open_file_with_metadata(filename,flac_meta,a);
-        if(a->ctx.pFlac == NULL) return 1;
+        a->file = file_open(filename,"rb");
+        if(a->file == NULL) return 1;
+        a->ctx.pFlac = drflac_open_with_metadata(read_proc,seek_proc,flac_meta,a);
+        if(a->ctx.pFlac == NULL) {
+            file_close(a->file);
+            a->file = NULL;
+            return 1;
+        }
 
         a->framecount = a->ctx.pFlac->totalPCMFrameCount;
         a->samplerate = a->ctx.pFlac->sampleRate;
@@ -152,17 +178,20 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
     }
     else if(str_iends(filename,".mp3")) {
         mp3_id3(a,filename);
+        a->file = file_open(filename,"rb");
+        if(a->file == NULL) return 1;
 
-        mp3 = (drmp3 *)malloc(sizeof(drmp3));
+        mp3 = (drmp3 *)mem_alloc(sizeof(drmp3));
         if(mp3 == NULL) {
-            fprintf(stderr,"out of memory\n");
+            DEBUGLOG("out of memory");
             return 1;
         }
         a->ctx.pMp3 = mp3;
-        if(!drmp3_init_file(a->ctx.pMp3,filename,NULL)) {
-            fprintf(stderr,"error opening as mp3\n");
+        if(!drmp3_init(a->ctx.pMp3,read_proc,seek_proc,a,NULL)) {
             free(mp3);
             a->ctx.pMp3 = NULL;
+            file_close(a->file);
+            a->file = NULL;
             return 1;
         }
         a->framecount = drmp3_get_pcm_frame_count(mp3);
@@ -173,22 +202,34 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
     else if(str_iends(filename,".wav")) {
         wav_id3(a,filename);
 
-        a->ctx.pWav = drwav_open_file(filename);
+        a->file = file_open(filename,"rb");
+        if(a->file == NULL) return 1;
 
-        if(a->ctx.pWav == NULL) return 1;
+        a->ctx.pWav = drwav_open(read_proc,seek_proc,a);
+        if(a->ctx.pWav == NULL) {
+            file_close(a->file);
+            a->file = NULL;
+            return 1;
+        }
         a->framecount = a->ctx.pWav->totalPCMFrameCount;
         a->samplerate = a->ctx.pWav->sampleRate;
         a->channels = a->ctx.pWav->channels;
         a->type = 2;
     }
     else if(a->samplerate != 0 && a->channels != 0) {
-        a->ctx.pPcm = jprpcm_open_file(filename,a->samplerate,a->channels);
-        if(a->ctx.pPcm == NULL) return 1;
+        a->file = file_open(filename,"rb");
+        if(a->file == NULL) return 1;
+        a->ctx.pPcm = jprpcm_open(read_proc,seek_proc,a,a->samplerate,a->channels);
+        if(a->ctx.pPcm == NULL) {
+            file_close(a->file);
+            a->file = NULL;
+            return 1;
+        }
         a->framecount = a->ctx.pPcm->totalPCMFrameCount;
         a->type = 3;
     }
     else {
-        fprintf(stderr,"sorry, I don't support that file format\n");
+        DEBUGLOG("unsupported file format");
     }
 
     if(a->ctx.p == NULL) return 1;
@@ -229,5 +270,7 @@ void audio_decoder_close(audio_decoder *a) {
             break;
         }
     }
+    file_close(a->file);
+    a->file = NULL;
 }
 

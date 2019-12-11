@@ -1,14 +1,14 @@
 #ifndef ID3_H
 #define ID3_H
 
-#include <stdio.h>
 #include "audio-decoder.h"
+#include "file.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void process_id3(audio_decoder *a, FILE *f);
+void process_id3(audio_decoder *a, jpr_file *f);
 
 #ifdef __cplusplus
 }

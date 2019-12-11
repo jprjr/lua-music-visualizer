@@ -1,6 +1,7 @@
 #ifndef AUDIO_DECODER_H
 #define AUDIO_DECODER_H
 
+#include "file.h"
 #include "dr_flac.h"
 #include "dr_mp3.h"
 #include "dr_wav.h"
@@ -30,6 +31,7 @@ struct audio_decoder_s {
     unsigned int channels;
     unsigned int framecount;
     meta_proc onmeta;
+    jpr_file *file;
 };
 
 

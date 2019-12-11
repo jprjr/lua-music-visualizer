@@ -1,12 +1,19 @@
+#include "norm.h"
 #include "str.h"
 #include "char.h"
 #include <stdint.h>
 #include <stddef.h>
 
+#ifndef JPR_NO_STDLIB
+#include <string.h>
+#include <strings.h>
+#include <wchar.h>
+#endif
+
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#ifdef JPR_NO_STDLIB
 void *mem_cpy(void *dest, const void *src, unsigned int n) {
+#ifdef JPR_NO_STDLIB
     uint8_t *d = (uint8_t *)dest;
     const uint8_t *s = (const uint8_t *)src;
     while(n--) {
@@ -15,18 +22,26 @@ void *mem_cpy(void *dest, const void *src, unsigned int n) {
         s++;
     }
     return dest;
+#else
+    return memcpy(dest,src,n);
+#endif
 }
 
 void *mem_chr(const void *src, uint8_t c, unsigned int n) {
+#ifdef JPR_NO_STDLIB
     const uint8_t *s = (const uint8_t *)src;
     while(n && *s != c) {
         s++;
         n--;
     }
     return n ? (void *)s : NULL;
+#else
+    return memchr(src,c,n);
+#endif
 }
 
 int mem_cmp(const void *p1, const void *p2, unsigned int n) {
+#ifdef JPR_NO_STDLIB
     const uint8_t *l = (const uint8_t *)p1;
     const uint8_t *r = (const uint8_t *)p2;
     while(n && *l == *r) {
@@ -35,45 +50,69 @@ int mem_cmp(const void *p1, const void *p2, unsigned int n) {
         r++;
     }
     return n ? *l-*r : 0;
+#else
+    return memcmp(p1,p2,n);
+#endif
 }
 
 void *mem_set(void *dest, uint8_t c, unsigned int n) {
+#ifdef JPR_NO_STDLIB
     uint8_t *d = (uint8_t *)dest;
     while(n--) {
         *d = c;
         d++;
     }
     return dest;
+#else
+    return memset(dest,c,n);
+#endif
 }
 
 unsigned int str_len(const char *s) {
+#ifdef JPR_NO_STDLIB
     const char *a = s;
     while(*s) s++;
     return s - a;
+#else
+    return strlen(s);
+#endif
 }
 
 unsigned int wstr_len(const wchar_t *s) {
+#ifdef JPR_NO_STDLIB
     unsigned int i = 0;
     while(s[i]) {
         i++;
     }
     return i;
+#else
+    return wcslen(s);
+#endif
 }
 
 unsigned int str_nlen(const char *s, unsigned int m) {
+#ifdef JPR_NO_STDLIB
     const char *p = mem_chr((const uint8_t *)s, 0, m);
     return (p ? (unsigned int)(p-s) : m);
+#else
+    return strnlen(s,m);
+#endif
 }
 
 int str_cmp(const char *s1, const char *s2) {
+#ifdef JPR_NO_STDLIB
     while(*s1 == *s2 && *s1) {
         s1++;
         s2++;
     }
     return ((uint8_t *)s1)[0] - ((uint8_t *)s2)[0];
+#else
+    return strcmp(s1,s2);
+#endif
 }
 
 int str_ncmp(const char *s1, const char *s2, unsigned int m) {
+#ifdef JPR_NO_STDLIB
     const uint8_t *p1 = (const uint8_t *)s1;
     const uint8_t *p2 = (const uint8_t *)s2;
     if(!m--) return 0;
@@ -83,9 +122,13 @@ int str_ncmp(const char *s1, const char *s2, unsigned int m) {
         m--;
     }
     return *p1 - *p2;
+#else
+    return strncmp(s1,s2,m);
+#endif
 }
 
 int str_icmp(const char *s1, const char *s2) {
+#ifdef JPR_NO_STDLIB
     const uint8_t *p1 = (const uint8_t *)s1;
     const uint8_t *p2 = (const uint8_t *)s2;
     while(*p1 && *p2 && (*p1 == *p2 || char_lower(*p1) == char_lower(*p2))) {
@@ -93,9 +136,13 @@ int str_icmp(const char *s1, const char *s2) {
         p2++;
     }
     return char_lower(*p1) - char_lower(*p2);
+#else
+    return strcasecmp(s1,s2);
+#endif
 }
 
 int str_incmp(const char *s1, const char *s2, unsigned int m) {
+#ifdef JPR_NO_STDLIB
     const uint8_t *p1 = (const uint8_t *)s1;
     const uint8_t *p2 = (const uint8_t *)s2;
     if(!m--) return 0;
@@ -105,9 +152,13 @@ int str_incmp(const char *s1, const char *s2, unsigned int m) {
         m--;
     }
     return char_lower(*p1) - char_lower(*p2);
+#else
+    return strncasecmp(s1,s2,m);
+#endif
 }
 
 unsigned int str_cat(char *d, const char *s) {
+#ifdef JPR_NO_STDLIB
     const char *src = s;
     d += str_len(d);
     while((*d = *s) != 0) {
@@ -115,21 +166,33 @@ unsigned int str_cat(char *d, const char *s) {
         d++;
     }
     return s - src;
+#else
+    strcat(d,s);
+    return strlen(s);
+#endif
 }
 
-#endif
 
-#if defined(JPR_NO_STDLIB) || defined(_WIN32)
 unsigned int str_cpy(char *d, const char *s) {
+#ifdef JPR_NO_STDLIB
     const char *src = s;
     while((*d = *s) != 0) {
         s++;
         d++;
     }
     return s - src;
+#else
+#ifdef JPR_WINDOWS
+    strcpy(d,s);
+    return str_len(s);
+#else
+    return stpcpy(d,s) - d;
+#endif
+#endif
 }
 
 unsigned int str_ncpy(char *d, const char *s, unsigned int max) {
+#ifdef JPR_NO_STDLIB
     const char *src = s;
     while(max && (*d = *s) != 0) {
         s++;
@@ -137,10 +200,18 @@ unsigned int str_ncpy(char *d, const char *s, unsigned int max) {
         max--;
     }
     return s - src;
-}
+#else
+#ifdef JPR_WINDOWS
+    strncpy(d,s,max);
+    return str_nlen(s,max);
+#else
+    return stpncpy(d,s,max) - d;
 #endif
+#endif
+}
 
 unsigned int str_ncat(char *d, const char *s, unsigned int max) {
+#ifdef JPR_NO_STDLIB
     const char *src = s;
     d += str_len(d);
     while(max && (*d = *s) != 0) {
@@ -149,6 +220,10 @@ unsigned int str_ncat(char *d, const char *s, unsigned int max) {
         max--;
     }
     return s - src;
+#else
+    strncat(d,s,max);
+    return str_nlen(s,max);
+#endif
 }
 
 unsigned int str_nlower(char *dest, const char *src, unsigned int max) {
@@ -172,11 +247,12 @@ unsigned int str_lower(char *dest, const char *src) {
 unsigned int str_chr(const char *s, char c) {
 #ifdef JPR_NO_STDLIB
     char *t = mem_chr((const uint8_t *)s,c,str_len(s));
-#else
-    char *t = strchr(s,c);
-#endif
     if(t == NULL) return str_len(s);
     return t - s;
+#else
+    char *t = strchr(s,c);
+    return ( t != NULL ? (unsigned int)(t - s) : str_len(s) );
+#endif
 }
 
 unsigned int str_necat(char *dest, const char *s, unsigned int max, const char *e, char t) {
