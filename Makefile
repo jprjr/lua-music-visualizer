@@ -6,7 +6,7 @@ LUA = luajit
 HOST_CC=$(CC)
 PKGCONFIG = pkg-config
 
-CFLAGS += $(shell $(PKGCONFIG) --cflags $(LUA)) $(OPT_CFLAGS)
+CFLAGS += $(shell $(PKGCONFIG) --cflags $(LUA))
 LDFLAGS += $(shell $(PKGCONFIG) --libs $(LUA)) -lm -pthread
 
 CLEAN += lua-music-visualizer

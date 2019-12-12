@@ -1,9 +1,44 @@
 #include "image.h"
+#include "file.h"
 
+#define STBI_NO_STDIO
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
+
+#if 0
+typedef struct
+{
+   int      (*read)  (void *user,char *data,int size);   // fill 'data' with 'size' bytes.  return number of bytes actually read
+   void     (*skip)  (void *user,int n);                 // skip the next 'n' bytes, or 'unget' the last -n bytes if negative
+   int      (*eof)   (void *user);                       // returns nonzero if we are at end of file/data
+} stbi_io_callbacks;
+#endif
+
+static int io_image_read(void *user, char *data, int size) {
+    jpr_file *f = (jpr_file *)user;
+    return (int)file_read(f,data,(uint64_t)size);
+}
+
+static void io_image_skip(void *user, int n) {
+    jpr_file *f = (jpr_file *)user;
+    file_seek(f,n,JPR_FILE_CUR);
+    return;
+}
+
+static int io_eof(void *user) {
+    jpr_file *f = (jpr_file *)user;
+    return file_eof(f);
+}
+
+static stbi_io_callbacks io_callbacks = {
+    .read = io_image_read,
+    .skip = io_image_skip,
+    .eof = io_eof,
+};
+
+
 
 static void
 flip_and_bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned int channels) {
@@ -70,10 +105,15 @@ image_probe(const char *filename, unsigned int *width, unsigned int *height, uns
     int x = 0;
     int y = 0;
     int c = 0;
+    jpr_file *f;
+    f = file_open(filename,"r");
+    if(f == NULL) return 0;
 
-    if(stbi_info(filename,&x,&y,&c) == 0) {
+    if(stbi_info_from_callbacks(&io_callbacks,f,&x,&y,&c) == 0) {
+        file_close(f);
         return 0;
     }
+
     if(c < 3 && *channels == 0) {
         c = 3;
     }
@@ -92,6 +132,7 @@ image_probe(const char *filename, unsigned int *width, unsigned int *height, uns
     else if (*height == 0) {
         *height = y * (*width) / x;
     }
+    file_close(f);
 
     return 1;
 }
@@ -105,7 +146,7 @@ stbi_xload(
   unsigned int *frames,
   unsigned int **delays) {
 
-    FILE *f;
+    jpr_file *f;
     stbi__context s;
     unsigned char *result = 0;
     stbi__result_info ri;
@@ -114,10 +155,10 @@ stbi_xload(
     int y;
     int c;
 
-    if (!(f = stbi__fopen(filename, "rb")))
-        return stbi__errpuc("can't fopen", "Unable to open file");
+    f = file_open(filename,"r");
+    if(f == NULL) return NULL;
 
-    stbi__start_file(&s, f);
+    stbi__start_callbacks(&s, &io_callbacks, f);
 
     if (stbi__gif_test(&s))
     {
@@ -135,7 +176,7 @@ stbi_xload(
         *height = (unsigned int)y;
     }
 
-    fclose(f);
+    file_close(f);
     return result;
 }
 
