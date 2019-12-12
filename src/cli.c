@@ -15,6 +15,7 @@
 #ifndef _WIN32
 #include "thread.h"
 #endif
+#include "util.h"
 
 #ifndef _WIN32
 static int signal_thread_proc(void *userdata) {
@@ -79,17 +80,19 @@ static void block_signals(void) {
 #endif
 
 static int usage(const char *self, int e) {
-    fprintf(stderr,"Usage: %s [options] songfile scriptfile program ..\n",self);
-    fprintf(stderr,"Options:\n");
-    fprintf(stderr,"  -h\n");
-    fprintf(stderr,"  --help\n");
-    fprintf(stderr,"  --width=width\n");
-    fprintf(stderr,"  --height=height\n");
-    fprintf(stderr,"  --fps=fps\n");
-    fprintf(stderr,"  --bars=bars\n");
-    fprintf(stderr,"  --samplerate=samplerate (enables raw input)\n");
-    fprintf(stderr,"  --channels (enables raw input)\n");
-    fprintf(stderr,"  --version (prints version and exits)\n");
+    WRITE_STDERR("Usage: ");
+    WRITE_STDERR(self);
+    WRITE_STDERR(" [options] songfile scriptfile program ...\n");
+    WRITE_STDERR("Options:\n");
+    WRITE_STDERR("  -h\n");
+    WRITE_STDERR("  --help\n");
+    WRITE_STDERR("  --width=width\n");
+    WRITE_STDERR("  --height=height\n");
+    WRITE_STDERR("  --fps=fps\n");
+    WRITE_STDERR("  --bars=bars\n");
+    WRITE_STDERR("  --samplerate=samplerate (enables raw input)\n");
+    WRITE_STDERR("  --channels (enables raw input)\n");
+    WRITE_STDERR("  --version (prints version and exits)\n");
     return e;
 }
 
@@ -115,7 +118,7 @@ static void quit(int e,...) {
         }
     } while(p != NULL);
 
-    exit(e);
+    JPR_EXIT(e);
 }
 
 int cli_start(int argc, char **argv) {
@@ -298,14 +301,13 @@ int cli_start(int argc, char **argv) {
     decoder->channels        =   channels;
 
     if(jpr_proc_spawn(&i,(const char * const *)argv,&f,NULL,NULL)) {
-        fprintf(stderr,"error spawning process\n");
+        LOG_ERROR("error spawning process");
         quit(1,decoder,processor,generator,NULL);
         return 1;
     }
 
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&f)) {
-        fprintf(stderr,"error starting the video generator\n");
-        fflush(stderr);
+        LOG_ERROR("error starting the video generator");
         quit(1,decoder,processor,generator,NULL);
         return 1;
     }

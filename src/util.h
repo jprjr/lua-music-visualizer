@@ -1,18 +1,28 @@
 #ifndef JPR_UTIL_H
 #define JPR_UTIL_H
 
-#ifdef NDEBUG
-#define DEBUGLOG(s)
-#else
+#include "norm.h"
+#include "str.h"
 
-#if defined(_WIN32) || defined(_WIN64)
-#define DEBUGLOG(s) \
-    WriteFile(GetStdHandle(STD_ERROR_HANDLE),s,lstrlenA(s),NULL,0); \
-    WriteFile(GetStdHandle(STD_ERROR_HANDLE),"\n",1,NULL,0);
+#ifdef JPR_WINDOWS
+#define WRITE_STDERR(s) WriteFile(GetStdHandle(STD_ERROR_HANDLE),s,str_len(s),NULL,0)
+#define JPR_EXIT(e) ExitProcess(e)
 #else
-#define DEBUGLOG(s) \
-    (void)write(2,s,strlen(s)); \
-    (void)write(2,"\n",1);
+#include <stdlib.h>
+#include <errno.h>
+#define WRITE_STDERR(s) \
+    while( (write(2,s,str_len(s)) == -1) && (errno == EINTR) )
+#define JPR_EXIT(e) exit(e)
 #endif
+
+#define LOG_ERROR(s) \
+    WRITE_STDERR(s); \
+    WRITE_STDERR("\n")
+
+#ifdef NDEBUG
+#define LOG_DEBUG(s)
+#else
+#define LOG_DEBUG(s) LOG_ERROR(s)
 #endif
+
 #endif

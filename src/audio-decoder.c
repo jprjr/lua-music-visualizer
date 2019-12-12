@@ -186,7 +186,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
 
         mp3 = (drmp3 *)mem_alloc(sizeof(drmp3));
         if(mp3 == NULL) {
-            DEBUGLOG("out of memory");
+            LOG_DEBUG("out of memory");
             return 1;
         }
         a->ctx.pMp3 = mp3;
@@ -232,7 +232,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->type = 3;
     }
     else {
-        DEBUGLOG("unsupported file format");
+        LOG_DEBUG("unsupported file format");
     }
 
     if(a->ctx.p == NULL) return 1;
