@@ -111,8 +111,26 @@ jpr_file *file_open(const char *filename, const char *mode) {
 #ifdef JPR_NO_STDLIB
     f->fd = INVALID_HANDLE_VALUE;
     f->eof = 0;
+    if(str_cmp(filename,"-") == 0) {
+        if(mode[str_chr(mode,'r')] == 'r') {
+            f->fd = GetStdHandle( STD_INPUT_HANDLE );
+        } else {
+            f->fd = GetStdHandle( STD_OUTPUT_HANDLE );
+        }
+        return f;
+    }
 #else
     f->fd = NULL;
+    if(str_cmp(filename,"-") == 0) {
+        if(mode[str_chr(mode,'r')] == 'r') {
+            fd->fd = stdin;
+            _setmode(_fileno( stdin ), _O_BINARY );
+        } else {
+            fd->fd = stdout;
+            _setmode(_fileno( stdout ), _O_BINARY );
+        }
+        return f;
+    }
 #endif
 
     wide_filename_len = utf_conv_utf8_utf16w(NULL,(const uint8_t *)filename,0);
@@ -218,6 +236,14 @@ file_open_cleanup:
 #ifdef JPR_NO_STDLIB
     f->eof = 0;
     f->fd = -1;
+    if(str_cmp(filename,"-") == 0) {
+        if(mode[str_chr(mode,'r')] == 'r') {
+            f->fd = 0;
+        } else {
+            f->fd = 1;
+        }
+        return f;
+    }
     switch(mode[0]) {
         case 'r': {
             flags |= O_RDONLY;
@@ -263,6 +289,15 @@ file_open_cleanup:
         }
     }
 #else
+    if(str_cmp(filename,"-") == 0) {
+        if(mode[str_chr(mode,'r')] == 'r') {
+            f->fd = stdin;
+        } else {
+            f->fd = stdout;
+        }
+        return f;
+    }
+
     f->fd = fopen(filename,mode);
     if(f->fd == NULL) {
         mem_free(f);

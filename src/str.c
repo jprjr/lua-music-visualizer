@@ -283,3 +283,16 @@ unsigned int str_ecat(char *d, const char *s, const char *e, char t) {
 }
 
 
+unsigned int str_ends(const char *s, const char *q) {
+    unsigned int slen = str_len(s);
+    unsigned int qlen = str_len(q);
+    if(slen < qlen) return 0;
+    return str_cmp(&s[slen - qlen],q) == 0;
+}
+
+unsigned int str_iends(const char *s, const char *q) {
+    unsigned int slen = str_len(s);
+    unsigned int qlen = str_len(q);
+    if(slen < qlen) return 0;
+    return str_icmp(&s[slen - qlen],q) == 0;
+}

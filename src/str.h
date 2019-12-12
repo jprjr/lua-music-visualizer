@@ -29,12 +29,12 @@ unsigned int str_ncat(char *d,const char *s,unsigned int max); /* returns number
 unsigned int str_chr(const char *s, char c);
 unsigned int str_nlower(char *d, const char *str, unsigned int max);
 unsigned int str_lower(char *d, const char *str);
+unsigned int str_ends(const char *s, const char *q);
+unsigned int str_iends(const char *s, const char *q);
 
 #define str_equals(s,q) (str_cmp(s,q) == 0)
 #define str_starts(s,q) (str_ncmp(s,q,str_len(q)) == 0)
 #define str_istarts(s,q) (str_incmp(s,q,str_len(q)) == 0)
-#define str_ends(s,q) (str_cmp(&s[str_len(s) - str_len(q)],q) == 0)
-#define str_iends(s,q) (str_icmp(&s[str_len(s) - str_len(q)],q) == 0)
 
 /* str_cat with escaping of characters in *e */
 /* prepends encountered characters with 't' */

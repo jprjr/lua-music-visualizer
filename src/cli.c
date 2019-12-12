@@ -11,6 +11,7 @@
 #include "str.h"
 #include "scan.h"
 #include "version.h"
+#include "mem.h"
 #ifndef _WIN32
 #include "thread.h"
 #endif
@@ -33,7 +34,7 @@ static int signal_thread_proc(void *userdata) {
 #ifdef SIGUSR1
     sigaddset(&sigset,SIGUSR1);
 #endif
-    sig = (int *)malloc(sizeof(int));
+    sig = (int *)mem_alloc(sizeof(int));
     while( sigwait(&sigset,sig) == 0) {
         thread_queue_produce(queue,sig);
         switch(*sig) {
@@ -51,7 +52,7 @@ static int signal_thread_proc(void *userdata) {
 #endif
             default: thread_exit(1); break;
         }
-        sig = (int *)malloc(sizeof(int));
+        sig = (int *)mem_alloc(sizeof(int));
     }
     thread_exit(1);
     return 1;
@@ -93,11 +94,13 @@ static int usage(const char *self, int e) {
 }
 
 static int version(void) {
-    fprintf(stdout,"%s\n",lua_music_vis_version);
-    fflush(stdout);
+    jpr_file *f;
+    f = file_open("-","w");
+    if(f == NULL) return 1;
+    file_write(f,lua_music_vis_version,lua_music_vis_version_len);
+    file_close(f);
     return 0;
 }
-
 
 __attribute__((noreturn))
 static void quit(int e,...) {
@@ -108,7 +111,7 @@ static void quit(int e,...) {
     do {
         p = va_arg(ap,void *);
         if(p != NULL) {
-            free(p);
+            mem_free(p);
         }
     } while(p != NULL);
 
@@ -276,11 +279,11 @@ int cli_start(int argc, char **argv) {
     if(jpr_proc_info_init(&i)) return 1;
     if(jpr_proc_pipe_init(&f)) return 1;
 
-    decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
+    decoder = (audio_decoder *)mem_alloc(sizeof(audio_decoder));
     if(decoder == NULL) quit(1,NULL);
-    processor = (audio_processor *)malloc(sizeof(audio_processor));
+    processor = (audio_processor *)mem_alloc(sizeof(audio_processor));
     if(processor == NULL) quit(1,decoder,NULL);
-    generator = (video_generator *)malloc(sizeof(video_generator));
+    generator = (video_generator *)mem_alloc(sizeof(video_generator));
     if(generator == NULL) quit(1,decoder,processor,NULL);
 
     if(width == 0) width     =       1280;
@@ -313,16 +316,16 @@ int cli_start(int argc, char **argv) {
             sig = thread_queue_consume(&queue);
             switch(*sig) {
 #ifdef SIGINT
-                case SIGINT: free(sig); goto quitting; break;
+                case SIGINT: mem_free(sig); goto quitting; break;
 #endif
 #ifdef SIGTERM
-                case SIGTERM: free(sig); goto quitting; break;
+                case SIGTERM: mem_free(sig); goto quitting; break;
 #endif
 #ifdef SIGHUP
-                case SIGHUP: free(sig); video_generator_reload(generator); break;
+                case SIGHUP: mem_free(sig); video_generator_reload(generator); break;
 #endif
 #ifdef SIGUSR1
-                case SIGUSR1: free(sig); video_generator_reload(generator); break;
+                case SIGUSR1: mem_free(sig); video_generator_reload(generator); break;
 #endif
                 default: break;
             }
@@ -335,16 +338,16 @@ int cli_start(int argc, char **argv) {
 
     while(thread_queue_count(&queue) > 0) {
         sig = thread_queue_consume(&queue);
-        free(sig);
+        mem_free(sig);
     }
 #endif
 
     video_generator_close(generator);
 
     jpr_proc_pipe_close(&f);
-    free(decoder);
-    free(processor);
-    free(generator);
+    mem_free(decoder);
+    mem_free(processor);
+    mem_free(generator);
 #ifndef _WIN32
     thread_join(signal_thread);
     thread_destroy(signal_thread);
