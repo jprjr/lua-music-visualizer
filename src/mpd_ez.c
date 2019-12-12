@@ -1,6 +1,8 @@
 #include "mpd_ez.h"
 #include "scan.h"
 #include "str.h"
+#include "mem.h"
+#include "util.h"
 #include <assert.h>
 #include <errno.h>
 
@@ -24,6 +26,7 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
     conn_info *info = (conn_info *)conn->ctx;
     video_generator *v = info->v;
     const char *t;
+    const char *err_str;
 #ifndef NDEBUG
     int lua_state = lua_gettop(v->L);
 #endif
@@ -98,7 +101,9 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
             lua_pushvalue(v->L,-2);
             lua_pushstring(v->L,"message");
             if(lua_pcall(v->L,2,0,0)) {
-              fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
+              err_str = lua_tostring(v->L,-1);
+              WRITE_STDERR("error: ");
+              LOG_ERROR(err_str);
             }
 
         } else {
@@ -126,6 +131,7 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
 }
 
 static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok, const char *err) {
+    const char *err_str = NULL;
     conn_info *info = (conn_info *)conn->ctx;
     video_generator *v = info->v;
 #ifndef NDEBUG
@@ -133,8 +139,11 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok,
 #endif
 
     if(ok == -1) {
-        fprintf(stderr,"mpd_ok (%s) returned -1: %s\n",cmd, err);
-        exit(1);
+        WRITE_STDERR("mpd_ok (");
+        WRITE_STDERR(cmd);
+        WRITE_STDERR(") returned -1: ");
+        LOG_ERROR(err);
+        JPR_EXIT(1);
     }
     if(str_equals(cmd,"idle")) {
         mpdc_idle(conn,MPDC_EVENT_PLAYER | MPDC_EVENT_MESSAGE);
@@ -169,7 +178,9 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok,
           lua_pushvalue(v->L,-2);
           lua_pushstring(v->L,"player");
           if(lua_pcall(v->L,2,0,0)) {
-              fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
+              err_str = lua_tostring(v->L,-1);
+              WRITE_STDERR("error: ");
+              LOG_ERROR(err_str);
           }
 
       } else {
@@ -218,16 +229,16 @@ static int ez_resolve(mpdc_connection *c, const char *hostname) {
     if(hostname[0] == '/') return 1;
 
     if( (conn->he = gethostbyname(hostname)) == NULL) {
-        fprintf(stderr,"hostname resolution failed for %s\n",hostname);
+        LOG_ERROR("hostname resolution failed");
 #ifdef _WIN32
         DWORD dwError = WSAGetLastError();
         if(dwError != 0) {
             if(dwError == WSAHOST_NOT_FOUND) {
-                fprintf(stderr,"Host not found\n");
+                LOG_ERROR("host not found");
             } else if(dwError == WSANO_DATA) {
-                fprintf(stderr,"No data record found\n");
+                LOG_ERROR("no data record found");
             } else {
-                fprintf(stderr,"gethostbyname failed with error: %ld\n",dwError);
+                LOG_ERROR("unknown gethostbyname error");
             }
         }
 #endif
@@ -256,14 +267,14 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
     if(host[0] == '/') {
         conn->fd = socket(AF_UNIX, SOCK_STREAM, 0);
         if(conn->fd == INVALID_SOCKET) {
-            fprintf(stderr,"failed to open unix socket\n");
+            LOG_ERROR("failed to open unix socket");
             return -1;
         }
-        memset(&u_addr,0,sizeof(u_addr));
+        mem_set(&u_addr,0,sizeof(u_addr));
         u_addr.sun_family = AF_UNIX;
         str_ncpy(u_addr.sun_path,host,sizeof(u_addr.sun_path)-1);
         if(connect(conn->fd,(struct sockaddr *)&u_addr,sizeof(u_addr)) < 0) {
-            fprintf(stderr,"failed to connect to unix socket: %s\n",strerror(errno));
+            LOG_ERROR("failed to connect to unix socket");
             close(conn->fd);
             conn->fd = INVALID_SOCKET;
             return -1;
@@ -275,10 +286,10 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
         conn->fd = socket(conn->he->h_addrtype, SOCK_STREAM, 0);
         if(conn->fd == INVALID_SOCKET) return -1;
 
-        memset(&(conn->addr),0,sizeof(struct sockaddr_in));
+        mem_set(&(conn->addr),0,sizeof(struct sockaddr_in));
         conn->addr.sin_port = htons(port);
         conn->addr.sin_family = AF_INET;
-        memcpy(&(conn->addr.sin_addr),conn->he->h_addr,conn->he->h_length);
+        mem_cpy(&(conn->addr.sin_addr),conn->he->h_addr,conn->he->h_length);
 
         if(connect(conn->fd,(struct sockaddr *)&(conn->addr),sizeof(struct sockaddr)) < 0) {
             closesocket(conn->fd);
@@ -326,8 +337,7 @@ static void ez_disconnect(mpdc_connection *c) {
     conn_info *conn = (conn_info *)c->ctx;
     closesocket(conn->fd);
     conn->fd = INVALID_SOCKET;
-    fprintf(stderr,"disconnected from mpd\n");
-    fflush(stderr);
+    LOG_DEBUG("disconnect from mpd");
 }
 
 int mpd_ez_setup(video_generator *v) {
@@ -336,11 +346,11 @@ int mpd_ez_setup(video_generator *v) {
     char *mpdc_port = getenv("MPD_PORT");
     if(mpdc_host == NULL) return 0;
 
-    v->mpd = malloc(sizeof(mpdc_connection));
+    v->mpd = mem_alloc(sizeof(mpdc_connection));
     if(v->mpd == NULL) return 1;
 
     conn_info *info = NULL;
-    info = malloc(sizeof(conn_info));
+    info = mem_alloc(sizeof(conn_info));
     if(info == NULL) return 1;
 
 #ifdef _WIN32
@@ -403,8 +413,8 @@ int mpd_ez_loop(video_generator *v) {
     }
 
     if(info->pfd.revents & (POLLHUP | POLLERR)) {
-        fprintf(stderr,"disconnecting from mpd: %s\n",strerror(errno));
-        fflush(stderr);
+        WRITE_STDERR("disconnecting from mpd: ");
+        LOG_ERROR(strerror(errno));
         mpdc_disconnect(v->mpd);
         return -1;
     }

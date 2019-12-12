@@ -16,6 +16,7 @@
 #include "scan.h"
 #include "fmt.h"
 #include "mem.h"
+#include "util.h"
 
 #include "jpr_proc.h"
 
@@ -410,7 +411,7 @@ static int startButtonCb(Ihandle *self) {
     a = args;
     *a++ = videoplayerfile;
 
-    if(strstr(videoplayerfile,"vlc") != NULL) {
+    if(str_str(videoplayerfile,"vlc") != NULL) {
         *a++ = "--file-caching";
         *a++ = "1500";
         *a++ = "--network-caching";

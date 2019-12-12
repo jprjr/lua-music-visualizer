@@ -3,10 +3,10 @@
 #include "image.lua.lh"
 #include "thread.h"
 #include "str.h"
+#include "mem.h"
+#include "util.h"
 #include <lauxlib.h>
 
-#include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include <math.h>
 
@@ -77,7 +77,7 @@ lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, uns
 
     l_image = lua_newuserdata(L,width*height*channels);
     lua_setfield(L,idx,"image");
-    memcpy(l_image,image,width*height*channels);
+    mem_cpy(l_image,image,width*height*channels);
 
     luaL_getmetatable(L,"image");
     lua_setmetatable(L,idx);
@@ -180,7 +180,7 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *i
     lua_pushinteger(L,frames);
     lua_setfield(L,table_ind,"framecount");
 
-    free(image);
+    mem_free(image);
     lua_pop(L,1);
 
 #ifndef NDEBUG
@@ -192,14 +192,18 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *i
 
 void
 queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, unsigned int height, unsigned int channels) {
-    image_q *q = (image_q *)malloc(sizeof(image_q));
+    image_q *q = (image_q *)mem_alloc(sizeof(image_q));
 
     if(q == NULL) {
-        fprintf(stderr,"error: unable to malloc memory for queue");
-        exit(1);
+        LOG_ERROR("error: out of memory");
+        JPR_EXIT(1);
     }
 
-    q->filename = malloc(str_len(filename) + 1);
+    q->filename = mem_alloc(str_len(filename) + 1);
+    if(q->filename == NULL) {
+        LOG_ERROR("error: out of memory");
+        JPR_EXIT(1);
+    }
     str_cpy(q->filename,filename);
 
     q->table_ref = table_ref;
@@ -310,7 +314,7 @@ lua_image_new(lua_State *L) {
 
         uint8_t *image = lua_newuserdata(L,(sizeof(uint8_t) * width * height * channels));
         lua_setfield(L,image_ind,"image");
-        memset(image,0,sizeof(uint8_t) * width * height * channels);
+        mem_set(image,0,sizeof(uint8_t) * width * height * channels);
 
         lua_pushinteger(L,IMAGE_FIXED);
         lua_setfield(L,image_ind,"image_state");
@@ -535,7 +539,7 @@ lua_image_load(lua_State *L) {
         lua_pushinteger(L,frames);
         lua_setfield(L,1,"framecount");
 
-        free(t);
+        mem_free(t);
 
         lua_pushboolean(L,1);
         return 1;
@@ -868,7 +872,7 @@ lua_image_set(lua_State *L) {
     image_two_len = lua_tointeger(L,-1);
 
     if(image_one && image_two && (image_one_len == image_two_len)) {
-        memcpy(image_one,image_two,image_one_len);
+        mem_cpy(image_one,image_two,image_one_len);
         lua_pushboolean(L,1);
         return 1;
     }
@@ -1254,7 +1258,7 @@ lua_image_rotate(lua_State *L) {
         diag = lua_tointeger(L,-1);
         lua_pop(L,3);
     }
-    memset(rotated,0,diag*diag*4);
+    mem_set(rotated,0,diag*diag*4);
 
     h_width = width >> 1;
     h_height = height >> 1;
@@ -1367,6 +1371,7 @@ int luaimage_stop_threads(void) {
 
 int
 luaopen_image(lua_State *L) {
+    const char *s = NULL;
 #ifndef NDEBUG
     int lua_top = lua_gettop(L);
 #endif
@@ -1388,12 +1393,16 @@ luaopen_image(lua_State *L) {
     lua_setglobal(L,"image");
 
     if(luaL_loadbuffer(L,image_lua,image_lua_length-1,"image.lua")) {
-        fprintf(stderr,"error: %s\n",lua_tostring(L,-1));
+        s = lua_tostring(L,-1);
+        WRITE_STDERR("error: ");
+        LOG_ERROR(s);
         return 1;
     }
 
     if(lua_pcall(L,0,0,0)) {
-        fprintf(stderr,"error: %s\n",lua_tostring(L,-1));
+        s = lua_tostring(L,-1);
+        WRITE_STDERR("error: ");
+        LOG_ERROR(s);
         return 1;
     }
 

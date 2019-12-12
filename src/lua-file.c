@@ -1,3 +1,6 @@
+#include "mem.h"
+#define _TINYDIR_MALLOC mem_alloc
+#define _TINYDIR_FREE mem_free
 #include "tinydir.h"
 #include "lua-file.h"
 #include "str.h"

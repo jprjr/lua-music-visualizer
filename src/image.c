@@ -1,9 +1,17 @@
 #include "image.h"
 #include "file.h"
+#include "mem.h"
+#include "str.h"
 
 #define STBI_NO_STDIO
+#define STBI_ASSERT(x)
+#define STBI_MALLOC mem_alloc
+#define STBI_REALLOC mem_realloc
+#define STBI_FREE mem_free
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STBIR_MALLOC(size,c) ((void)(c), mem_alloc(size))
+#define STBIR_FREE(ptr,c)    ((void)(c), mem_free(ptr))
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
 
@@ -49,15 +57,15 @@ flip_and_bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned i
     unsigned int byte;
     unsigned int ibyte;
     unsigned int bytes_per_row = width * channels;
-    uint8_t *temp_row = (uint8_t *)malloc(bytes_per_row);
+    uint8_t *temp_row = (uint8_t *)mem_alloc(bytes_per_row);
     uint8_t temp;
 
     for(y=0; y<maxheight;y++) {
         byte = (y * width* channels);
         ibyte = (height - y - 1) * width * channels;
-        memcpy(temp_row,image + ibyte,bytes_per_row);
-        memcpy(image + ibyte,image + byte,bytes_per_row);
-        memcpy(image + byte,temp_row,bytes_per_row);
+        mem_cpy(temp_row,image + ibyte,bytes_per_row);
+        mem_cpy(image + ibyte,image + byte,bytes_per_row);
+        mem_cpy(image + byte,temp_row,bytes_per_row);
         for(x=0;x<bytes_per_row;x+=channels) {
 
             temp = image[byte + x + 2];
@@ -79,7 +87,7 @@ flip_and_bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned i
         }
     }
 
-    free(temp_row);
+    mem_free(temp_row);
 }
 
 void
@@ -219,11 +227,11 @@ image_load(
     of = *frames;
 
     if(of > 1) {
-        image = (uint8_t *)malloc( ((ow * oh * oc) * of) + (2 * of));
+        image = (uint8_t *)mem_alloc( ((ow * oh * oc) * of) + (2 * of));
 
     }
     else {
-        image = (uint8_t *)malloc(ow * oh * oc);
+        image = (uint8_t *)mem_alloc(ow * oh * oc);
     }
     b = t;
     d = image;
@@ -233,7 +241,7 @@ image_load(
             stbir_resize_uint8(b,og_w,og_h,0,d,ow,oh,0,oc);
         }
         else {
-            memcpy(d, b , ow * oh * oc);
+            mem_cpy(d, b , ow * oh * oc);
         }
 
         flip_and_bgr(d,ow,oh,oc);
@@ -247,7 +255,7 @@ image_load(
     }
 
     stbi_image_free(t);
-    if(delays != NULL) free(delays);
+    if(delays != NULL) mem_free(delays);
 
     return image;
 }
