@@ -27,7 +27,6 @@ OBJS = \
   src/pack.o \
   src/char.o \
   src/scan.o \
-  src/mem.o \
   src/version.o
 
 LUALHS = \

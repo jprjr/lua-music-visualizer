@@ -18,6 +18,7 @@
 #define JPR_EXIT(e) ExitProcess(e)
 #else
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #define WRITE_STDERR(s) \
     while( (write(2,s,str_len(s)) == -1) && (errno == EINTR) )
