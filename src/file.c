@@ -18,6 +18,11 @@ struct jpr_file_s {
     FILE *fd;
 };
 
+#ifdef JPR_WINDOWS
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 #elif defined(JPR_WINDOWS)
 
 struct jpr_file_s {
@@ -123,10 +128,10 @@ jpr_file *file_open(const char *filename, const char *mode) {
     f->fd = NULL;
     if(str_cmp(filename,"-") == 0) {
         if(mode[str_chr(mode,'r')] == 'r') {
-            fd->fd = stdin;
+            f->fd = stdin;
             _setmode(_fileno( stdin ), _O_BINARY );
         } else {
-            fd->fd = stdout;
+            f->fd = stdout;
             _setmode(_fileno( stdout ), _O_BINARY );
         }
         return f;

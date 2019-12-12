@@ -296,3 +296,20 @@ unsigned int str_iends(const char *s, const char *q) {
     if(slen < qlen) return 0;
     return str_icmp(&s[slen - qlen],q) == 0;
 }
+
+unsigned int str_str(const char *h, const char *n) {
+#ifdef JPR_NO_STDLIB
+    unsigned int nlen;
+    const char *hp = h;
+    nlen = str_len(n);
+    if(nlen == 0) return 0;
+    while(*hp && (str_len(hp) >= nlen)) {
+        if(str_ncmp(hp,n,nlen) == 0) return (unsigned int)(hp - h);
+        hp++;
+    }
+    return str_len(h);
+#else
+    char *r = strstr(h,n);
+    return ( r == NULL ? str_len(h) : (unsigned int)(r - h));
+#endif
+}

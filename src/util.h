@@ -1,8 +1,17 @@
 #ifndef JPR_UTIL_H
 #define JPR_UTIL_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include "norm.h"
 #include "str.h"
+
+/*
+ * utility methods:
+ * LOG_ERROR(s) - write (s) to stderr
+ * LOG_DEBUG(s) - write (s) to stderr iff NDEBUG is undef
+ * JPR_EXIT(e)  - exit/ExitProcess with code e
+*/
 
 #ifdef JPR_WINDOWS
 #define WRITE_STDERR(s) WriteFile(GetStdHandle(STD_ERROR_HANDLE),s,str_len(s),NULL,0)
