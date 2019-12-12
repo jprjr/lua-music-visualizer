@@ -1,4 +1,5 @@
-#ifdef _WIN32
+#include "norm.h"
+#ifdef JPR_WINDOWS
 #include <stdio.h>
 #include <string.h>
 #include <iup.h>
@@ -14,6 +15,7 @@
 #include "str.h"
 #include "scan.h"
 #include "fmt.h"
+#include "mem.h"
 
 #include "jpr_proc.h"
 
@@ -231,15 +233,15 @@ static int videoplayerBtnCb(Ihandle *self) {
 
 static void tearDownGenerator(void) {
     if(decoder != NULL) {
-        free(decoder);
+        mem_free(decoder);
         decoder = NULL;
     }
     if(processor != NULL) {
-        free(processor);
+        mem_free(processor);
         processor = NULL;
     }
     if(generator != NULL) {
-        free(generator);
+        mem_free(generator);
         generator = NULL;
     }
 }
@@ -273,18 +275,18 @@ static int setupVideoGenerator(void) {
     }
 
     if(str_len(workdir) > 0) {
-        strcpy(wdir,workdir);
+        str_cpy(wdir,workdir);
     }
     else {
         GetCurrentDirectory(PATH_MAX,wdir);
     }
     if(!SetCurrentDirectory(wdir)) goto videogenerator_fail;
 
-    decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
+    decoder = (audio_decoder *)mem_alloc(sizeof(audio_decoder));
     if(decoder == NULL) goto videogenerator_fail;
-    processor = (audio_processor *)malloc(sizeof(audio_processor));
+    processor = (audio_processor *)mem_alloc(sizeof(audio_processor));
     if(processor == NULL) goto videogenerator_fail;
-    generator = (video_generator *)malloc(sizeof(video_generator));
+    generator = (video_generator *)mem_alloc(sizeof(video_generator));
     if(generator == NULL) goto videogenerator_fail;
 
     generator->width = width;
@@ -312,7 +314,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
     if(jpr_proc_spawn(&process,args,&child_stdin,NULL,NULL)) goto startvideo_cleanup;
 
     if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&child_stdin)) {
-        fprintf(stderr,"error starting the video generator\n");
+        LOG_ERROR("error starting the video generator");
         goto startvideo_cleanup;
     }
 
@@ -360,7 +362,7 @@ static int saveButtonCb(Ihandle *self) {
       }
     } while(*f);
 
-    args = (char **)malloc(sizeof(char *)*total_args);
+    args = (char **)mem_alloc(sizeof(char *)*total_args);
     if(args == NULL) goto cleanshitup_save;
     a = args;
     f = ffmpegargs;
@@ -390,7 +392,7 @@ static int saveButtonCb(Ihandle *self) {
     startVideoGenerator(songfile,scriptfile,(const char *const *)args);
 
 cleanshitup_save:
-    if(args != NULL) free(args);
+    if(args != NULL) mem_free(args);
 
     return IUP_DEFAULT;
 }
@@ -403,7 +405,7 @@ static int startButtonCb(Ihandle *self) {
     char **args;
     char **a;
 
-    args = (char **)malloc(sizeof(char *) * 10);
+    args = (char **)mem_alloc(sizeof(char *) * 10);
     if(args == NULL) goto cleanshitup_start;
     a = args;
     *a++ = videoplayerfile;
@@ -422,7 +424,7 @@ static int startButtonCb(Ihandle *self) {
     startVideoGenerator(songfile,scriptfile,(const char *const *)args);
 
 cleanshitup_start:
-    if(args != NULL) free(args);
+    if(args != NULL) mem_free(args);
 
     return IUP_DEFAULT;
 }
@@ -613,8 +615,6 @@ static void createMiscBox(void) {
 }
 
 static void createBasicBox(void) {
-    char s[PATH_MAX];
-
     songBtn = IupButton("Song", NULL);
     songText = IupText(NULL);
     IupSetAttribute(songText, "EXPAND", "HORIZONTAL");
