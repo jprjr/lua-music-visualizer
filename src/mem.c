@@ -55,5 +55,5 @@ void mem_set16(void *ptr, uint8_t v, size_t n) {
 }
 
 void mem_free16(void *ptr) {
-    free( ((void**)ptr)[-1]);
+    mem_free( ((void**)ptr)[-1]);
 }
