@@ -14,8 +14,24 @@
 
 void *mem_cpy(void *dest, const void *src, unsigned int n) {
 #ifdef JPR_NO_STDLIB
-    uint8_t *d = (uint8_t *)dest;
-    const uint8_t *s = (const uint8_t *)src;
+    uint8_t *d;
+    const uint8_t *s;
+    unsigned int m = n / sizeof(size_t);
+
+    size_t *ld = (size_t  *)dest;
+    const size_t *ls = (const size_t  *)src;
+
+    while(m) {
+        *ld = *ls;
+        ld++;
+        ls++;
+        m--;
+        n-=sizeof(size_t);
+    }
+
+    d = (uint8_t *)ld;
+    s = (const uint8_t *)ls;
+
     while(n--) {
         *d = *s;
         d++;
@@ -42,14 +58,31 @@ void *mem_chr(const void *src, uint8_t c, unsigned int n) {
 
 int mem_cmp(const void *p1, const void *p2, unsigned int n) {
 #ifdef JPR_NO_STDLIB
-    const uint8_t *l = (const uint8_t *)p1;
-    const uint8_t *r = (const uint8_t *)p2;
+    const uint8_t *l;
+    const uint8_t *r;
+
+    unsigned int m = n / sizeof(size_t);
+
+    const size_t *ll = (const size_t  *)p1;
+    const size_t *lr = (const size_t  *)p2;
+
+    while(m) {
+        if(*ll != *lr) break;
+        m--;
+        ll++;
+        lr++;
+        n-=sizeof(size_t);
+    }
+
+    l = (const uint8_t *)ll;
+    r = (const uint8_t *)lr;
+
     while(n && *l == *r) {
         n--;
         l++;
         r++;
     }
-    return n ? *l-*r : 0;
+    return n ? *l - *r : 0;
 #else
     return memcmp(p1,p2,n);
 #endif
@@ -180,6 +213,7 @@ unsigned int str_cpy(char *d, const char *s) {
         s++;
         d++;
     }
+    *d = 0;
     return s - src;
 #else
 #ifdef JPR_WINDOWS
@@ -240,6 +274,7 @@ unsigned int str_lower(char *dest, const char *src) {
     while(*src) {
         *d++ = char_lower(*src++);
     }
+    *d = 0;
     return d - dest;
 }
 

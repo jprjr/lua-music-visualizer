@@ -1,7 +1,5 @@
 #include "mem.h"
-#define _TINYDIR_MALLOC mem_alloc
-#define _TINYDIR_FREE mem_free
-#include "tinydir.h"
+#include "dir.h"
 #include "lua-file.h"
 #include "str.h"
 
@@ -113,33 +111,31 @@ static int
 lua_file_list(lua_State *L) {
     const char *folder = luaL_checkstring(L,1);
 
-    tinydir_dir dir;
-    unsigned long int i;
+    jpr_dir *dir;
+    jpr_dire *entry;
     int j = 1;
-    if(tinydir_open_sorted(&dir,folder) == -1) {
-        return 0;
-    }
+
+    dir = dir_open(folder);
+    if(dir == NULL) return 0;
     lua_newtable(L);
 
-    for(i=0;i<dir.n_files;i++) {
-        tinydir_file file;
-        struct stat st;
-        tinydir_readfile_n(&dir,&file,i);
-        if(file.is_dir) {
-            continue;
-        }
-        stat(file.path,&st);
+    while( (entry = dir_read(dir)) != NULL) {
         lua_pushinteger(L,j);
         lua_newtable(L);
-        lua_pushlstring(L,file.path,str_len(file.path));
+        lua_pushstring(L,entry->path);
         lua_setfield(L,-2,"file");
-        lua_pushinteger(L,st.st_mtime);
+        lua_pushinteger(L,entry->mtime);
         lua_setfield(L,-2,"mtime");
+        lua_pushinteger(L,entry->size);
+        lua_setfield(L,-2,"size");
         lua_settable(L,-3);
         j++;
+
+        dire_free(entry);
     }
 
-    tinydir_close(&dir);
+    dir_close(dir);
+
 
     return 1;
 }
