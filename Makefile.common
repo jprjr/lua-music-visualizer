@@ -16,6 +16,7 @@ OBJS = \
   src/kiss_fftr.o \
   src/kiss_fft.o \
   src/audio-decoder.o \
+  src/path.o \
   src/file.o \
   src/dir.o \
   src/id3.o \

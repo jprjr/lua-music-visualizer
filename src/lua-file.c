@@ -1,5 +1,6 @@
 #include "mem.h"
 #include "dir.h"
+#include "path.h"
 #include "lua-file.h"
 #include "str.h"
 
@@ -41,17 +42,8 @@ static void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
 static int
 lua_file_exists(lua_State *L) {
     const char *filename = luaL_checkstring(L,1);
-
-#ifdef _WIN32
-    lua_pushboolean(L,PathFileExists(filename));
+    lua_pushboolean(L,path_exists(filename));
     return 1;
-#else
-    if(access(filename,F_OK) != -1) {
-        lua_pushboolean(L,1);
-        return 1;
-    }
-    return 0;
-#endif
 }
 
 static int
