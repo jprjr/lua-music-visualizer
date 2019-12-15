@@ -64,23 +64,27 @@ lua_file_realpath(lua_State *L) {
 
 static int
 lua_file_basename(lua_State *L) {
-    char res[PATH_MAX];
     const char *folder = luaL_checkstring(L,1);
-    str_cpy(res,folder);
-    char *b = basename(res);
-
-    lua_pushstring(L,b);
+    char *b = path_basename(folder);
+    if(b != NULL) {
+        lua_pushstring(L,b);
+        mem_free(b);
+    } else {
+        lua_pushnil(L);
+    }
     return 1;
 }
 
 static int
 lua_file_dirname(lua_State *L) {
-    char res[PATH_MAX];
     const char *folder = luaL_checkstring(L,1);
-    str_cpy(res,folder);
-    char *b = dirname(res);
-
-    lua_pushstring(L,b);
+    char *b = path_dirname(folder);
+    if(b != NULL) {
+        lua_pushstring(L,b);
+        mem_free(b);
+    } else {
+        lua_pushnil(L);
+    }
     return 1;
 }
 
