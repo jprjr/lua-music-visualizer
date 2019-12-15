@@ -278,6 +278,29 @@ unsigned int str_lower(char *dest, const char *src) {
     return d - dest;
 }
 
+unsigned int str_rchr(const char *s, char c) {
+#ifdef JPR_NO_STDLIB
+    unsigned int len;
+    unsigned int n;
+    len = str_len(s);
+    n = len;
+    while(n--) {
+        if(s[n] == c) return n;
+    }
+    return len;
+#else
+    char *t = strrchr(s,c);
+    return ( t != NULL ? (unsigned int)(t - s) : str_len(s) );
+#endif
+}
+
+unsigned int str_nrchr(const char *s, char c, unsigned int n) {
+    unsigned int len = n;
+    while(n--) {
+        if(s[n] == c) return n;
+    }
+    return len;
+}
 
 unsigned int str_chr(const char *s, char c) {
 #ifdef JPR_NO_STDLIB

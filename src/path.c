@@ -1,12 +1,61 @@
 #include "norm.h"
 #include "path.h"
 #include "utf.h"
+#include "str.h"
+#include "mem.h"
 
 #ifdef JPR_WINDOWS
 #include "mem.h"
 #else
 #include <unistd.h>
 #endif
+
+static inline void trim_slash(char *filename, unsigned int len) {
+    while(len--) {
+        if(filename[len] == '/') {
+            filename[len] = '\0';
+        }
+#ifdef JPR_WINDOWS
+        else if(filename[len] == '\\') {
+            filename[len] = '\0';
+        }
+#endif
+        else {
+            break;
+        }
+    }
+}
+
+static unsigned int last_slash(const char *filename, unsigned int *len) {
+    unsigned int sep;
+    unsigned int t;
+#ifdef JPR_WINDOWS
+    unsigned int t2;
+#endif
+
+    *len = str_len(filename);
+    sep = *len;
+
+    do {
+        t = str_nrchr(filename,'/',sep);
+#ifdef JPR_WINDOWS
+        t2 = str_nrchr(filename,'\\',sep);
+        if(t == sep) {
+            t = t2;
+        } else if(t2 != sep && t2 > t) {
+            t = t2;
+        }
+#endif
+        if(t == sep) break;
+        sep = t;
+    } while(filename[sep] == '\0' || filename[sep+1] == '\0' || filename[sep+1] == '/'
+#ifdef JPR_WINDOWS
+       || filename[sep+1] == '\\'
+#endif
+    );
+
+    return sep;
+}
 
 int path_exists(const char *filename) {
     int r = 0;
@@ -43,5 +92,81 @@ int path_exists(const char *filename) {
     }
 #endif
     return r;
+}
+
+char *path_basename(const char *filename) {
+    unsigned int len;
+    unsigned int sep;
+    char *ret;
+
+    if(filename == NULL || str_len(filename) == 0) {
+        ret = mem_alloc(2);
+        if(ret == NULL) return ret;
+        ret[0] = '.';
+        ret[1] = '\0';
+        return ret;
+    }
+
+    sep = last_slash(filename, &len);
+
+    if(filename[sep] == '\0') { /* no slashes found */
+        ret = mem_alloc(len + 1);
+        if(ret == NULL) return ret;
+        str_cpy(ret,filename);
+    }
+    else {
+        len = len - sep - 1;
+        ret = mem_alloc(len+1);
+        str_cpy(ret,&filename[sep+1]);
+    }
+
+    trim_slash(ret,len);
+
+    if(ret[0] == '\0') {
+#ifdef JPR_WINDOWS
+        ret[0] = '\\';
+#else
+        ret[0] = '/';
+#endif
+        ret[1] = '\0';
+    }
+
+    return ret;
+}
+
+char *path_dirname(const char *filename) {
+    unsigned int len;
+    unsigned int sep;
+    char *ret;
+
+    if(filename != NULL) {
+        sep = last_slash(filename,&len);
+    }
+
+    if(filename == NULL || str_len(filename) == 0 || filename[sep] == '\0') {
+        ret = mem_alloc(2);
+        if(ret == NULL) return ret;
+        ret[0] = '.';
+        ret[1] = '\0';
+        return ret;
+    }
+
+    ret = mem_alloc(sep);
+    if(ret == NULL) return ret;
+    str_ncpy(ret,filename,sep);
+    ret[sep] = '\0';
+
+    trim_slash(ret,sep);
+
+    if(ret[0] == '\0') {
+#ifdef JPR_WINDOWS
+        ret[0] = '\\';
+#else
+        ret[0] = '/';
+#endif
+        ret[1] = '\0';
+    }
+
+    return ret;
 }
 

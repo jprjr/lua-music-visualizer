@@ -7,11 +7,11 @@
 extern "C" {
 #endif
 
-int char_isdigit(char c);
-int char_isupper(char c);
-int char_islower(char c);
-char char_upper(char c);
-char char_lower(char c);
+int char_isdigit(int c);
+int char_isupper(int c);
+int char_islower(int c);
+int char_upper(int c);
+int char_lower(int c);
 
 #ifdef __cplusplus
 }

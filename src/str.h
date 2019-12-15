@@ -27,6 +27,8 @@ unsigned int str_ncpy(char *d, const char *s, unsigned int max);
 
 unsigned int str_ncat(char *d,const char *s,unsigned int max); /* returns number of characters cat'd */
 unsigned int str_chr(const char *s, char c);
+unsigned int str_rchr(const char *s, char c);
+unsigned int str_nrchr(const char *s, char c, unsigned int len);
 unsigned int str_nlower(char *d, const char *str, unsigned int max);
 unsigned int str_lower(char *d, const char *str);
 unsigned int str_ends(const char *s, const char *q);

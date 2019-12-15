@@ -7,7 +7,7 @@
 #include <ctype.h>
 #endif
 
-int char_isdigit(char c) {
+int char_isdigit(int c) {
 #ifdef JPR_NO_STDLIB
     return (uint8_t)(c - 48) < 10;
 #else
@@ -15,7 +15,7 @@ int char_isdigit(char c) {
 #endif
 }
 
-int char_isupper(char c) {
+int char_isupper(int c) {
 #ifdef JPR_NO_STDLIB
     return (uint8_t)(c - 65) < 26;
 #else
@@ -23,7 +23,7 @@ int char_isupper(char c) {
 #endif
 }
 
-int char_islower(char c) {
+int char_islower(int c) {
 #ifdef JPR_NO_STDLIB
     return (uint8_t)(c - 97) < 26;
 #else
@@ -31,20 +31,22 @@ int char_islower(char c) {
 #endif
 }
 
-char char_upper(char c) {
+int char_upper(int c) {
 #ifdef JPR_NO_STDLIB
-    if (char_islower(c))
+    if (char_islower(c)) {
         return c & 0x5F;
+    }
     return c;
 #else
     return toupper(c);
 #endif
 }
 
-char char_lower(char c) {
+int char_lower(int c) {
 #ifdef JPR_NO_STDLIB
-    if (char_isupper(c))
+    if (char_isupper(c)) {
         return c | 32;
+    }
     return c;
 #else
     return tolower(c);
