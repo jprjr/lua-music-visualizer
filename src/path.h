@@ -12,6 +12,10 @@ int path_exists(const char *filename);
 char *path_basename(const char *filename);
 char *path_dirname(const char *filename);
 
+/* returns the current working directory */
+/* remember to free the returned pointer */
+char *path_getcwd(void);
+
 #ifdef __cplusplus
 }
 #endif

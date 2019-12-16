@@ -90,16 +90,13 @@ lua_file_dirname(lua_State *L) {
 
 static int
 lua_file_getcwd(lua_State *L) {
-    char res[PATH_MAX];
-#ifdef _WIN32
-    if(_getcwd(res,PATH_MAX) == NULL) {
-#else
-    if(getcwd(res,PATH_MAX) == NULL) {
-#endif
-        return 0;
+    char *cwd = path_getcwd();
+    if(cwd != NULL) {
+        lua_pushstring(L,cwd);
+        mem_free(cwd);
+    } else {
+        lua_pushnil(L);
     }
-
-    lua_pushstring(L,res);
     return 1;
 }
 
@@ -131,7 +128,6 @@ lua_file_list(lua_State *L) {
     }
 
     dir_close(dir);
-
 
     return 1;
 }

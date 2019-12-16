@@ -8,6 +8,7 @@
 #include "mem.h"
 #else
 #include <unistd.h>
+#include <limits.h>
 #endif
 
 static inline void trim_slash(char *filename, unsigned int len) {
@@ -170,3 +171,45 @@ char *path_dirname(const char *filename) {
     return ret;
 }
 
+char *path_getcwd(void) {
+    char *dir;
+#ifdef JPR_WINDOWS
+    TCHAR *wdir;
+    DWORD len;
+
+    len = GetCurrentDirectory(0,NULL);
+
+    wdir = (TCHAR *)mem_alloc(sizeof(TCHAR) * len);
+    if(wdir == NULL) {
+        return NULL;
+    }
+    GetCurrentDirectory(len,wdir);
+
+    len = utf_conv_utf16w_utf8(NULL,wdir,0);
+    if(len == 0) {
+        mem_free(wdir);
+        return NULL;
+    }
+    dir = mem_alloc(len + 1);
+    if(dir == NULL) {
+        mem_free(wdir);
+        return NULL;
+    }
+    if(len != utf_conv_utf16w_utf8((uint8_t *)dir,wdir,0)) {
+        mem_free(wdir);
+        mem_free(dir);
+        return NULL;
+    }
+    dir[len] = '\0';
+
+    mem_free(wdir);
+#else
+    dir = mem_alloc(PATH_MAX);
+    if(dir == NULL) return NULL;
+    if(getcwd(dir,PATH_MAX) == NULL) {
+        mem_free(dir);
+        return NULL;
+    }
+#endif
+    return dir;
+}
