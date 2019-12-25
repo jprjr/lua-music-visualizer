@@ -11,7 +11,7 @@ include Makefile.common
 CLEAN += lua-music-visualizer.exe lua-music-visualizer-cli.exe src/lua-music-visualizer.res
 
 CFLAGS += -I$(LUA_INCDIR) -I$(IUP_INCDIR) -DMPDC_NO_STDLIB
-LDFLAGS += $(STRIP_FLAG) -mconsole -municode -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lshlwapi -lws2_32
+LDFLAGS += $(STRIP_FLAG) -mconsole -municode -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lws2_32
 
 lua-music-visualizer.exe: $(OBJS) $(LIBIUP) $(LIBLUA) src/lua-music-visualizer.res
 	$(TARGET_CC) -o $@ $^ $(LDFLAGS)

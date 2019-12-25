@@ -5,7 +5,6 @@
 #include <iup.h>
 #include <iup_config.h>
 #include <windows.h>
-#include <shlwapi.h>
 #include <io.h>
 #include <fcntl.h>
 #include <tchar.h>
@@ -17,6 +16,7 @@
 #include "fmt.h"
 #include "mem.h"
 #include "util.h"
+#include "path.h"
 
 #include "jpr_proc.h"
 
@@ -90,7 +90,7 @@ static const char* const video_players[] = {
 static const char *findVideoPlayer(void) {
     const char **p = (const char **)video_players;
     while(str_len(*p) > 0) {
-        if(PathFileExists(*p)) return *p;
+        if(path_exists(*p)) return *p;
         p++;
     }
     return *p;
@@ -254,7 +254,7 @@ static int setupVideoGenerator(void) {
     char *height_t = IupGetAttribute(heightText,"VALUE");
     char *bars_t = IupGetAttribute(barsText,"VALUE");
     unsigned int fps, width, height, bars;
-    char wdir[PATH_MAX];
+    char *wdir;
 
     scan_uint(fps_t,&fps);
     scan_uint(width_t,&width);
@@ -276,12 +276,13 @@ static int setupVideoGenerator(void) {
     }
 
     if(str_len(workdir) > 0) {
-        str_cpy(wdir,workdir);
+        if(!SetCurrentDirectory(workdir)) goto videogenerator_fail;
     }
     else {
-        GetCurrentDirectory(PATH_MAX,wdir);
+        wdir = path_getcwd();
+        if(!SetCurrentDirectory(wdir)) goto videogenerator_fail;
+        mem_free(wdir);
     }
-    if(!SetCurrentDirectory(wdir)) goto videogenerator_fail;
 
     decoder = (audio_decoder *)mem_alloc(sizeof(audio_decoder));
     if(decoder == NULL) goto videogenerator_fail;
@@ -592,11 +593,6 @@ static void createEncoderBox(void) {
 }
 
 static void createMiscBox(void) {
-    /*
-    char wdir[PATH_MAX];
-    GetCurrentDirectory(PATH_MAX,wdir) = 0;
-    */
-
     cwdBtn = IupButton("Working Directory",NULL);
     IupSetCallback(cwdBtn,"ACTION",(Icallback) cwdBtnCb);
 

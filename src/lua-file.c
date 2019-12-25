@@ -1,3 +1,4 @@
+#include "norm.h"
 #include "mem.h"
 #include "dir.h"
 #include "path.h"
@@ -6,18 +7,6 @@
 
 #include <lua.h>
 #include <lauxlib.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <string.h>
-#include <libgen.h>
-
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <shlwapi.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,17 +37,14 @@ lua_file_exists(lua_State *L) {
 
 static int
 lua_file_realpath(lua_State *L) {
-    char res[PATH_MAX];
     const char *path = luaL_checkstring(L,1);
-#ifdef _WIN32
-    if(_fullpath(res,path,PATH_MAX) == NULL) {
-#else
-    if(realpath(path,res) == NULL) {
-#endif
-        return 0;
+    char *p = path_absolute(path);
+    if(p != NULL) {
+        lua_pushstring(L,p);
+        mem_free(p);
+    } else {
+        lua_pushnil(L);
     }
-
-    lua_pushstring(L,res);
     return 1;
 }
 

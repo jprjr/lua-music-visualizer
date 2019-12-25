@@ -185,6 +185,12 @@ char *path_dirname(const char *filename) {
     return ret;
 }
 
+int path_setcwd(const char *path) {
+    (void)path;
+    return 0;
+}
+
+
 char *path_getcwd(void) {
     char *dir;
 #ifdef JPR_WINDOWS
