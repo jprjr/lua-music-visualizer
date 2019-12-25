@@ -15,12 +15,13 @@
 #endif
 
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 
 #include "gui.h"
 #include "cli.h"
 #include "utf.h"
+#include "str.h"
+#include "mem.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 static char *w_to_mb(const wchar_t *src) {
@@ -34,7 +35,7 @@ static char *w_to_mb(const wchar_t *src) {
         return NULL;
     }
 
-    str = malloc(sizeof(char) * (width + 1));
+    str = mem_alloc(sizeof(char) * (width + 1));
     if(str == NULL) {
         return NULL;
     }
@@ -42,7 +43,7 @@ static char *w_to_mb(const wchar_t *src) {
     width = utf_conv_utf16w_utf8((uint8_t *)str,src,0);
 
     if(width <= 0) {
-        free(str);
+        mem_free(str);
         return NULL;
     }
 
@@ -51,7 +52,7 @@ static char *w_to_mb(const wchar_t *src) {
 }
 #else
 static char *w_to_mb(const char *s) {
-    return strdup(s);
+    return str_dup(s);
 }
 #endif
 
@@ -66,7 +67,7 @@ MAIN_SIG {
     SetConsoleOutputCP(CP_UTF8);
 #endif
 
-    newargv = (char **)malloc(sizeof(char *) * (argc + 1));
+    newargv = (char **)mem_alloc(sizeof(char *) * (argc + 1));
     if(newargv == NULL) return 1;
 
     for(i = 0; i < argc; i++) {
@@ -80,16 +81,16 @@ MAIN_SIG {
         ret = gui_start(argc,newargv);
         if(ret != -1) {
             for(i = 0; i < argc; i++) {
-                free(newargv[i]);
+                mem_free(newargv[i]);
             }
-            free(newargv);
+            mem_free(newargv);
             return ret;
         }
     }
     ret = cli_start(argc,newargv);
     for(i = 0; i < argc; i++) {
-        free(newargv[i]);
+        mem_free(newargv[i]);
     }
-    free(newargv);
+    mem_free(newargv);
     return ret;
 }

@@ -1,6 +1,7 @@
 #include "norm.h"
 #include "str.h"
 #include "char.h"
+#include "mem.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -370,4 +371,12 @@ unsigned int str_str(const char *h, const char *n) {
     char *r = strstr(h,n);
     return ( r == NULL ? str_len(h) : (unsigned int)(r - h));
 #endif
+}
+
+char *str_dup(const char *s) {
+    unsigned int len = str_len(s);
+    char *t = mem_alloc(len+1);
+    if(t == NULL) return t;
+    str_cpy(t,s);
+    return t;
 }

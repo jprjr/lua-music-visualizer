@@ -34,6 +34,7 @@ unsigned int str_lower(char *d, const char *str);
 unsigned int str_ends(const char *s, const char *q);
 unsigned int str_iends(const char *s, const char *q);
 unsigned int str_str(const char *h, const char *n);
+char *str_dup(const char *s);
 
 #define str_equals(s,q) (str_cmp(s,q) == 0)
 #define str_starts(s,q) (str_ncmp(s,q,str_len(q)) == 0)

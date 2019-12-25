@@ -104,6 +104,7 @@ jpr_dire *dir_read(jpr_dir *dir) {
 #else
     struct dirent *de;
     struct stat st;
+    int r;
     entry = NULL;
 
     de = readdir(dir->d);
@@ -114,25 +115,38 @@ jpr_dire *dir_read(jpr_dir *dir) {
     mem_set(entry,0,sizeof(jpr_dire));
 
     entry->filename = mem_alloc(str_len(de->d_name)+1);
+
+    /* LCOV_EXCL_START */
     if(entry->filename == NULL) {
         dire_free(entry);
         return NULL;
     }
+    /* LCOV_EXCL_STOP */
+
     str_cpy(entry->filename,de->d_name);
 
     entry->path = mem_alloc(str_len(dir->dir) + str_len(entry->filename) + 2);
+
+    /* LCOV_EXCL_START */
     if(entry->path == NULL) {
         dire_free(entry);
         return NULL;
     }
+    /* LCOV_EXCL_STOP */
+
     str_cpy(entry->path,dir->dir);
     str_cat(entry->path,"/");
     str_cat(entry->path,entry->filename);
 
-    if(stat(entry->path,&st) == -1) {
+    r = stat(entry->path,&st);
+
+    /* LCOV_EXCL_START */
+    if(r == -1) {
         dire_free(entry);
         return NULL;
     }
+    /* LCOV_EXCL_STOP */
+
     if(S_ISDIR(st.st_mode)) {
         entry->is_dir = 1;
     }
@@ -200,10 +214,12 @@ jpr_dir *dir_open(const char *filename) {
 #endif
     if(dir != NULL) {
       dir->dir = mem_alloc(str_len(filename) + 1);
+      /* LCOV_EXCL_START */
       if(dir->dir == NULL) {
           dir_close(dir);
           return NULL;
       }
+      /* LCOV_EXCL_STOP */
       dir->dir[str_cpy(dir->dir,filename)] = 0;
     }
 

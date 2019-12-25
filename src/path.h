@@ -16,6 +16,10 @@ char *path_dirname(const char *filename);
 /* remember to free the returned pointer */
 char *path_getcwd(void);
 
+/* converts a path to absolute,
+ * allocates a new string */
+char *path_absolute(const char *filename);
+
 #ifdef __cplusplus
 }
 #endif

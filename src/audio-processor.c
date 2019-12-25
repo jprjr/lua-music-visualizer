@@ -14,6 +14,7 @@
 #define AMP_MAX 70.0f
 #define AMP_MIN 70.0f
 #define AMP_BOOST 1.8f
+#define MY_PI 3.14159265358979323846
 
 static SCALAR_TYPE itur_468(double freq) {
     /* only calculate this for freqs > 1000 */
@@ -57,7 +58,7 @@ static SCALAR_TYPE find_amplitude_max(double buffer_len, COMPLEX_TYPE *out, unsi
 }
 
 static SCALAR_TYPE window_blackman_harris(int i, int n) {
-    SCALAR_TYPE a = (2.0f * M_PI) / (n - 1);
+    SCALAR_TYPE a = (2.0f * MY_PI) / (n - 1);
     return 0.35875 - 0.48829*cos(a*i) + 0.14128*cos(2*a*i) - 0.01168*cos(3*a*i);
 }
 
