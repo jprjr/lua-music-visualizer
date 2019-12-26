@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 void *mem_cpy(void *dest, const void *src, unsigned int n);
+void *mem_move(void *dest, const void *src, unsigned int n);
 void *mem_chr(const void *src, uint8_t c, unsigned int n);
 int mem_cmp(const void *p1, const void *p2, unsigned int n);
 void *mem_set(void *s, uint8_t c, unsigned int n);

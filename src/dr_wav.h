@@ -1178,7 +1178,7 @@ static drwav_bool32 drwav__read_fmt(drwav_read_proc onRead, drwav_seek_proc onSe
     fmtOut->extendedSize       = 0;
     fmtOut->validBitsPerSample = 0;
     fmtOut->channelMask        = 0;
-    memset(fmtOut->subFormat, 0, sizeof(fmtOut->subFormat));
+    drwav_zero_memory(fmtOut->subFormat, sizeof(fmtOut->subFormat));
 
     if (header.sizeInBytes > 16) {
         unsigned char fmt_cbSize[2];

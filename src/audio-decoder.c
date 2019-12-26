@@ -11,17 +11,24 @@
 #define AUDIO_MAX(a,b) ( a > b ? a : b)
 #define AUDIO_MIN(a,b) ( a < b ? a : b)
 
+#if DECODE_FLAC
 #define DR_FLAC_NO_STDIO
+#define DR_FLAC_NO_OGG
 #define DR_FLAC_IMPLEMENTATION
 #include "dr_flac.h"
+#endif
 
+#if DECODE_MP3
 #define DR_MP3_NO_STDIO
 #define DR_MP3_IMPLEMENTATION
 #include "dr_mp3.h"
+#endif
 
+#if DECODE_WAV
 #define DR_WAV_NO_STDIO
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
+#endif
 
 #define JPR_PCM_IMPLEMENTATION
 #include "jpr_pcm.h"
@@ -39,6 +46,7 @@ static uint32_t seek_proc(void *userdata, int offset, unsigned int origin) {
     return (uint32_t)r;
 }
 
+#if DECODE_FLAC
 static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     audio_decoder *a = ctx;
     drflac_vorbis_comment_iterator iter;
@@ -63,7 +71,9 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
         }
     }
 }
+#endif
 
+#if DECODE_WAV
 static void wav_id3(audio_decoder *a, const char *filename) {
     jpr_file *f = NULL;
     uint32_t bytes = 0;
@@ -107,7 +117,7 @@ static void wav_id3(audio_decoder *a, const char *filename) {
                 b = buffer_tmp;
 
                 while(b < buffer_tmp + cbytes) {
-                    memcpy(buffer,b,4);
+                    mem_cpy(buffer,b,4);
                     buffer[4] = 0;
                     b+= 4;
                     tbytes = unpack_uint32le(b);
@@ -134,11 +144,13 @@ static void wav_id3(audio_decoder *a, const char *filename) {
     }
 
 closereturn:
-    if(buffer_tmp != NULL) free(buffer_tmp);
+    if(buffer_tmp != NULL) mem_free(buffer_tmp);
     if(f != NULL) file_close(f);
     return;
 }
+#endif
 
+#if DECODE_MP3
 static void mp3_id3(audio_decoder *a, const char *filename) {
     jpr_file *f = NULL;
     if(a->onmeta == NULL) return;
@@ -148,8 +160,8 @@ static void mp3_id3(audio_decoder *a, const char *filename) {
     }
     process_id3(a,f);
     file_close(f);
-
 }
+#endif
 
 int audio_decoder_init(audio_decoder *a) {
     a->file = NULL;
@@ -162,8 +174,12 @@ int audio_decoder_init(audio_decoder *a) {
 }
 
 int audio_decoder_open(audio_decoder *a, const char *filename) {
-    drmp3 *mp3 = NULL;
+    void *p = NULL;
+#if !DECODE_MP3
+    (void)p;
+#endif
 
+#if DECODE_FLAC
     if(str_iends(filename,".flac")) {
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
@@ -179,30 +195,36 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->channels = a->ctx.pFlac->channels;
         a->type = 0;
     }
-    else if(str_iends(filename,".mp3")) {
+    else
+#endif
+#if DECODE_MP3
+        if(str_iends(filename,".mp3")) {
         mp3_id3(a,filename);
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
 
-        mp3 = (drmp3 *)mem_alloc(sizeof(drmp3));
-        if(mp3 == NULL) {
+        p = mem_alloc(sizeof(drmp3));
+        if(p == NULL) {
             LOG_DEBUG("out of memory");
             return 1;
         }
-        a->ctx.pMp3 = mp3;
+        a->ctx.pMp3 = (drmp3 *)p;
         if(!drmp3_init(a->ctx.pMp3,read_proc,seek_proc,a,NULL)) {
-            free(mp3);
+            mem_free(p);
             a->ctx.pMp3 = NULL;
             file_close(a->file);
             a->file = NULL;
             return 1;
         }
-        a->framecount = drmp3_get_pcm_frame_count(mp3);
-        a->samplerate = mp3->sampleRate;
-        a->channels = mp3->channels;
+        a->framecount = drmp3_get_pcm_frame_count(a->ctx.pMp3);
+        a->samplerate = a->ctx.pMp3->sampleRate;
+        a->channels = a->ctx.pMp3->channels;
         a->type = 1;
     }
-    else if(str_iends(filename,".wav")) {
+    else
+#endif
+#if DECODE_WAV
+        if(str_iends(filename,".wav")) {
         wav_id3(a,filename);
 
         a->file = file_open(filename,"rb");
@@ -219,7 +241,9 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->channels = a->ctx.pWav->channels;
         a->type = 2;
     }
-    else if(a->samplerate != 0 && a->channels != 0) {
+    else
+#endif
+        if(a->samplerate != 0 && a->channels != 0) {
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
         a->ctx.pPcm = jprpcm_open(read_proc,seek_proc,a,a->samplerate,a->channels);
@@ -241,9 +265,15 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
 
 unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, int16_t *buf) {
     switch(a->type) {
+#if DECODE_FLAC
         case 0: return (unsigned int)drflac_read_pcm_frames_s16(a->ctx.pFlac,framecount,buf);
+#endif
+#if DECODE_MP3
         case 1: return (unsigned int)drmp3_read_pcm_frames_s16(a->ctx.pMp3,framecount,buf);
+#endif
+#if DECODE_WAV
         case 2: return (unsigned int)drwav_read_pcm_frames_s16(a->ctx.pWav,framecount,buf);
+#endif
         case 3: return jprpcm_read_pcm_frames_s16(a->ctx.pPcm,framecount,buf);
     }
     return 0;
@@ -251,22 +281,28 @@ unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, int
 
 void audio_decoder_close(audio_decoder *a) {
     switch(a->type) {
+#if DECODE_FLAC
         case 0: {
             drflac_close(a->ctx.pFlac);
             a->ctx.pFlac = NULL;
             break;
         }
+#endif
+#if DECODE_MP3
         case 1: {
             drmp3_uninit(a->ctx.pMp3);
-            free(a->ctx.pMp3);
+            mem_free(a->ctx.pMp3);
             a->ctx.pMp3 = NULL;
             break;
         }
+#endif
+#if DECODE_WAV
         case 2: {
             drwav_close(a->ctx.pWav);
             a->ctx.pWav = NULL;
             break;
         }
+#endif
         case 3: {
             jprpcm_close(a->ctx.pPcm);
             a->ctx.pPcm = NULL;

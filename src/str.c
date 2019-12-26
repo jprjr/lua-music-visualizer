@@ -13,6 +13,23 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
+void *mem_move(void *dest, const void *src, unsigned int n) {
+#ifdef JPR_NO_STDLIB
+    uint8_t *d = dest;
+    const uint8_t *s = src;
+    if(d == s) return d;
+    if((uintptr_t)s-(uintptr_t)d-n <= -2*n) return mem_cpy(d,s,n);
+    if(d < s) {
+        for (; n; n--) *d++ = *s++;
+    } else {
+        while (n) n--, d[n] = s[n];
+    }
+    return dest;
+#else
+    return memmove(dest,src,n);
+#endif
+}
+
 void *mem_cpy(void *dest, const void *src, unsigned int n) {
 #ifdef JPR_NO_STDLIB
     uint8_t *d;
