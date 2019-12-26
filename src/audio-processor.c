@@ -1,8 +1,8 @@
 #include "audio-processor.h"
 #include "audio-decoder.h"
-#include <string.h>
+#include "mem.h"
+#include "str.h"
 #include <math.h>
-#include <stdlib.h>
 
 #define AUDIO_MAX(a,b) (a > b ? a : b)
 
@@ -29,7 +29,7 @@ static SCALAR_TYPE itur_468(double freq) {
                 ( 2.118150887518656 * pow(10,-11) * pow(freq,3)) +
                 ( 5.559488023498642 * pow(10,-4)  * freq);
     double r1 = ( 1.246332637532143 * pow(10,-4) * freq ) /
-                sqrt(pow(h1,2) + pow(h2,2));
+                sqrt((h1 * h1) + (h2 * h2));
     return 18.2f + (20.0f * log10(r1));
 }
 
@@ -80,7 +80,7 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
 
     p->buffer = (int16_t *)MALLOC(sizeof(int16_t) * p->buffer_len * a->channels);
     if(p->buffer == NULL) return 1;
-    memset(p->buffer,0,sizeof(int16_t)*(p->buffer_len * p->decoder->channels));
+    mem_set(p->buffer,0,sizeof(int16_t)*(p->buffer_len * p->decoder->channels));
 
     if(p->spectrum_bars > 0) {
         p->mbuffer = (SCALAR_TYPE *)MALLOC(sizeof(SCALAR_TYPE) * p->buffer_len);
@@ -95,9 +95,9 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
         p->spectrum = (frange *)MALLOC(sizeof(frange) * (p->spectrum_bars + 1));
         if(p->spectrum == NULL) return 1;
 
-        memset(p->mbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
-        memset(p->wbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
-        memset(p->obuffer,0,sizeof(COMPLEX_TYPE) * ((p->buffer_len/2)+1) );
+        mem_set(p->mbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
+        mem_set(p->wbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
+        mem_set(p->obuffer,0,sizeof(COMPLEX_TYPE) * ((p->buffer_len/2)+1) );
 
         bin_size = (double)a->samplerate / ((double)p->buffer_len);
 #ifdef USE_FFTW3
@@ -152,31 +152,31 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
 
 void audio_processor_close(audio_processor *p) {
     if(p->plan != NULL) {
-        free(p->plan);
+        mem_free(p->plan);
         p->plan = NULL;
     }
     if(p->buffer != NULL) {
-        free(p->buffer);
+        mem_free(p->buffer);
         p->buffer = NULL;
     }
 
     if(p->mbuffer != NULL) {
-        free(p->mbuffer);
+        mem_free(p->mbuffer);
         p->mbuffer = NULL;
     }
 
     if(p->wbuffer != NULL) {
-        free(p->wbuffer);
+        mem_free(p->wbuffer);
         p->wbuffer = NULL;
     }
 
     if(p->obuffer != NULL) {
-        free(p->obuffer);
+        mem_free(p->obuffer);
         p->obuffer = NULL;
     }
 
     if(p->spectrum != NULL) {
-        free(p->spectrum);
+        mem_free(p->spectrum);
         p->spectrum = NULL;
     }
 }

@@ -4,15 +4,23 @@
 #include "str.h"
 
 #define STBI_NO_STDIO
+#define STBI_NO_HDR
 #define STBI_ASSERT(x)
+#define STBI_COPY_MEMORY(dst,src,len) mem_cpy((dst),(src),len)
+#define STBI_SET_MEMORY(dst,v,len) mem_set((dst),v,len)
 #define STBI_MALLOC mem_alloc
 #define STBI_REALLOC mem_realloc
 #define STBI_FREE mem_free
+#define STBI_STR_CMP(s1,s2) str_cmp(s1,s2)
+#define STBI_STR_NCMP(s1,s2,n) str_ncmp(s1,s2,n)
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STBIR_MALLOC(size,c) ((void)(c), mem_alloc(size))
 #define STBIR_FREE(ptr,c)    ((void)(c), mem_free(ptr))
+#define STBIR_COPY_MEMORY(dst,src,len) mem_cpy((dst),(src),len)
+#define STBIR_SET_MEMORY(dst,v,len) mem_set((dst),v,len)
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
+
 #include "stb_image_resize.h"
 
 #if 0
@@ -158,7 +166,7 @@ stbi_xload(
     stbi__context s;
     unsigned char *result = 0;
     stbi__result_info ri;
-    memset(&ri,0,sizeof(stbi__result_info));
+    mem_set(&ri,0,sizeof(stbi__result_info));
     int x;
     int y;
     int c;

@@ -15,7 +15,7 @@
 #define SCALAR_TYPE kiss_fft_scalar
 #define COMPLEX_TYPE kiss_fft_cpx
 #define PLAN_TYPE kiss_fftr_cfg
-#define MALLOC malloc
+#define MALLOC mem_alloc
 #endif
 
 typedef struct audio_processor_s audio_processor;
