@@ -27,9 +27,16 @@ unsigned int str_cpy(char *d, const char *p);
 unsigned int str_ncpy(char *d, const char *s, unsigned int max);
 
 unsigned int str_ncat(char *d,const char *s,unsigned int max); /* returns number of characters cat'd */
-unsigned int str_chr(const char *s, char c);
-unsigned int str_rchr(const char *s, char c);
-unsigned int str_nrchr(const char *s, char c, unsigned int len);
+
+char *str_nrchr(const char *s, char c, unsigned int len);
+#ifdef JPR_NO_STDLIB
+char *str_chr(const char *s, char c);
+char *str_rchr(const char *s, char c);
+#else
+#define str_chr strchr
+#define str_rchr strrchr
+#endif
+
 unsigned int str_nlower(char *d, const char *str, unsigned int max);
 unsigned int str_lower(char *d, const char *str);
 unsigned int str_ends(const char *s, const char *q);

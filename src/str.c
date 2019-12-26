@@ -296,40 +296,31 @@ unsigned int str_lower(char *dest, const char *src) {
     return d - dest;
 }
 
-unsigned int str_rchr(const char *s, char c) {
 #ifdef JPR_NO_STDLIB
+char *str_rchr(const char *s, char c) {
     unsigned int len;
     unsigned int n;
     len = str_len(s);
     n = len;
     while(n--) {
-        if(s[n] == c) return n;
+        if(s[n] == c) return (char *)&s[n];
     }
-    return len;
-#else
-    char *t = strrchr(s,c);
-    return ( t != NULL ? (unsigned int)(t - s) : str_len(s) );
-#endif
+    return NULL;
 }
+#endif
 
-unsigned int str_nrchr(const char *s, char c, unsigned int n) {
-    unsigned int len = n;
+char *str_nrchr(const char *s, char c, unsigned int n) {
     while(n--) {
-        if(s[n] == c) return n;
+        if(s[n] == c) return (char *)&s[n];
     }
-    return len;
+    return NULL;
 }
 
-unsigned int str_chr(const char *s, char c) {
 #ifdef JPR_NO_STDLIB
-    char *t = mem_chr((const uint8_t *)s,c,str_len(s));
-    if(t == NULL) return str_len(s);
-    return t - s;
-#else
-    char *t = strchr(s,c);
-    return ( t != NULL ? (unsigned int)(t - s) : str_len(s) );
-#endif
+char *str_chr(const char *s, char c) {
+    return mem_chr((const uint8_t *)s,c,str_len(s));
 }
+#endif
 
 unsigned int str_necat(char *dest, const char *s, unsigned int max, const char *e, char t) {
     const char *f = s + max;

@@ -33,6 +33,7 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
 
     unsigned int tmp_int = 0;
     unsigned int tmp_fac = 0;
+    char *c;
 
     lua_getglobal(v->L,"song"); /* push */
 
@@ -64,11 +65,13 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
         }
         else if(str_equals(key,"time")) {
             if(v->duration == 0.0f) {
-                tmp_int = str_chr((const char *)value,':');
-                t = (const char *)value + tmp_int + 1;
-                scan_uint(t,&tmp_int);
-                lua_pushnumber(v->L,tmp_int);
-                lua_setfield(v->L,-2,"total");
+                c = str_chr((const char *)value,':');
+                if(c != NULL) {
+                  t = &c[1];
+                  scan_uint(t,&tmp_int);
+                  lua_pushnumber(v->L,tmp_int);
+                  lua_setfield(v->L,-2,"total");
+                }
             }
         }
     } else if(str_equals(cmd,"currentsong")) {

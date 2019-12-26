@@ -126,7 +126,7 @@ int cli_start(int argc, char **argv) {
     const char *songfile;
     const char *scriptfile;
     const char *s;
-    unsigned int c;
+    char *c;
 
     audio_decoder *decoder;
     audio_processor *processor;
@@ -168,8 +168,8 @@ int cli_start(int argc, char **argv) {
         }
         else if(str_istarts(*argv,"--width")) {
             c = str_chr(*argv,'=');
-            if(c < str_len(*argv)) {
-                s = *argv + c + 1;
+            if(c != NULL) {
+                s = &c[1];
             } else {
                 argv++;
                 argc--;
@@ -183,8 +183,8 @@ int cli_start(int argc, char **argv) {
         }
         else if(str_istarts(*argv,"--height")) {
             c = str_chr(*argv,'=');
-            if(c < str_len(*argv)) {
-                s = *argv + c + 1;
+            if(c != NULL) {
+                s = &c[1];
             } else {
                 argv++;
                 argc--;
@@ -198,8 +198,8 @@ int cli_start(int argc, char **argv) {
         }
         else if(str_istarts(*argv,"--fps")) {
             c = str_chr(*argv,'=');
-            if(c < str_len(*argv)) {
-                s = *argv + c + 1;
+            if(c != NULL) {
+                s = &c[1];
             } else {
                 argv++;
                 argc--;
@@ -213,8 +213,8 @@ int cli_start(int argc, char **argv) {
         }
         else if(str_istarts(*argv,"--bars")) {
             c = str_chr(*argv,'=');
-            if(c < str_len(*argv)) {
-                s = *argv + c + 1;
+            if(c != NULL) {
+                s = &c[1];
             } else {
                 argv++;
                 argc--;
@@ -228,8 +228,8 @@ int cli_start(int argc, char **argv) {
         }
         else if(str_istarts(*argv,"--channels")) {
             c = str_chr(*argv,'=');
-            if(c < str_len(*argv)) {
-                s = *argv + c + 1;
+            if(c != NULL) {
+                s = &c[1];
             } else {
                 argv++;
                 argc--;
@@ -243,8 +243,8 @@ int cli_start(int argc, char **argv) {
         }
         else if(str_istarts(*argv,"--samplerate")) {
             c = str_chr(*argv,'=');
-            if(c < str_len(*argv)) {
-                s = *argv + c + 1;
+            if(c != NULL) {
+                s = &c[1];
             } else {
                 argv++;
                 argc--;

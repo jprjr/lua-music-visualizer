@@ -51,7 +51,7 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     audio_decoder *a = ctx;
     drflac_vorbis_comment_iterator iter;
     char buf[4096];
-    int r = 0;
+    char *r;
     const char *comment = NULL;
     unsigned int commentLength = 0;
 
@@ -64,10 +64,10 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
         str_ncpy(buf,comment,commentLength);
         buf[commentLength] = 0;
         r = str_chr(buf,'=');
-        if(buf[r]) {
-            buf[r] = 0;
+        if(r != NULL) {
+            *r = '\0';
             str_lower(buf,buf);
-            a->onmeta(a->meta_ctx,buf,buf+r+1);
+            a->onmeta(a->meta_ctx,buf,&r[1]);
         }
     }
 }

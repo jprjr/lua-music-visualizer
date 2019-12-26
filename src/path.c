@@ -56,9 +56,9 @@ static inline void trim_slash(char *filename, unsigned int len) {
 
 static unsigned int last_slash(const char *filename, unsigned int *len) {
     unsigned int sep;
-    unsigned int t;
+    char *t;
 #ifdef JPR_WINDOWS
-    unsigned int t2;
+    char *t2;
 #endif
 
     *len = str_len(filename);
@@ -68,14 +68,14 @@ static unsigned int last_slash(const char *filename, unsigned int *len) {
         t = str_nrchr(filename,'/',sep);
 #ifdef JPR_WINDOWS
         t2 = str_nrchr(filename,'\\',sep);
-        if(t == sep) {
+        if(t == NULL || t == &filename[sep]) {
             t = t2;
-        } else if(t2 != sep && t2 > t) {
+        } else if(t2 != NULL && t2 != &filename[sep] && t2 > t) {
             t = t2;
         }
 #endif
-        if(t == sep) break;
-        sep = t;
+        if(t == NULL || t == &filename[sep]) break;
+        sep = t - filename;
     } while(filename[sep] == '\0' || filename[sep+1] == '\0' || filename[sep+1] == '/'
 #ifdef JPR_WINDOWS
        || filename[sep+1] == '\\'

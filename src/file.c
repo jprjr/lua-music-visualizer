@@ -106,7 +106,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
     f->closed = 0;
 
     if(str_cmp(filename,"-") == 0) {
-        if(mode[str_chr(mode,'r')] == 'r') {
+        if(str_chr(mode,'r') != NULL) {
             f->fd = GetStdHandle( STD_INPUT_HANDLE );
         } else {
             f->fd = GetStdHandle( STD_OUTPUT_HANDLE );
@@ -152,7 +152,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
             goto file_open_cleanup;
         }
     }
-    if(mode[str_chr(mode,'+')] == '+') { /* '+' found in string */
+    if(str_chr(mode,'+') != NULL) { /* '+' found in string */
         access = GENERIC_READ | GENERIC_WRITE;
     }
 
@@ -162,7 +162,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
         f = NULL;
     }
     else {
-        if(mode[str_chr(mode,'a')] == 'a') { /* 'a' found in string */
+        if(str_chr(mode,'a') != NULL) { /* 'a' found in string */
             file_seek(f,0,2);
         }
     }
@@ -190,7 +190,7 @@ file_open_cleanup:
     f->closed = 0;
 
     if(str_cmp(filename,"-") == 0) {
-        if(mode[str_chr(mode,'r')] == 'r') {
+        if(str_chr(mode,'r') != NULL) {
             f->fd = 0;
         } else {
             f->fd = 1;
@@ -216,7 +216,7 @@ file_open_cleanup:
         }
     }
 
-    if(mode[str_chr(mode,'+')] == '+') { /* '+' found in string */
+    if(str_chr(mode,'+') != NULL) { /* '+' found in string */
         flags = O_RDWR;
     } else {
         if(wr) flags |= O_WRONLY;
@@ -240,7 +240,7 @@ file_open_cleanup:
         f = NULL;
     }
     else {
-        if(mode[str_chr(mode,'a')] == 'a') { /* 'a' found in string */
+        if(str_chr(mode,'a') != NULL) { /* 'a' found in string */
             file_seek(f,0,2);
         }
     }
