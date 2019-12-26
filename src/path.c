@@ -11,6 +11,33 @@
 #include <limits.h>
 #endif
 
+#ifdef JPR_WINDOWS
+static wchar_t *to_wchar(const char *str) {
+    wchar_t *wide_str;
+    unsigned int wide_str_len;
+
+    wide_str = NULL;
+    wide_str_len = 0;
+
+    wide_str_len = utf_conv_utf8_utf16w(NULL,(const uint8_t *)str,0);
+    if(wide_str_len == 0) {
+        return NULL;
+    }
+    wide_str = (wchar_t *)mem_alloc(sizeof(wchar_t) * (wide_str_len + 1));
+    /* LCOV_EXCL_START */
+    if(wide_str == NULL) {
+        return NULL;
+    }
+    if(wide_str_len != utf_conv_utf8_utf16w(wide_str,(const uint8_t *)str,0)) {
+        mem_free(wide_str);
+        return NULL;
+    }
+    wide_str[wide_str_len] = 0;
+    /* LCOV_EXCL_STOP */
+    return wide_str;
+}
+#endif
+
 static inline void trim_slash(char *filename, unsigned int len) {
     while(len--) {
         if(filename[len] == '/') {
@@ -62,27 +89,13 @@ int path_exists(const char *filename) {
     int r = 0;
 #ifdef JPR_WINDOWS
     wchar_t *wide_filename;
-    unsigned int wide_filename_len;
+    wide_filename = to_wchar(filename);
 
-    wide_filename = NULL;
-    wide_filename_len = 0;
-
-    wide_filename_len = utf_conv_utf8_utf16w(NULL,(const uint8_t *)filename,0);
-    if(wide_filename_len == 0) {
-        r = -1;
-        goto path_exists_cleanup;
-    }
-    wide_filename = (wchar_t *)mem_alloc(sizeof(wchar_t) * (wide_filename_len + 1));
     /* LCOV_EXCL_START */
     if(wide_filename == NULL) {
         r = -1;
         goto path_exists_cleanup;
     }
-    if(wide_filename_len != utf_conv_utf8_utf16w(wide_filename,(const uint8_t *)filename,0)) {
-        r = -1;
-        goto path_exists_cleanup;
-    }
-    wide_filename[wide_filename_len] = 0;
     /* LCOV_EXCL_STOP */
 
     r = (GetFileAttributesW(wide_filename) != INVALID_FILE_ATTRIBUTES);
@@ -184,12 +197,6 @@ char *path_dirname(const char *filename) {
 
     return ret;
 }
-
-int path_setcwd(const char *path) {
-    (void)path;
-    return 0;
-}
-
 
 char *path_getcwd(void) {
     char *dir;
@@ -294,3 +301,27 @@ char *path_absolute(const char *f) {
     return t;
 }
 
+/* returns 0 on success */
+int path_setcwd(const char *dir) {
+    int r = 1;
+#ifdef JPR_WINDOWS
+    wchar_t *wide_filename;
+    wide_filename = to_wchar(dir);
+
+    /* LCOV_EXCL_START */
+    if(wide_filename == NULL) {
+        goto path_setcwd_cleanup;
+    }
+    /* LCOV_EXCL_STOP */
+
+    r = SetCurrentDirectoryW(wide_filename) == 0;
+
+    path_setcwd_cleanup:
+    if(wide_filename != NULL) mem_free(wide_filename);
+
+#else
+    r = chdir(dir);
+#endif
+
+    return r;
+}

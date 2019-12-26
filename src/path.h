@@ -16,8 +16,7 @@ char *path_dirname(const char *filename);
 /* remember to free the returned pointer */
 char *path_getcwd(void);
 
-/* sets the current working directory */
-int path_setcwd(const char *path);
+int path_setcwd(const char *dir);
 
 /* converts a path to absolute,
  * allocates a new string */

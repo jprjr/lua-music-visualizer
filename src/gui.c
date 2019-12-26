@@ -254,7 +254,6 @@ static int setupVideoGenerator(void) {
     char *height_t = IupGetAttribute(heightText,"VALUE");
     char *bars_t = IupGetAttribute(barsText,"VALUE");
     unsigned int fps, width, height, bars;
-    char *wdir;
 
     scan_uint(fps_t,&fps);
     scan_uint(width_t,&width);
@@ -276,12 +275,7 @@ static int setupVideoGenerator(void) {
     }
 
     if(str_len(workdir) > 0) {
-        if(!SetCurrentDirectory(workdir)) goto videogenerator_fail;
-    }
-    else {
-        wdir = path_getcwd();
-        if(!SetCurrentDirectory(wdir)) goto videogenerator_fail;
-        mem_free(wdir);
+        if(path_setcwd(workdir) != 0) goto videogenerator_fail;
     }
 
     decoder = (audio_decoder *)mem_alloc(sizeof(audio_decoder));
@@ -412,7 +406,7 @@ static int startButtonCb(Ihandle *self) {
     a = args;
     *a++ = videoplayerfile;
 
-    if(str_str(videoplayerfile,"vlc") != NULL) {
+    if( videoplayerfile[str_str(videoplayerfile,"vlc")] != '\0') {
         *a++ = "--file-caching";
         *a++ = "1500";
         *a++ = "--network-caching";
