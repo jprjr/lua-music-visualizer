@@ -220,7 +220,7 @@ jpr_dir *dir_open(const char *filename) {
           return NULL;
       }
       /* LCOV_EXCL_STOP */
-      dir->dir[str_cpy(dir->dir,filename)] = 0;
+      str_cpy(dir->dir,filename);
     }
 
     return dir;

@@ -3,53 +3,39 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#ifndef JPR_NO_STDLIB
-#include <ctype.h>
-#endif
-
+#ifdef JPR_NO_STDLIB
 int char_isdigit(int c) {
-#ifdef JPR_NO_STDLIB
     return (uint8_t)(c - 48) < 10;
-#else
-    return isdigit(c);
-#endif
 }
+#endif
 
+#ifdef JPR_NO_STDLIB
 int char_isupper(int c) {
-#ifdef JPR_NO_STDLIB
     return (uint8_t)(c - 65) < 26;
-#else
-    return isupper(c);
-#endif
 }
+#endif
 
+#ifdef JPR_NO_STDLIB
 int char_islower(int c) {
-#ifdef JPR_NO_STDLIB
     return (uint8_t)(c - 97) < 26;
-#else
-    return islower(c);
-#endif
 }
+#endif
 
-int char_upper(int c) {
 #ifdef JPR_NO_STDLIB
+int char_upper(int c) {
     if (char_islower(c)) {
         return c & 0x5F;
     }
     return c;
-#else
-    return toupper(c);
-#endif
 }
+#endif
 
-int char_lower(int c) {
 #ifdef JPR_NO_STDLIB
+int char_lower(int c) {
     if (char_isupper(c)) {
         return c | 32;
     }
     return c;
-#else
-    return tolower(c);
-#endif
 }
+#endif
 

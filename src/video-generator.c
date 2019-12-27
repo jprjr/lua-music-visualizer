@@ -75,13 +75,18 @@ static int write_avi_header(video_generator *v) {
     uint8_t *b = buf;
     unsigned int r = 0;
 
-    b += str_cpy((char *)b,"RIFF");
+    str_cpy((char *)b,"RIFF");
+    b += 4;
     b += format_dword(b,0);
-    b += str_cpy((char *)b,"AVI ");
-    b += str_cpy((char *)b,"LIST");
+    str_cpy((char *)b,"AVI ");
+    b += 4;
+    str_cpy((char *)b,"LIST");
+    b += 4;
     b += format_dword(b,294);
-    b += str_cpy((char *)b,"hdrl");
-    b += str_cpy((char *)b,"avih");
+    str_cpy((char *)b,"hdrl");
+    b += 4;
+    str_cpy((char *)b,"avih");
+    b += 4;
     b += format_dword(b,56);
 
     b += format_dword(b,1000000 / v->fps); /* dwMicroSecPerFrame */
@@ -101,12 +106,16 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,0); /* dwReserverd[2] */
     b += format_dword(b,0); /* dwReserverd[3] */
 
-    b += str_cpy((char *)b,"LIST");
+    str_cpy((char *)b,"LIST");
+    b += 4;
     b += format_dword(b,116);
-    b += str_cpy((char *)b,"strl");
-    b += str_cpy((char *)b,"strh");
+    str_cpy((char *)b,"strl");
+    b += 4;
+    str_cpy((char *)b,"strh");
+    b += 4;
     b += format_dword(b,56);
-    b += str_cpy((char *)b,"vids");
+    str_cpy((char *)b,"vids");
+    b += 4;
     b += format_dword(b,0); /* fcchandler*/
     b += format_dword(b,0); /* flags */
     b += format_word(b,0); /* priority */
@@ -123,7 +132,8 @@ static int write_avi_header(video_generator *v) {
     b += format_word(b,0);
     b += format_word(b,0);
     b += format_word(b,0);
-    b += str_cpy((char *)b,"strf");
+    str_cpy((char *)b,"strf");
+    b += 4;
     b += format_dword(b,40); /* struct size */
     b += format_dword(b,40); /* struct size */
     b += format_dword(b,v->width);
@@ -136,12 +146,16 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,0);
     b += format_dword(b,0);
     b += format_dword(b,0);
-    b += str_cpy((char *)b,"LIST");
+    str_cpy((char *)b,"LIST");
+    b += 4;
     b += format_dword(b,94);
-    b += str_cpy((char *)b,"strl");
-    b += str_cpy((char *)b,"strh");
+    str_cpy((char *)b,"strl");
+    b += 4;
+    str_cpy((char *)b,"strh");
+    b += 4;
     b += format_dword(b,56);
-    b += str_cpy((char *)b,"auds");
+    str_cpy((char *)b,"auds");
+    b += 4;
     b += format_dword(b,1);
     b += format_dword(b,0); /* flags */
     b += format_word(b,0); /* prio */
@@ -158,7 +172,8 @@ static int write_avi_header(video_generator *v) {
     b += format_word(b,0);
     b += format_word(b,0);
     b += format_word(b,0);
-    b += str_cpy((char *)b,"strf");
+    str_cpy((char *)b,"strf");
+    b += 4;
     b += format_dword(b,18);
     b += format_word(b,1);
     b += format_word(b,v->processor->decoder->channels);
@@ -167,9 +182,11 @@ static int write_avi_header(video_generator *v) {
     b += format_word(b,v->processor->decoder->channels * sizeof(int16_t));
     b += format_word(b,16);
     b += format_word(b,0);
-    b += str_cpy((char *)b,"LIST");
+    str_cpy((char *)b,"LIST");
+    b += 4;
     b += format_dword(b,0);
-    b += str_cpy((char *)b,"movi");
+    str_cpy((char *)b,"movi");
+    b += 4;
     (void)b;
 
     if(jpr_proc_pipe_write(v->out,(const char *)buf,326,&r)) return 1;
