@@ -343,15 +343,16 @@ static int saveButtonCb(Ihandle *self) {
     char *f = ffmpegargs;
     unsigned int total_args = 6;
     unsigned int i = 0;
+    char *t;
     char **args = NULL;
     char **a;
 
     do {
-      i = str_chr(f,' ');
-      if(i>0) {
+      t = str_chr(f,' ');
+      if(t - f > 0) {
           /* we may get some extra args this way but no big deal */
           total_args++;
-          f += i + 1;
+          f += (t - f) + 1;
       }
       else {
           f++;
@@ -368,9 +369,9 @@ static int saveButtonCb(Ihandle *self) {
     *a++ = "pipe:0";
 
     do {
-      i = str_chr(f,' ');
-      if(i>0) {
-          f[i] = 0;
+      t = str_chr(f,' ');
+      if(t - f > 0 ) {
+          *t = '\0';
           if(f[0] != ' ' && str_len(f) > 0 && printable(f)) {
               *a++ = f;
           }
@@ -406,7 +407,7 @@ static int startButtonCb(Ihandle *self) {
     a = args;
     *a++ = videoplayerfile;
 
-    if( videoplayerfile[str_str(videoplayerfile,"vlc")] != '\0') {
+    if( str_str(videoplayerfile,"vlc") != NULL) {
         *a++ = "--file-caching";
         *a++ = "1500";
         *a++ = "--network-caching";
