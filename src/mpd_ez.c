@@ -292,7 +292,7 @@ static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
         mem_set(&(conn->addr),0,sizeof(struct sockaddr_in));
         conn->addr.sin_port = htons(port);
         conn->addr.sin_family = AF_INET;
-        mem_cpy(&(conn->addr.sin_addr),conn->he->h_addr,conn->he->h_length);
+        mem_cpy(&(conn->addr.sin_addr),conn->he->h_addr_list[0],conn->he->h_length);
 
         if(connect(conn->fd,(struct sockaddr *)&(conn->addr),sizeof(struct sockaddr)) < 0) {
             closesocket(conn->fd);
