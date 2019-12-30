@@ -8,6 +8,7 @@
 
 #ifndef JPR_NO_STDLIB
 #include <string.h>
+#include <strings.h>
 #include <wchar.h>
 #endif
 
