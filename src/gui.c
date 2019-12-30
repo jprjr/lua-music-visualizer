@@ -84,6 +84,7 @@ static void activateStartButton(void) {
 static const char* const video_players[] = {
     "C:\\Program Files\\MPC-HC\\mpc-hc64.exe",
     "C:\\Program Files (x86)\\MPC-HC\\mpc-hc.exe",
+    "C:\\Program Files\\MPC-HC\\mpc-hc.exe",
     "",
 };
 

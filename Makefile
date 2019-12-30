@@ -22,4 +22,4 @@ release:
 debug:
 	docker build -t lua-music-vis-debug -f Dockerfile.debug .
 	mkdir -p output
-	docker run --rm -ti -v $(shell pwd)/tests:/tests lua-music-vis-debug
+	docker run --rm -ti -v $(shell pwd)/output:/output lua-music-vis-debug

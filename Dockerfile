@@ -143,5 +143,6 @@ RUN cd dist && \
     tar cvzf ../lua-music-visualizer-$(./lua-music-visualizer --version)-linux.tar.gz * && \
     cd .. && \
     rm -rf win32 win64 linux osx
+
 COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]

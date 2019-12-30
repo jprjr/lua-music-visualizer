@@ -107,19 +107,9 @@ RUN \
     make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 clean && \
     make OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" && \
     mv lua-music-visualizer /dist/linux && \
-    make clean && \
-    mv -v /dist/win32/*.exe ./ && \
-    mv -v /dist/win64/*.exe ./ && \
-    mv -v /dist/linux/lua-music-visualizer ./
+    make clean
 
-RUN mkdir -p "/wine64/drive_c/Program Files/misc/bin" && cd "/wine64/drive_c/Program Files/misc/bin" && \
-    x86_64-w64-mingw32-gcc -Wall -Wextra -o nullcat.exe /src/lua-music-visualizer/aux/nullcat.c && \
-    mkdir -p /data && \
-    cd /data && \
-    ffmpeg -ar 48000 -ac 2 -f s16le -i /dev/zero -to 10 test.flac && \
-    metaflac --set-tag="TITLE=Some Title" --set-tag="ARTIST=Some Artist" --set-tag="ALBUM=Some Album" test.flac && \
-    ffmpeg -i test.flac test.mp3 && \
-    ffmpeg -i test.flac test.ogg && \
-    ffmpeg -i test.flac -f s16le test.pcm
+RUN apt-get install -y rsync
 
-ENV WINEPATH="C:\Program Files\ffmpeg\bin;C:\Program Files\misc\bin"
+COPY entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]
