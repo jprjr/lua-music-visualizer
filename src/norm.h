@@ -4,12 +4,18 @@
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
 #define JPR_WINDOWS
 
+#ifndef _CRT_SECURE_NO_DEPRECATE
+#define _CRT_SECURE_NO_DEPRECATE 1
+#endif
+
 #ifndef _UNICODE
 #define _UNICODE 1
 #endif
+
 #ifndef UNICODE
 #define UNICODE 1
 #endif
+
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN 1
 #endif

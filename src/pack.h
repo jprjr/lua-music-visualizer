@@ -3,7 +3,7 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#include <stdint.h>
+#include "int.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,19 +11,19 @@ extern "C" {
 
 /* methods for packing bytes from integers */
 
-uint8_t pack_uint64le(uint8_t *d, uint64_t n);
-uint8_t pack_uint64be(uint8_t *d, uint64_t n);
-uint8_t pack_uint32le(uint8_t *d, uint32_t n);
-uint8_t pack_uint32be(uint8_t *d, uint32_t n);
-uint8_t pack_uint16le(uint8_t *d, uint16_t n);
-uint8_t pack_uint16be(uint8_t *d, uint16_t n);
+jpr_uint8 pack_uint64le(jpr_uint8 *d, jpr_uint64 n);
+jpr_uint8 pack_uint64be(jpr_uint8 *d, jpr_uint64 n);
+jpr_uint8 pack_uint32le(jpr_uint8 *d, jpr_uint32 n);
+jpr_uint8 pack_uint32be(jpr_uint8 *d, jpr_uint32 n);
+jpr_uint8 pack_uint16le(jpr_uint8 *d, jpr_uint16 n);
+jpr_uint8 pack_uint16be(jpr_uint8 *d, jpr_uint16 n);
 
-uint8_t pack_int64le(uint8_t *d, int64_t n);
-uint8_t pack_int64be(uint8_t *d, int64_t n);
-uint8_t pack_int32le(uint8_t *d, int32_t n);
-uint8_t pack_int32be(uint8_t *d, int32_t n);
-uint8_t pack_int16le(uint8_t *d, int16_t n);
-uint8_t pack_int16be(uint8_t *d, int16_t n);
+jpr_uint8 pack_int64le(jpr_uint8 *d, jpr_int64 n);
+jpr_uint8 pack_int64be(jpr_uint8 *d, jpr_int64 n);
+jpr_uint8 pack_int32le(jpr_uint8 *d, jpr_int32 n);
+jpr_uint8 pack_int32be(jpr_uint8 *d, jpr_int32 n);
+jpr_uint8 pack_int16le(jpr_uint8 *d, jpr_int16 n);
+jpr_uint8 pack_int16be(jpr_uint8 *d, jpr_int16 n);
 
 
 #ifdef __cplusplus

@@ -1,8 +1,8 @@
 #ifndef MPDC_HEADER
 #define MPDC_HEADER
 
-#include <inttypes.h>
 #include <stdarg.h>
+#include "int.h"
 
 #ifndef MPDC_BUFFER_SIZE
 #define MPDC_BUFFER_SIZE 4096
@@ -78,8 +78,8 @@ enum MPDC_EVENT {
 /* read/write are responsible for getting data in/out */
 /* required */
 /* should return -1 on error or eof, 0 if no data available, 1+ for data read/written */
-typedef int (*mpdc_write_func)(void *ctx, const uint8_t *buf, unsigned int);
-typedef int (*mpdc_read_func)(void *ctx, uint8_t *buf, unsigned int);
+typedef int (*mpdc_write_func)(void *ctx, const jpr_uint8 *buf, unsigned int);
+typedef int (*mpdc_read_func)(void *ctx, jpr_uint8 *buf, unsigned int);
 
 /* function called to trigger that the client is ready to read */
 /* if client is blocking, set this to NULL */
@@ -99,7 +99,7 @@ typedef int (*mpdc_resolve_func)(mpdc_connection *, const char *hostname);
 /* connect is called at the end of mpdc_connect */
 /* required */
 /* return <=0 on errors, 1+ on success */
-typedef int (*mpdc_connect_func)(mpdc_connection *, const char *hostname, uint16_t port);
+typedef int (*mpdc_connect_func)(mpdc_connection *, const char *hostname, jpr_uint16 port);
 
 /* called when disconnected from MPD */
 typedef void (*mpdc_disconnect_func)(mpdc_connection *);
@@ -115,18 +115,18 @@ typedef void (*mpdc_response_end_func)(mpdc_connection *, const char *cmd, int o
 /* called when receiving a response from a command */
 /* key will always be null-terminated, value may not (ie,
  * in the case of the albumart command */
-typedef void (*mpdc_response_func)(mpdc_connection *,const char *cmd, const char *key, const uint8_t *value, unsigned int length);
+typedef void (*mpdc_response_func)(mpdc_connection *,const char *cmd, const char *key, const jpr_uint8 *value, unsigned int length);
 
 /* "private" method for receiving data */
 typedef int (*_mpdc_receive_func)(mpdc_connection *);
 
 
 struct mpdc_ringbuf_s {
-    uint8_t autofill;
-    uint8_t autoflush;
-    uint8_t *buf;
-    uint8_t *head;
-    uint8_t *tail;
+    jpr_uint8 autofill;
+    jpr_uint8 autoflush;
+    jpr_uint8 *buf;
+    jpr_uint8 *head;
+    jpr_uint8 *tail;
     unsigned int size;
     void *read_ctx;
     void *write_ctx;
@@ -136,23 +136,23 @@ struct mpdc_ringbuf_s {
 
 struct mpdc_connection_s {
     void *ctx;
-    uint8_t op_buf[MPDC_OP_QUEUE_SIZE];
-    uint8_t out_buf[MPDC_BUFFER_SIZE];
-    uint8_t in_buf[MPDC_BUFFER_SIZE];
-    uint8_t scratch[MPDC_BUFFER_SIZE];
+    jpr_uint8 op_buf[MPDC_OP_QUEUE_SIZE];
+    jpr_uint8 out_buf[MPDC_BUFFER_SIZE];
+    jpr_uint8 in_buf[MPDC_BUFFER_SIZE];
+    jpr_uint8 scratch[MPDC_BUFFER_SIZE];
     mpdc_ringbuf op;
     mpdc_ringbuf out;
     mpdc_ringbuf in;
     char *host;
     char *password;
-    uint8_t cb_level;
-    uint8_t state;
-    uint16_t port;
-    uint16_t major;
-    uint16_t minor;
-    uint16_t patch;
+    jpr_uint8 cb_level;
+    jpr_uint8 state;
+    jpr_uint16 port;
+    jpr_uint16 major;
+    jpr_uint16 minor;
+    jpr_uint16 patch;
     int _mode;
-    unsigned int _bytes;
+    jpr_uint64 _bytes;
     mpdc_write_func write;
     mpdc_read_func read;
     mpdc_resolve_func resolve;
@@ -178,7 +178,7 @@ int mpdc_init(mpdc_connection *);
  * Setting host to NULL will use the default host "127.0.0.1" */
 /* returns 1 on success, anything else on failure */
 STATIC
-int mpdc_setup(mpdc_connection *, char *host, char *port, uint16_t uport);
+int mpdc_setup(mpdc_connection *, char *host, char *port, jpr_uint16 uport);
 
 /* switch between the block/noblock modes, usually auto-detected */
 STATIC
@@ -208,10 +208,10 @@ STATIC
 int mpdc_password(mpdc_connection *connection, const char *password);
 
 STATIC
-int mpdc_idle(mpdc_connection *connection, uint_least16_t events);
+int mpdc_idle(mpdc_connection *connection, jpr_uint16 events);
 
 STATIC
-int mpdc__put(mpdc_connection *connection, uint8_t cmd, const char *fmt, ...);
+int mpdc__put(mpdc_connection *connection, jpr_uint8 cmd, const char *fmt, ...);
 
 #define mpdc__zero_arg(conn,cmd) mpdc__put((conn),cmd,"")
 

@@ -3,6 +3,7 @@
 #include "str.h"
 #include "mem.h"
 #include "util.h"
+#include "int.h"
 #include <assert.h>
 #include <errno.h>
 
@@ -31,8 +32,8 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
     int lua_state = lua_gettop(v->L);
 #endif
 
-    unsigned int tmp_int = 0;
-    unsigned int tmp_fac = 0;
+    jpr_uint64 tmp_int = 0;
+    jpr_uint64 tmp_fac = 0;
     char *c;
 
     lua_getglobal(v->L,"song"); /* push */

@@ -2,7 +2,7 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-unsigned int scan_uint(const char *str, unsigned int *num) {
+size_t scan_uint(const char *str, jpr_uint64 *num) {
     const char *s = str;
     *num = 0;
     while(*s) {
@@ -15,16 +15,17 @@ unsigned int scan_uint(const char *str, unsigned int *num) {
     return s - str;
 }
 
-unsigned int scan_int(const char *str, int *num) {
-    int mult = 1;
-    unsigned int r = 0;
-    unsigned int t;
+size_t scan_int(const char *str, jpr_int64 *num) {
+    size_t r = 0;
+    jpr_int64 mult = 1;
+    jpr_uint64 t;
+
     if(str[0] == '-') {
         mult = -1;
         r = 1;
     }
     r += scan_uint(str + r, &t);
-    *num = t * mult;
+    *num = (jpr_int64)(t * mult);
     return r;
 }
 

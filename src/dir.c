@@ -27,8 +27,8 @@ struct jpr_dir_s {
 jpr_dire *dir_read(jpr_dir *dir) {
     jpr_dire *entry;
 #ifdef JPR_WINDOWS
-    unsigned int filename_width;
-    uint8_t *filename;
+    size_t filename_width;
+    jpr_uint8 *filename;
     ULARGE_INTEGER tmp;
     LARGE_INTEGER tmp2;
 
@@ -90,7 +90,15 @@ jpr_dire *dir_read(jpr_dir *dir) {
     tmp.HighPart = dir->find_data.ftLastWriteTime.dwHighDateTime;
 
     tmp2.QuadPart = tmp.QuadPart / 10000000;
-    tmp2.QuadPart -= 11644473600LL;
+    /* c89 doesn't allow integer long long */
+    /* divide up these subtractions to effectively do -= 11644473600LL */
+
+    tmp2.QuadPart -= 2147483647;
+    tmp2.QuadPart -= 2147483647;
+    tmp2.QuadPart -= 2147483647;
+    tmp2.QuadPart -= 2147483647;
+    tmp2.QuadPart -= 2147483647;
+    tmp2.QuadPart -= 907055365;
     entry->mtime = tmp2.QuadPart;
 
     tmp.LowPart = dir->find_data.nFileSizeLow;
@@ -153,8 +161,8 @@ jpr_dire *dir_read(jpr_dir *dir) {
     if(S_ISREG(st.st_mode)) {
         entry->is_file = 1;
     }
-    entry->mtime = (int64_t)st.st_mtime;
-    entry->size  = (int64_t)st.st_size;
+    entry->mtime = (jpr_int64)st.st_mtime;
+    entry->size  = (jpr_int64)st.st_size;
 #endif
 
     return entry;
@@ -164,23 +172,24 @@ jpr_dir *dir_open(const char *filename) {
     jpr_dir *dir;
 #ifdef JPR_WINDOWS
     wchar_t *wide_filename;
-    unsigned int wide_filename_len;
+    size_t wide_filename_len;
 #endif
     dir = NULL;
 
     dir = (jpr_dir*)mem_alloc(sizeof(jpr_dir));
     if(dir == NULL) return dir;
+	dir->dir = NULL;
 
 #ifdef JPR_WINDOWS
     wide_filename = NULL;
     wide_filename_len = 0;
     dir->d = INVALID_HANDLE_VALUE;
 
-    wide_filename_len = utf_conv_utf8_utf16w(NULL,(const uint8_t *)filename,0);
+    wide_filename_len = utf_conv_utf8_utf16w(NULL,(const jpr_uint8 *)filename,0);
     if(wide_filename_len == 0) goto dir_open_error;
     wide_filename = (wchar_t *)mem_alloc(sizeof(wchar_t) * (wide_filename_len + 4));
     if(wide_filename == NULL) goto dir_open_error;
-    if(wide_filename_len != utf_conv_utf8_utf16w(wide_filename,(const uint8_t *)filename, 0)) goto dir_open_error;
+    if(wide_filename_len != utf_conv_utf8_utf16w(wide_filename,(const jpr_uint8 *)filename, 0)) goto dir_open_error;
     if(wide_filename_len > 1) {
       switch(wide_filename[wide_filename_len-1]) {
           case L'/': /* fall-through */

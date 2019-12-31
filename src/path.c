@@ -14,12 +14,12 @@
 #ifdef JPR_WINDOWS
 static wchar_t *to_wchar(const char *str) {
     wchar_t *wide_str;
-    unsigned int wide_str_len;
+    size_t wide_str_len;
 
     wide_str = NULL;
     wide_str_len = 0;
 
-    wide_str_len = utf_conv_utf8_utf16w(NULL,(const uint8_t *)str,0);
+    wide_str_len = utf_conv_utf8_utf16w(NULL,(const jpr_uint8 *)str,0);
     if(wide_str_len == 0) {
         return NULL;
     }
@@ -28,7 +28,7 @@ static wchar_t *to_wchar(const char *str) {
     if(wide_str == NULL) {
         return NULL;
     }
-    if(wide_str_len != utf_conv_utf8_utf16w(wide_str,(const uint8_t *)str,0)) {
+    if(wide_str_len != utf_conv_utf8_utf16w(wide_str,(const jpr_uint8 *)str,0)) {
         mem_free(wide_str);
         return NULL;
     }
@@ -38,7 +38,7 @@ static wchar_t *to_wchar(const char *str) {
 }
 #endif
 
-static inline void trim_slash(char *filename, unsigned int len) {
+static void trim_slash(char *filename, size_t len) {
     while(len--) {
         if(filename[len] == '/') {
             filename[len] = '\0';
@@ -54,8 +54,8 @@ static inline void trim_slash(char *filename, unsigned int len) {
     }
 }
 
-static unsigned int last_slash(const char *filename, unsigned int *len) {
-    unsigned int sep;
+static size_t last_slash(const char *filename, size_t *len) {
+    size_t sep;
     char *t;
 #ifdef JPR_WINDOWS
     char *t2;
@@ -111,8 +111,8 @@ int path_exists(const char *filename) {
 }
 
 char *path_basename(const char *filename) {
-    unsigned int len;
-    unsigned int sep;
+    size_t len;
+    size_t sep;
     char *ret;
 
     if(filename == NULL || str_len(filename) == 0) {
@@ -159,8 +159,8 @@ char *path_basename(const char *filename) {
 }
 
 char *path_dirname(const char *filename) {
-    unsigned int len;
-    unsigned int sep;
+    size_t len;
+    size_t sep;
     char *ret;
 
     if(filename != NULL) {
@@ -203,6 +203,7 @@ char *path_getcwd(void) {
 #ifdef JPR_WINDOWS
     TCHAR *wdir;
     DWORD len;
+	size_t slen;
 
     len = GetCurrentDirectory(0,NULL);
 
@@ -214,24 +215,24 @@ char *path_getcwd(void) {
     /* LCOV_EXCL_STOP */
     GetCurrentDirectory(len,wdir);
 
-    len = utf_conv_utf16w_utf8(NULL,wdir,0);
-    if(len == 0) {
+    slen = utf_conv_utf16w_utf8(NULL,wdir,0);
+    if(slen == 0) {
         mem_free(wdir);
         return NULL;
     }
-    dir = mem_alloc(len + 1 + (len == 0));
+    dir = mem_alloc(slen + 1 + (slen == 0));
     /* LCOV_EXCL_START */
     if(dir == NULL) {
         mem_free(wdir);
         return NULL;
     }
     /* LCOV_EXCL_STOP */
-    if(len != utf_conv_utf16w_utf8((uint8_t *)dir,wdir,0)) {
+    if(slen != utf_conv_utf16w_utf8((jpr_uint8 *)dir,wdir,0)) {
         mem_free(wdir);
         mem_free(dir);
         return NULL;
     }
-    dir[len] = '\0';
+    dir[slen] = '\0';
 
     mem_free(wdir);
 #else
@@ -248,9 +249,9 @@ char *path_getcwd(void) {
 }
 
 char *path_absolute(const char *f) {
-    unsigned int is_absolute;
-    unsigned int f_len;
-    unsigned int t_len;
+    size_t is_absolute;
+    size_t f_len;
+    size_t t_len;
     char *t;
     char *cwd;
     is_absolute = 0;

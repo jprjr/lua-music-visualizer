@@ -58,9 +58,9 @@ static char *w_to_mb(const char *s) {
 
 MAIN_SIG {
     int ret;
-    (void)envp;
     char **newargv;
     int i;
+    (void)envp;
 
 #if defined(_WIN32) || defined(_WIN64)
     SetConsoleCP(CP_UTF8);

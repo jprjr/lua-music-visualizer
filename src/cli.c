@@ -12,6 +12,7 @@
 #include "scan.h"
 #include "version.h"
 #include "mem.h"
+#include "int.h"
 #ifndef _WIN32
 #include "thread.h"
 #endif
@@ -138,6 +139,13 @@ int cli_start(int argc, char **argv) {
     int *sig;
 #endif
 
+    jpr_uint64 temp_width      = 0;
+    jpr_uint64 temp_height     = 0;
+    jpr_uint64 temp_fps        = 0;
+    jpr_uint64 temp_bars       = 0;
+    jpr_uint64 temp_samplerate = 0;
+    jpr_uint64 temp_channels   = 0;
+
     unsigned int width      = 0;
     unsigned int height     = 0;
     unsigned int fps        = 0;
@@ -175,9 +183,10 @@ int cli_start(int argc, char **argv) {
                 argc--;
                 s = *argv;
             }
-            if(scan_uint(s,&width) == 0) {
+            if(scan_uint(s,&temp_width) == 0) {
                 return usage(self,1);
             }
+            width = (unsigned int)temp_width;
             argv++;
             argc--;
         }
@@ -190,9 +199,10 @@ int cli_start(int argc, char **argv) {
                 argc--;
                 s = *argv;
             }
-            if(scan_uint(s,&height) == 0) {
+            if(scan_uint(s,&temp_height) == 0) {
                 return usage(self,1);
             }
+            height = (unsigned int)temp_height;
             argv++;
             argc--;
         }
@@ -205,9 +215,10 @@ int cli_start(int argc, char **argv) {
                 argc--;
                 s = *argv;
             }
-            if(scan_uint(s,&fps) == 0) {
+            if(scan_uint(s,&temp_fps) == 0) {
                 return usage(self,1);
             }
+            fps = (unsigned int)temp_fps;
             argv++;
             argc--;
         }
@@ -220,9 +231,10 @@ int cli_start(int argc, char **argv) {
                 argc--;
                 s = *argv;
             }
-            if(scan_uint(s,&bars) == 0) {
+            if(scan_uint(s,&temp_bars) == 0) {
                 return usage(self,1);
             }
+            bars = (unsigned int)temp_bars;
             argv++;
             argc--;
         }
@@ -235,9 +247,10 @@ int cli_start(int argc, char **argv) {
                 argc--;
                 s = *argv;
             }
-            if(scan_uint(s,&channels) == 0) {
+            if(scan_uint(s,&temp_channels) == 0) {
                 return usage(self,1);
             }
+            channels = (unsigned int)temp_channels;
             argv++;
             argc--;
         }
@@ -250,9 +263,10 @@ int cli_start(int argc, char **argv) {
                 argc--;
                 s = *argv;
             }
-            if(scan_uint(s,&samplerate) == 0) {
+            if(scan_uint(s,&temp_samplerate) == 0) {
                 return usage(self,1);
             }
+            samplerate = (unsigned int)temp_samplerate;
             argv++;
             argc--;
         }

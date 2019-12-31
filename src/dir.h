@@ -1,7 +1,7 @@
 #ifndef JPR_DIR_H
 #define JPR_DIR_H
 
-#include <stdint.h>
+#include "int.h"
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
@@ -13,8 +13,8 @@ struct jpr_dire_s {
     char *path;
     int is_file;
     int is_dir;
-    int64_t mtime;
-    uint64_t size;
+    jpr_int64 mtime;
+    jpr_uint64 size;
 };
 
 #ifdef __cplusplus

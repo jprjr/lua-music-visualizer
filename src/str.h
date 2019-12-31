@@ -3,13 +3,18 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#include <stdint.h>
-#include <stddef.h>
-
 #ifndef JPR_NO_STDLIB
+#include <stddef.h>
 #include <string.h>
+#ifdef _POSIX_C_SOURCE
 #include <strings.h>
+#endif
 #include <wchar.h>
+#ifdef _MSC_VER
+#include <mbstring.h>
+#endif
+#else
+#include "int.h"
 #endif
 
 #ifdef __cplusplus
@@ -17,31 +22,38 @@ extern "C" {
 #endif
 
 
-char *str_nrchr(const char *s, char c, unsigned int len);
+char *str_nchr(const char *s, char c, size_t len);
+char *str_nrchr(const char *s, char c, size_t len);
 
 #ifdef JPR_NO_STDLIB
 char *str_chr(const char *s, char c);
 char *str_rchr(const char *s, char c);
-void *mem_cpy(void *dest, const void *src, unsigned int n);
-void *mem_move(void *dest, const void *src, unsigned int n);
-void *mem_chr(const void *src, uint8_t c, unsigned int n);
-int mem_cmp(const void *p1, const void *p2, unsigned int n);
-void *mem_set(void *s, uint8_t c, unsigned int n);
+void *mem_cpy(void *dest, const void *src, size_t n);
+void *mem_move(void *dest, const void *src, size_t n);
+void *mem_chr(const void *src, jpr_uint8 c, size_t n);
+int mem_cmp(const void *p1, const void *p2, size_t n);
+void *mem_set(void *s, jpr_uint8 c, size_t n);
 char *str_dup(const char *s);
 int str_cmp(const char *s1, const char *s2);
 char *str_str(const char *h, const char *n);
-unsigned int str_len(const char *s);
-unsigned int str_nlen(const char *s, unsigned int m);
-unsigned int wstr_len(const wchar_t *s);
-int str_ncmp(const char *s1, const char *s2, unsigned int m);
+size_t str_len(const char *s);
+size_t str_nlen(const char *s, size_t m);
+size_t wstr_len(const wchar_t *s);
+int str_ncmp(const char *s1, const char *s2, size_t m);
 int str_icmp(const char *s1, const char *s2);
-int str_incmp(const char *s1, const char *s2, unsigned int m);
+int str_incmp(const char *s1, const char *s2, size_t m);
 char *str_cat(char *d, const char *s);
 char *str_cpy(char *d, const char *p);
-char *str_ncpy(char *d, const char *s, unsigned int max);
-char *str_ncat(char *d, const char *s, unsigned int max);
+char *str_ncpy(char *d, const char *s, size_t max);
+char *str_ncat(char *d, const char *s, size_t max);
 
 #else
+
+#ifdef _MSC_VER
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif
+
 #define str_chr strchr
 #define str_rchr strrchr
 #define mem_cpy memcpy
@@ -49,7 +61,11 @@ char *str_ncat(char *d, const char *s, unsigned int max);
 #define mem_chr memchr
 #define mem_cmp memcmp
 #define mem_set memset
+#ifdef _MSC_VER
+#define str_dup _mbsdup
+#else
 #define str_dup strdup
+#endif
 #define str_cmp strcmp
 #define str_str strstr
 #define str_nlen strnlen
@@ -64,10 +80,10 @@ char *str_ncat(char *d, const char *s, unsigned int max);
 #define str_ncat strncat
 #endif
 
-unsigned int str_nlower(char *d, const char *str, unsigned int max);
-unsigned int str_lower(char *d, const char *str);
-unsigned int str_ends(const char *s, const char *q);
-unsigned int str_iends(const char *s, const char *q);
+size_t str_nlower(char *d, const char *str, size_t max);
+size_t str_lower(char *d, const char *str);
+size_t str_ends(const char *s, const char *q);
+size_t str_iends(const char *s, const char *q);
 
 #define str_equals(s,q) (str_cmp(s,q) == 0)
 #define str_starts(s,q) (str_ncmp(s,q,str_len(q)) == 0)
@@ -75,8 +91,8 @@ unsigned int str_iends(const char *s, const char *q);
 
 /* str_cat with escaping of characters in *e */
 /* prepends encountered characters with 't' */
-unsigned int str_necat(char *d, const char *s, unsigned int max, const char *e, char t);
-unsigned int str_ecat(char *d, const char *s, const char *e, char t);
+size_t str_necat(char *d, const char *s, size_t max, const char *e, char t);
+size_t str_ecat(char *d, const char *s, const char *e, char t);
 
 #ifdef __cplusplus
 }

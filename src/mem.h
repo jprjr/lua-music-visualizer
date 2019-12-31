@@ -4,8 +4,7 @@
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
 #include "norm.h"
-#include <stddef.h>
-#include <stdint.h>
+#include "int.h"
 
 #if !(defined(JPR_NO_STDLIB) && defined(JPR_WINDOWS))
 #include <stdlib.h>
@@ -20,7 +19,7 @@
 
 void *mem_alloc16(size_t n);
 void mem_free16(void *p);
-void mem_set16(void *p, uint8_t v, size_t n);
+void mem_set16(void *p, jpr_uint8, size_t n);
 
 
 #endif

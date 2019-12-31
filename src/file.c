@@ -75,11 +75,11 @@ jpr_file *file_open(const char *filename, const char *mode) {
 
 #ifdef JPR_WINDOWS
     wchar_t *wide_filename;
-    unsigned int wide_filename_len;
+    size_t wide_filename_len;
 
-    uint32_t disposition;
-    uint32_t access;
-    uint32_t shared;
+    DWORD disposition;
+    DWORD access;
+    DWORD shared;
 
     f = NULL;
     if(filename == NULL) {
@@ -114,7 +114,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
         return f;
     }
 
-    wide_filename_len = utf_conv_utf8_utf16w(NULL,(const uint8_t *)filename,0);
+    wide_filename_len = utf_conv_utf8_utf16w(NULL,(const jpr_uint8 *)filename,0);
     if(wide_filename_len == 0) {
         goto file_open_cleanup;
     }
@@ -122,7 +122,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
     if(wide_filename == NULL) {
         goto file_open_cleanup;
     }
-    if(wide_filename_len != utf_conv_utf8_utf16w(wide_filename,(const uint8_t *)filename,0)) {
+    if(wide_filename_len != utf_conv_utf8_utf16w(wide_filename,(const jpr_uint8 *)filename,0)) {
         goto file_open_cleanup;
     }
     wide_filename[wide_filename_len] = 0;
@@ -278,7 +278,7 @@ int file_close(jpr_file *f) {
 
 }
 
-int64_t file_tell(jpr_file *f) {
+jpr_int64 file_tell(jpr_file *f) {
 #if defined(JPR_WINDOWS)
     LARGE_INTEGER zero;
     LARGE_INTEGER r;
@@ -295,9 +295,9 @@ int64_t file_tell(jpr_file *f) {
 }
 
 
-int64_t file_seek(jpr_file *f, int64_t offset, enum JPR_FILE_POS whence) {
+jpr_int64 file_seek(jpr_file *f, jpr_int64 offset, enum JPR_FILE_POS whence) {
 #ifdef JPR_WINDOWS
-    uint32_t w_whence;
+    DWORD w_whence;
     LARGE_INTEGER o;
     LARGE_INTEGER diff;
     switch(whence) {
@@ -313,7 +313,7 @@ int64_t file_seek(jpr_file *f, int64_t offset, enum JPR_FILE_POS whence) {
     }
     return -1;
 #else
-    int64_t r;
+    jpr_int64 r;
     int i_whence;
     switch(whence) {
         case JPR_FILE_SET: i_whence = SEEK_SET; break;
@@ -333,12 +333,12 @@ int64_t file_seek(jpr_file *f, int64_t offset, enum JPR_FILE_POS whence) {
 #endif
 }
 
-uint64_t file_write(jpr_file *f, const void *buf, uint64_t n) {
-    uint64_t r;
+jpr_uint64 file_write(jpr_file *f, const void *buf, jpr_uint64 n) {
+    jpr_uint64 r;
 #ifdef JPR_WINDOWS
 #define TEMP_TYPE DWORD
 #define MAX_TYPE DWORD
-#define MAX_VAL UINT32_MAX
+#define MAX_VAL 0xFFFFFFFFU
 #define WRITE_IMP \
     if(!WriteFile(f->fd,buf,m,&t,NULL)) return 0;
 #else
@@ -355,7 +355,7 @@ uint64_t file_write(jpr_file *f, const void *buf, uint64_t n) {
     t = 0;
     m = 0;
     while(n > 0) {
-        m = ( n > MAX_VAL ? MAX_VAL : n );
+        m = (MAX_TYPE)( n > MAX_VAL ? MAX_VAL : n );
         WRITE_IMP
         r += t;
         n -= t;
@@ -368,12 +368,12 @@ uint64_t file_write(jpr_file *f, const void *buf, uint64_t n) {
 #undef WRITE_IMP
 }
 
-uint64_t file_read(jpr_file *f, void *buf, uint64_t n) {
-    uint64_t r;
+jpr_uint64 file_read(jpr_file *f, void *buf, jpr_uint64 n) {
+    jpr_uint64 r;
 #ifdef JPR_WINDOWS
 #define TEMP_TYPE DWORD
 #define MAX_TYPE DWORD
-#define MAX_VAL UINT32_MAX
+#define MAX_VAL 0xFFFFFFFFU
 #define READ_IMP \
     if(!ReadFile(f->fd,buf,m,&t,NULL)) return 0;
 #define FILE_EOF f->eof = 1;
@@ -392,7 +392,7 @@ uint64_t file_read(jpr_file *f, void *buf, uint64_t n) {
     t = 0;
     m = 0;
     while(n > 0) {
-        m = ( n > MAX_VAL ? MAX_VAL : n );
+        m = (MAX_TYPE)( n > MAX_VAL ? MAX_VAL : n );
         READ_IMP
         r += t;
         n -= t;

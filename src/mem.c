@@ -1,6 +1,5 @@
 #include "mem.h"
-
-#include <stdint.h>
+#include "int.h"
 
 void *mem_alloc16(size_t n) {
     void *mem;
@@ -12,8 +11,8 @@ void *mem_alloc16(size_t n) {
     return ptr;
 }
 
-void mem_set16(void *ptr, uint8_t v, size_t n) {
-    uint8_t *p = ptr;
+void mem_set16(void *ptr, jpr_uint8 v, size_t n) {
+    jpr_uint8 *p = ptr;
     while(n > 16) {
         p[0] = v;
         p[1] = v;

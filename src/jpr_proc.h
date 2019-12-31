@@ -130,47 +130,47 @@ struct jpr_proc_pipe_s {
 
 #ifndef _WIN32
 extern char** environ;
-static inline int jpr_coe(int fd) {
+static int jpr_coe(int fd) {
     int flags = fcntl(fd, F_GETFD, 0) ;
     if (flags < 0) return -1 ;
     return fcntl(fd, F_SETFD, flags | FD_CLOEXEC) ;
 }
-static inline ssize_t jpr_write(int fd, const void *buf, size_t nbyte) {
+static ssize_t jpr_write(int fd, const void *buf, size_t nbyte) {
     int r;
     do {
         r = write(fd,buf,nbyte);
     } while( (r == -1) && (errno == EINTR) );
     return r;
 }
-static inline ssize_t jpr_read(int fd, void *buf, size_t nbyte) {
+static ssize_t jpr_read(int fd, void *buf, size_t nbyte) {
     int r;
     do {
         r = read(fd,buf,nbyte);
     } while( (r == -1) && (errno == EINTR) );
     return r;
 }
-static inline int jpr_dup2(int fd, int fd2) {
+static int jpr_dup2(int fd, int fd2) {
     int r;
     do {
         r = dup2(fd,fd2);
     } while( (r == -1) && (errno == EINTR));
     return r;
 }
-static inline int jpr_open(const char *path, int flags, int mode) {
+static int jpr_open(const char *path, int flags, int mode) {
     int r;
     do {
         r = open(path,flags,mode);
     } while ( (r == -1) && (errno == EINTR));
     return r;
 }
-static inline int jpr_close(int fd) {
+static int jpr_close(int fd) {
     int r;
     do {
         r = close(fd);
     } while ( (r == -1) && (errno == EINTR));
     return r;
 }
-static inline pid_t jpr_waitpid(pid_t pid, int *stat_loc, int options) {
+static pid_t jpr_waitpid(pid_t pid, int *stat_loc, int options) {
     pid_t r;
     do {
         r = waitpid(pid,stat_loc,options);

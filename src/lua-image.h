@@ -9,7 +9,7 @@ enum IMAGE_STATE {
     IMAGE_UNLOADED,
     IMAGE_LOADING,
     IMAGE_LOADED,
-    IMAGE_FIXED,
+    IMAGE_FIXED
 };
 
 typedef struct image_q {
