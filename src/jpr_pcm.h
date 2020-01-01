@@ -58,9 +58,10 @@ jprpcm *jprpcm_open(jprpcm_read_proc readProc, jprpcm_seek_proc seekProc, void *
 }
 
 jpr_uint64 jprpcm_read_pcm_frames_s16(jprpcm *pcm, jpr_uint64 framecount, jpr_int16 *buf) {
-    jpr_int64 r;
-    r = pcm->readProc(pcm->userdata,buf,sizeof(jpr_int16) * pcm->channels * framecount);
-    if(r < 0) r = 0;
+    size_t r;
+	size_t req;
+    req = sizeof(jpr_int16) * pcm->channels * (size_t)framecount;
+    r = pcm->readProc(pcm->userdata,buf,req);
     return (jpr_uint64)r;
 }
 

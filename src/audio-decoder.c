@@ -187,7 +187,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
     if(str_iends(filename,".flac")) {
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
-        a->ctx.pFlac = drflac_open_with_metadata(read_proc,seek_proc,flac_meta,a);
+        a->ctx.pFlac = drflac_open_with_metadata(read_proc,(drflac_seek_proc)seek_proc,flac_meta,a);
         if(a->ctx.pFlac == NULL) {
             file_close(a->file);
             a->file = NULL;
@@ -213,7 +213,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
             return 1;
         }
         a->ctx.pMp3 = (drmp3 *)p;
-        if(!drmp3_init(a->ctx.pMp3,read_proc,seek_proc,a,NULL)) {
+        if(!drmp3_init(a->ctx.pMp3,read_proc,(drmp3_seek_proc)seek_proc,a,NULL)) {
             mem_free(p);
             a->ctx.pMp3 = NULL;
             file_close(a->file);
@@ -234,7 +234,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
 
-        a->ctx.pWav = drwav_open(read_proc,seek_proc,a);
+        a->ctx.pWav = drwav_open(read_proc,(drwav_seek_proc)seek_proc,a);
         if(a->ctx.pWav == NULL) {
             file_close(a->file);
             a->file = NULL;
@@ -267,16 +267,16 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
     return 0;
 }
 
-unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, jpr_int16 *buf) {
+jpr_uint64 audio_decoder_decode(audio_decoder *a, jpr_uint64 framecount, jpr_int16 *buf) {
     switch(a->type) {
 #if DECODE_FLAC
-        case 0: return (unsigned int)drflac_read_pcm_frames_s16(a->ctx.pFlac,framecount,buf);
+        case 0: return drflac_read_pcm_frames_s16(a->ctx.pFlac,framecount,buf);
 #endif
 #if DECODE_MP3
-        case 1: return (unsigned int)drmp3_read_pcm_frames_s16(a->ctx.pMp3,framecount,buf);
+        case 1: return drmp3_read_pcm_frames_s16(a->ctx.pMp3,framecount,buf);
 #endif
 #if DECODE_WAV
-        case 2: return (unsigned int)drwav_read_pcm_frames_s16(a->ctx.pWav,framecount,buf);
+        case 2: return drwav_read_pcm_frames_s16(a->ctx.pWav,framecount,buf);
 #endif
         case 3: return jprpcm_read_pcm_frames_s16(a->ctx.pPcm,framecount,buf);
     }

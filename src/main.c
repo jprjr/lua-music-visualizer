@@ -1,3 +1,5 @@
+#include "norm.h"
+
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef _UNICODE
 #define _UNICODE 1
@@ -9,7 +11,7 @@
 #define WIN32_LEAN_AND_MEAN 1
 #endif
 #include <windows.h>
-#define MAIN_SIG int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+#define MAIN_SIG 
 #else
 #define MAIN_SIG int main(int argc, char *argv[], char *envp[])
 #endif
@@ -24,51 +26,50 @@
 #include "str.h"
 #include "mem.h"
 
-#if defined(_WIN32) || defined(_WIN64)
 static char *w_to_mb(const wchar_t *src) {
     char *str;
-    int width;
+    size_t width;
     str = NULL;
 
     width = utf_conv_utf16w_utf8(NULL,src,0);
-
-    if(width <= 0) {
-        return NULL;
-    }
-
     str = mem_alloc(sizeof(char) * (width + 1));
     if(str == NULL) {
         return NULL;
     }
 
     width = utf_conv_utf16w_utf8((jpr_uint8 *)str,src,0);
-
-    if(width <= 0) {
-        mem_free(str);
-        return NULL;
-    }
-
     str[width] = 0;
+
     return str;
 }
-#else
-static char *w_to_mb(const char *s) {
-    return str_dup(s);
-}
-#endif
 
-MAIN_SIG {
+int main(int argc, char *argv[], char *envp[]) {
     int ret;
-    char **newargv;
-    int i;
     (void)envp;
 
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef JPR_WINDOWS
     SetConsoleCP(CP_UTF8);
     SetConsoleOutputCP(CP_UTF8);
 #endif
 
-    newargv = (char **)mem_alloc(sizeof(char *) * (argc + 1));
+    ret = 0;
+
+    if(argc < 2) {
+        ret = gui_start(argc,argv);
+        if(ret != -1) {
+            return ret;
+        }
+    }
+    return cli_start(argc,argv);
+}
+
+int wmain(int argc, wchar_t *argv[], wchar_t *envp[]) {
+	int r;
+	char **newargv;
+	int i;
+
+	(void)envp;
+	newargv = (char **)mem_alloc(sizeof(char *) * (argc + 1));
     if(newargv == NULL) return 1;
 
     for(i = 0; i < argc; i++) {
@@ -76,22 +77,15 @@ MAIN_SIG {
         if(newargv[i] == NULL) return 1;
     }
     newargv[argc] = NULL;
-    ret = 0;
 
-    if(argc < 2) {
-        ret = gui_start(argc,newargv);
-        if(ret != -1) {
-            for(i = 0; i < argc; i++) {
-                mem_free(newargv[i]);
-            }
-            mem_free(newargv);
-            return ret;
-        }
-    }
-    ret = cli_start(argc,newargv);
-    for(i = 0; i < argc; i++) {
+	r = main(argc, newargv, NULL);
+
+	for(i = 0; i < argc; i++) {
         mem_free(newargv[i]);
     }
     mem_free(newargv);
-    return ret;
+
+	return r;
 }
+
+

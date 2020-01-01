@@ -18,6 +18,12 @@
 #endif
 #include "util.h"
 
+#ifdef __GNUC__
+#define attr_noreturn __attribute__((noreturn))
+#else
+#define attr_noreturn
+#endif
+
 #ifndef _WIN32
 static int signal_thread_proc(void *userdata) {
     sigset_t sigset;
@@ -106,7 +112,7 @@ static int version(void) {
     return 0;
 }
 
-__attribute__((noreturn))
+attr_noreturn
 static void quit(int e,...) {
     va_list ap;
     void *p = NULL;

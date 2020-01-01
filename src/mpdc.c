@@ -651,7 +651,7 @@ int mpdc_password(mpdc_connection *conn, const char *password) {
 }
 
 static
-unsigned int mpdc__idlesize(mpdc_connection *conn, uint_least16_t events) {
+unsigned int mpdc__idlesize(mpdc_connection *conn, jpr_uint16 events) {
     unsigned int len = 0;
     jpr_uint8 cur_op = 255;
 
@@ -702,7 +702,7 @@ unsigned int mpdc__idlesize(mpdc_connection *conn, uint_least16_t events) {
 }
 
 STATIC
-int mpdc_idle(mpdc_connection *conn, uint_least16_t events) {
+int mpdc_idle(mpdc_connection *conn, jpr_uint16 events) {
     unsigned int idlesize;
     jpr_uint8 cur_op = 255;
 

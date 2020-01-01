@@ -16,6 +16,7 @@
 #else
 #include "int.h"
 #endif
+#include "norm.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -10,12 +10,14 @@
 #define COMPLEX_TYPE fftw_complex
 #define PLAN_TYPE fftw_plan
 #define MALLOC fftw_malloc
+#define FREE fftw_free
 #else
 #include "kiss_fftr.h"
 #define SCALAR_TYPE kiss_fft_scalar
 #define COMPLEX_TYPE kiss_fft_cpx
 #define PLAN_TYPE kiss_fftr_cfg
-#define MALLOC mem_alloc
+#define MALLOC malloc
+#define FREE free
 #endif
 
 typedef struct audio_processor_s audio_processor;
@@ -45,6 +47,6 @@ struct audio_processor_s {
 
 int audio_processor_init(audio_processor *, audio_decoder *,unsigned int samples_per_frame);
 void audio_processor_close(audio_processor *);
-unsigned int audio_processor_process(audio_processor *, unsigned int framecount);
+jpr_uint64 audio_processor_process(audio_processor *, jpr_uint64 framecount);
 
 #endif

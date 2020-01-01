@@ -1,11 +1,11 @@
 #ifndef MPD_EZ_H
 #define MPD_EZ_H
 
-#ifdef _WIN32
+#include "norm.h"
+
+#ifdef JPR_WINDOWS
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #endif
 
 #include "mpdc.h"

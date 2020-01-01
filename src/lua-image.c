@@ -12,7 +12,20 @@
 #include <assert.h>
 #include <math.h>
 
-#define rad(degrees) ( ((double)degrees) * M_PI / 180.0)
+#define MY_PI 3.14159265358979323846
+#define rad(degrees) ( ((double)degrees) * MY_PI / 180.0)
+
+#ifdef _MSC_VER && MSC_VER <= 1400
+static double round32(double r) {
+	double t;
+	__asm {
+        fld r
+		fistp t
+	}
+	return (t);
+}
+#define round round32
+#endif
 
 #if !defined(luaL_newlibtable) \
   && (!defined LUA_VERSION_NUM || LUA_VERSION_NUM==501)

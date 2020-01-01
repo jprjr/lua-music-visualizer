@@ -11,7 +11,7 @@ lua_amp_index(lua_State *L) {
     if(!lua_isnumber(L,2)) {
         return 0;
     }
-    index = lua_tointeger(L,2) - 1;
+    index = (int)lua_tointeger(L,2) - 1;
     if(index < 0) {
         return 0;
     }

@@ -75,7 +75,7 @@ struct audio_decoder_s {
     int type;
     unsigned int samplerate;
     unsigned int channels;
-    unsigned int framecount;
+    jpr_uint64 framecount;
     meta_proc onmeta;
     jpr_file *file;
 };
@@ -83,7 +83,7 @@ struct audio_decoder_s {
 
 int audio_decoder_init(audio_decoder *);
 int audio_decoder_open(audio_decoder *, const char *filename);
-unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, jpr_int16 *buf);
+jpr_uint64 audio_decoder_decode(audio_decoder *a, jpr_uint64 framecount, jpr_int16 *buf);
 void audio_decoder_close(audio_decoder *a);
 
 #endif

@@ -4,6 +4,7 @@
 #include "mem.h"
 #include "util.h"
 #include "int.h"
+#include "norm.h"
 #include <assert.h>
 #include <errno.h>
 
@@ -236,13 +237,16 @@ static int ez_write_func(void *ctx, const jpr_uint8 *buf, unsigned int count) {
 }
 
 static int ez_resolve(mpdc_connection *c, const char *hostname) {
+#ifdef JPR_WINDOWS
+	DWORD dwError;
+#endif
     conn_info *conn = (conn_info *)c->ctx;
     if(hostname[0] == '/') return 1;
 
     if( (conn->he = gethostbyname(hostname)) == NULL) {
         LOG_ERROR("hostname resolution failed");
-#ifdef _WIN32
-        DWORD dwError = WSAGetLastError();
+#ifdef JPR_WINDOWS
+        dwError = WSAGetLastError();
         if(dwError != 0) {
             if(dwError == WSAHOST_NOT_FOUND) {
                 LOG_ERROR("host not found");
@@ -262,19 +266,16 @@ static int ez_resolve(mpdc_connection *c, const char *hostname) {
 
 static int ez_connect(mpdc_connection *c, const char *host, jpr_uint16 port) {
 
-#ifndef _WIN32
+#ifndef JPR_WINDOWS
     struct sockaddr_un u_addr;
-#else
-    (void)host;
 #endif
-
     conn_info *conn = (conn_info *)c->ctx;
     if(conn->fd != INVALID_SOCKET) {
         closesocket(conn->fd);
         conn->fd = INVALID_SOCKET;
     }
 
-#ifndef _WIN32
+#ifndef JPR_WINDOWS
     if(host[0] == '/') {
         conn->fd = socket(AF_UNIX, SOCK_STREAM, 0);
         if(conn->fd == INVALID_SOCKET) {
@@ -307,12 +308,13 @@ static int ez_connect(mpdc_connection *c, const char *host, jpr_uint16 port) {
             conn->fd = INVALID_SOCKET;
             return -1;
         }
-#ifndef _WIN32
+#ifndef JPR_WINDOWS
     }
 #endif
 
     ez_ndelay_on(conn->fd);
-#ifdef _WIN32
+#ifdef JPR_WINDOWS
+	(void)host;
     FD_ZERO(&conn->readfds);
     FD_ZERO(&conn->writefds);
 #else
@@ -410,9 +412,10 @@ void mpd_ez_start(video_generator *v) {
 int mpd_ez_loop(video_generator *v) {
     int r = 0;
     conn_info *info = (conn_info *)v->mpd->ctx;
+	struct timeval tv;
+	int events;
 
-#ifndef _WIN32
-    int events;
+#ifndef JPR_WINDOWS
     do {
         events = poll(&(info->pfd),1,0);
     } while( (events == -1) && (errno == EINTR));
@@ -443,10 +446,10 @@ int mpd_ez_loop(video_generator *v) {
         FD_SET(info->fd,&info->readfds);
     }
 
-    struct timeval tv;
+
     tv.tv_sec = 0;
     tv.tv_usec = 0;
-    int events;
+
     do {
         events = select(1,&info->readfds,&info->writefds,NULL,&tv);
     } while ( (events == -1) && (errno == EINTR));

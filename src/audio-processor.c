@@ -3,6 +3,15 @@
 #include "mem.h"
 #include "str.h"
 #include <math.h>
+#include <float.h>
+
+#ifndef INFINITY
+#ifdef HUGE_VALF
+#define INFINITY HUGE_VALF
+#else
+#define INFINITY (float)HUGE_VAL
+#endif
+#endif
 
 #define AUDIO_MAX(a,b) (a > b ? a : b)
 
@@ -15,6 +24,13 @@
 #define AMP_MIN 70.0f
 #define AMP_BOOST 1.8f
 #define MY_PI 3.14159265358979323846
+
+#if __STDC_VERSION__ >= 199901L
+#define my_log2(x) log2(x)
+#else
+#define my_log2(x) ((log(x) * 1.44269504088896340736))
+#endif
+
 
 static SCALAR_TYPE itur_468(double freq) {
     double h1;
@@ -34,19 +50,19 @@ static SCALAR_TYPE itur_468(double freq) {
     r1 = ( 1.246332637532143 * pow(10,-4) * freq ) /
          sqrt((h1 * h1) + (h2 * h2));
 
-    return 18.2f + (20.0f * log10(r1));
+    return (SCALAR_TYPE)(18.2f + (20.0f * log10(r1)));
 }
 
 #ifdef USE_FFTW3
 #define cpx_abs(c) cabs(c)
 #else
 static SCALAR_TYPE cpx_abs(COMPLEX_TYPE c) {
-    return sqrt( (c.r * c.r) + (c.i * c.i));
+    return (SCALAR_TYPE)(sqrt( (c.r * c.r) + (c.i * c.i)));
 }
 #endif
 
 static SCALAR_TYPE cpx_amp(double buffer_len, COMPLEX_TYPE c) {
-    return 20.0f * log10(2.0f * cpx_abs(c) /buffer_len);
+    return (SCALAR_TYPE)(20.0f * log10(2.0f * cpx_abs(c) /buffer_len));
 }
 
 static SCALAR_TYPE find_amplitude_max(double buffer_len, COMPLEX_TYPE *out, unsigned int start, unsigned int end) {
@@ -62,13 +78,13 @@ static SCALAR_TYPE find_amplitude_max(double buffer_len, COMPLEX_TYPE *out, unsi
 }
 
 static SCALAR_TYPE window_blackman_harris(int i, int n) {
-    SCALAR_TYPE a = (2.0f * MY_PI) / (n - 1);
-    return 0.35875 - 0.48829*cos(a*i) + 0.14128*cos(2*a*i) - 0.01168*cos(3*a*i);
+    SCALAR_TYPE a = (SCALAR_TYPE)((2.0f * MY_PI) / (n - 1));
+    return (SCALAR_TYPE)(0.35875 - 0.48829*cos(a*i) + 0.14128*cos(2*a*i) - 0.01168*cos(3*a*i));
 }
 
 int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int samples_per_frame) {
     unsigned int i = 0;
-    double octaves = ceil(log2(FREQ_MAX / FREQ_MIN));
+    double octaves = ceil(my_log2(FREQ_MAX / FREQ_MIN));
     double interval = 1.0f / (octaves / p->spectrum_bars);
     double bin_size = 0.0f;
     double upper_freq;
@@ -158,31 +174,31 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
 
 void audio_processor_close(audio_processor *p) {
     if(p->plan != NULL) {
-        mem_free(p->plan);
+        FREE(p->plan);
         p->plan = NULL;
     }
     if(p->buffer != NULL) {
-        mem_free(p->buffer);
+        FREE(p->buffer);
         p->buffer = NULL;
     }
 
     if(p->mbuffer != NULL) {
-        mem_free(p->mbuffer);
+        FREE(p->mbuffer);
         p->mbuffer = NULL;
     }
 
     if(p->wbuffer != NULL) {
-        mem_free(p->wbuffer);
+        FREE(p->wbuffer);
         p->wbuffer = NULL;
     }
 
     if(p->obuffer != NULL) {
-        mem_free(p->obuffer);
+        FREE(p->obuffer);
         p->obuffer = NULL;
     }
 
     if(p->spectrum != NULL) {
-        mem_free(p->spectrum);
+        FREE(p->spectrum);
         p->spectrum = NULL;
     }
 }
@@ -192,11 +208,11 @@ static void audio_processor_fft(audio_processor *p) {
     SCALAR_TYPE m = 0;
 
     while(i < p->buffer_len) {
-        if(p->decoder->channels ==2) {
-            m = p->buffer[i * 2] + p->buffer[(i*2)+1];
+        if(p->decoder->channels == 2) {
+            m = (float)(p->buffer[i * 2] + p->buffer[(i*2)+1]);
             m /= 2.0f;
         } else {
-            m = p->buffer[i];
+            m = (float)(p->buffer[i]);
         }
         m /= 32768.0f;
         p->mbuffer[i] = m * p->wbuffer[i];
@@ -212,7 +228,15 @@ static void audio_processor_fft(audio_processor *p) {
     for(i=0;i<p->spectrum_bars;i++) {
         p->spectrum[i].amp = find_amplitude_max((double)p->buffer_len,p->obuffer,p->spectrum[i].first_bin,p->spectrum[i].last_bin);
 
+#if __STDC_VERSION__ >= 199901L
         if(!isfinite(p->spectrum[i].amp)) {
+#else
+#ifdef _MSC_VER
+		if(!_finite(p->spectrum[i].amp)) {
+#else
+		if(!finite(p->spectrum[i].amp)) {
+#endif
+#endif
             p->spectrum[i].amp = -999.0f;
         }
 
@@ -257,11 +281,11 @@ static void audio_processor_fft(audio_processor *p) {
     }
 }
 
-unsigned int audio_processor_process(audio_processor *p, unsigned int framecount) {
+jpr_uint64 audio_processor_process(audio_processor *p, jpr_uint64 framecount) {
     /* first shift everything in the buffer down */
-    unsigned int i = 0;
-    unsigned int r = 0;
-    unsigned int o = (p->buffer_len * p->decoder->channels) - (framecount * p->decoder->channels);
+    jpr_uint64   i = 0;
+    jpr_uint64   r = 0;
+    jpr_uint64   o = (p->buffer_len * p->decoder->channels) - (framecount * p->decoder->channels);
 
     while(i+framecount < (p->buffer_len * p->decoder->channels)) {
         p->buffer[i] = p->buffer[framecount+i];
@@ -273,9 +297,9 @@ unsigned int audio_processor_process(audio_processor *p, unsigned int framecount
     if(r < framecount) {
         i = r;
         while(i<framecount) {
-            p->buffer[o+(i*p->decoder->channels)] = 0.0f;
+            p->buffer[o+(i*p->decoder->channels)] = 0;
             if(p->decoder->channels > 1) {
-                p->buffer[o+(i*p->decoder->channels) + 1] = 0.0f;
+                p->buffer[o+(i*p->decoder->channels) + 1] = 0;
             }
             i++;
         }

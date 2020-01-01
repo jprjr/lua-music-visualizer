@@ -122,7 +122,6 @@ static int lazySetTextCB(Ihandle *self, char *filename, int num, int x, int y) {
 }
 
 static int cwdBtnCb(Ihandle *self) {
-    (void)self;
     Ihandle *dlg = IupFileDlg();
     IupSetAttribute(dlg,"DIALOGTYPE","DIR");
     IupSetAttribute(dlg,"DIRECTORY",
@@ -135,12 +134,12 @@ static int cwdBtnCb(Ihandle *self) {
         IupConfigSave(config);
     }
     IupDestroy(dlg);
+	(void)self;
 
     return IUP_DEFAULT;
 }
 
 static int scriptBtnCb(Ihandle *self) {
-    (void)self;
     Ihandle *dlg = IupFileDlg();
     IupSetAttribute(dlg,"DIALOGTYPE","OPEN");
     IupSetAttribute(dlg,"TITLE","Choose a Lua Script");
@@ -154,12 +153,12 @@ static int scriptBtnCb(Ihandle *self) {
     }
     IupDestroy(dlg);
     activateStartButton();
+	(void)self;
 
     return IUP_DEFAULT;
 }
 
 static int outputBtnCb(Ihandle *self) {
-    (void)self;
     Ihandle *dlg = IupFileDlg();
     IupSetAttribute(dlg,"DIALOGTYPE","SAVE");
     IupSetAttribute(dlg,"TITLE","Save video as");
@@ -171,13 +170,13 @@ static int outputBtnCb(Ihandle *self) {
         IupConfigSave(config);
     }
     IupDestroy(dlg);
+	(void)self;
     activateStartButton();
 
     return IUP_DEFAULT;
 }
 
 static int songBtnCb(Ihandle *self) {
-    (void)self;
     Ihandle *dlg = IupFileDlg();
     IupSetAttribute(dlg,"DIALOGTYPE","OPEN");
     IupSetAttribute(dlg,"TITLE","Choose a song");
@@ -190,13 +189,14 @@ static int songBtnCb(Ihandle *self) {
         IupConfigSave(config);
     }
     IupDestroy(dlg);
+	(void)self;
     activateStartButton();
 
     return IUP_DEFAULT;
 }
 
 static int ffmpegBtnCb(Ihandle *self) {
-    (void)self;
+
     Ihandle *dlg = IupFileDlg();
     IupSetAttribute(dlg,"DIALOGTYPE","OPEN");
     IupSetAttribute(dlg,"TITLE","Choose ffmpeg.exe");
@@ -209,13 +209,14 @@ static int ffmpegBtnCb(Ihandle *self) {
         IupConfigSave(config);
     }
     IupDestroy(dlg);
+	(void)self;
     activateStartButton();
 
     return IUP_DEFAULT;
 }
 
 static int videoplayerBtnCb(Ihandle *self) {
-    (void)self;
+
     Ihandle *dlg = IupFileDlg();
     IupSetAttribute(dlg,"DIALOGTYPE","OPEN");
     IupSetAttribute(dlg,"TITLE","Choose a video player");
@@ -228,6 +229,7 @@ static int videoplayerBtnCb(Ihandle *self) {
         IupConfigSave(config);
     }
     IupDestroy(dlg);
+    (void)self;
     activateStartButton();
 
     return IUP_DEFAULT;
@@ -255,11 +257,17 @@ static int setupVideoGenerator(void) {
     char *height_t = IupGetAttribute(heightText,"VALUE");
     char *bars_t = IupGetAttribute(barsText,"VALUE");
     unsigned int fps, width, height, bars;
+	jpr_uint64 fps_tmp, width_tmp, height_tmp, bars_tmp;
 
-    scan_uint(fps_t,&fps);
-    scan_uint(width_t,&width);
-    scan_uint(height_t,&height);
-    scan_uint(bars_t,&bars);
+    scan_uint(fps_t,&fps_tmp);
+    scan_uint(width_t,&width_tmp);
+    scan_uint(height_t,&height_tmp);
+    scan_uint(bars_t,&bars_tmp);
+
+	fps = (unsigned int)fps_tmp;
+	width = (unsigned int)width_tmp;
+	height = (unsigned int)height_tmp;
+	bars = (unsigned int)bars_tmp;
 
     if(width == 0 || height == 0) {
         IupMessageError(dlg,"Unable to figure out the width or height wtf?");
@@ -335,7 +343,6 @@ startvideo_cleanup:
 }
 
 static int saveButtonCb(Ihandle *self) {
-    (void)self;
     char *songfile = IupGetAttribute(songText,"VALUE");
     char *scriptfile = IupGetAttribute(scriptText,"VALUE");
     char *ffmpegfile = IupGetAttribute(ffmpegText,"VALUE");
@@ -347,6 +354,7 @@ static int saveButtonCb(Ihandle *self) {
     char *t;
     char **args = NULL;
     char **a;
+    (void)self;
 
     do {
       t = str_chr(f,' ');
@@ -396,12 +404,12 @@ cleanshitup_save:
 }
 
 static int startButtonCb(Ihandle *self) {
-    (void)self;
     char *songfile = IupGetAttribute(songText,"VALUE");
     char *scriptfile = IupGetAttribute(scriptText,"VALUE");
     char *videoplayerfile = IupGetAttribute(videoplayerText,"VALUE");
     char **args;
     char **a;
+    (void)self;
 
     args = (char **)mem_alloc(sizeof(char *) * 10);
     if(args == NULL) goto cleanshitup_start;

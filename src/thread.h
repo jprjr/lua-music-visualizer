@@ -728,8 +728,8 @@ int thread_join( thread_ptr_t thread )
     {
     #if defined( _WIN32 )
 
-        WaitForSingleObject( (HANDLE) thread, INFINITE );
         DWORD retval;
+        WaitForSingleObject( (HANDLE) thread, INFINITE );
         GetExitCodeThread( (HANDLE) thread, &retval );
         return (int) retval;
     
@@ -1058,7 +1058,7 @@ int thread_atomic_int_dec( thread_atomic_int_t* atomic )
     #endif
     }
 
-
+#if !defined(_MSC_VER) || _MSC_VER > 1400
 int thread_atomic_int_add( thread_atomic_int_t* atomic, int value )
     {
     #if defined( _WIN32 )
@@ -1073,8 +1073,9 @@ int thread_atomic_int_add( thread_atomic_int_t* atomic, int value )
         #error Unknown platform.
     #endif
     }
+#endif
 
-
+#if !defined(_MSC_VER) || _MSC_VER > 1400
 int thread_atomic_int_sub( thread_atomic_int_t* atomic, int value )
     {
     #if defined( _WIN32 )
@@ -1089,7 +1090,7 @@ int thread_atomic_int_sub( thread_atomic_int_t* atomic, int value )
         #error Unknown platform.
     #endif
     }
-
+#endif
 
 int thread_atomic_int_swap( thread_atomic_int_t* atomic, int desired )
     {
@@ -1220,9 +1221,9 @@ void thread_timer_term( thread_timer_t* timer )
     {
     #if defined( _WIN32 )
 
+		TIMECAPS tc;
         CloseHandle( *(HANDLE*)timer );
 
-        TIMECAPS tc;
         if( timeGetDevCaps( &tc, sizeof( TIMECAPS ) ) == TIMERR_NOERROR ) 
             timeEndPeriod( tc.wPeriodMin );
 
@@ -1240,11 +1241,11 @@ void thread_timer_term( thread_timer_t* timer )
 void thread_timer_wait( thread_timer_t* timer, THREAD_U64 nanoseconds )
     {
     #if defined( _WIN32 )
-
+        BOOL b;
         LARGE_INTEGER due_time;
         due_time.QuadPart = - (LONGLONG) ( nanoseconds / 100 );
-        BOOL b = SetWaitableTimer( *(HANDLE*)timer, &due_time, 0, 0, 0, FALSE );
-        (void) b;
+        b = SetWaitableTimer( *(HANDLE*)timer, &due_time, 0, 0, 0, FALSE );
+        (void)b;
         WaitForSingleObject( *(HANDLE*)timer, INFINITE );
 
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )

@@ -402,6 +402,7 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
     JPRP_MEMSET(wCmdLine,0,args_len * sizeof(wchar_t));
     MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,cmdLine,args_len,wCmdLine,args_len);
     JPRP_FREE(cmdLine);
+	cmdLine = NULL;
 
     sa->nLength = sizeof(SECURITY_ATTRIBUTES);
     sa->lpSecurityDescriptor = NULL;

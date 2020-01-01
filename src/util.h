@@ -14,7 +14,7 @@
 */
 
 #ifdef JPR_WINDOWS
-#define WRITE_STDERR(s) WriteFile(GetStdHandle(STD_ERROR_HANDLE),s,str_len(s),NULL,0)
+#define WRITE_STDERR(s) WriteFile(GetStdHandle(STD_ERROR_HANDLE),s,(DWORD)str_len(s),NULL,0)
 #define JPR_EXIT(e) ExitProcess(e)
 #else
 #include <stdlib.h>
