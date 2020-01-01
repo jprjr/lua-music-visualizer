@@ -2,6 +2,7 @@
 #include "file.h"
 #include "mem.h"
 #include "str.h"
+#include "int.h"
 
 #define STBI_NO_STDIO
 #define STBI_NO_HDR
@@ -34,7 +35,7 @@ typedef struct
 
 static int io_image_read(void *user, char *data, int size) {
     jpr_file *f = (jpr_file *)user;
-    return (int)file_read(f,data,(uint64_t)size);
+    return (int)file_read(f,data,(jpr_uint64)size);
 }
 
 static void io_image_skip(void *user, int n) {
@@ -49,15 +50,15 @@ static int io_eof(void *user) {
 }
 
 static stbi_io_callbacks io_callbacks = {
-    .read = io_image_read,
-    .skip = io_image_skip,
-    .eof = io_eof,
+    io_image_read,
+    io_image_skip,
+    io_eof,
 };
 
 
 
 static void
-flip_and_bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned int channels) {
+flip_and_bgr(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels) {
 
     unsigned int x = 0;
     unsigned int y = 0;
@@ -65,8 +66,8 @@ flip_and_bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned i
     unsigned int byte;
     unsigned int ibyte;
     unsigned int bytes_per_row = width * channels;
-    uint8_t *temp_row = (uint8_t *)mem_alloc(bytes_per_row);
-    uint8_t temp;
+    jpr_uint8 *temp_row = (jpr_uint8 *)mem_alloc(bytes_per_row);
+    jpr_uint8 temp;
 
     for(y=0; y<maxheight;y++) {
         byte = (y * width* channels);
@@ -99,7 +100,7 @@ flip_and_bgr(uint8_t *image, unsigned int width, unsigned int height, unsigned i
 }
 
 void
-image_blend(uint8_t *dst, uint8_t *src, unsigned int len, uint8_t a) {
+image_blend(jpr_uint8 *dst, jpr_uint8 *src, unsigned int len, jpr_uint8 a) {
     int alpha = 1 + a;
     int alpha_inv = 256 - a;
 
@@ -153,7 +154,7 @@ image_probe(const char *filename, unsigned int *width, unsigned int *height, uns
     return 1;
 }
 
-static uint8_t *
+static jpr_uint8 *
 stbi_xload(
   const char *filename,
   unsigned int *width,
@@ -165,11 +166,12 @@ stbi_xload(
     jpr_file *f;
     stbi__context s;
     unsigned char *result = 0;
-    stbi__result_info ri;
-    mem_set(&ri,0,sizeof(stbi__result_info));
     int x;
     int y;
     int c;
+
+    stbi__result_info ri;
+    mem_set(&ri,0,sizeof(stbi__result_info));
 
     f = file_open(filename,"r");
     if(f == NULL) return NULL;
@@ -196,7 +198,7 @@ stbi_xload(
     return result;
 }
 
-uint8_t *
+jpr_uint8 *
 image_load(
   const char *filename,
   unsigned int *width,
@@ -204,10 +206,10 @@ image_load(
   unsigned int *channels,
   unsigned int *frames) {
 
-    uint8_t *image = NULL;
-    uint8_t *t = NULL;
-    uint8_t *b = NULL;
-    uint8_t *d = NULL;
+    jpr_uint8 *image = NULL;
+    jpr_uint8 *t = NULL;
+    jpr_uint8 *b = NULL;
+    jpr_uint8 *d = NULL;
 
     unsigned int ow = 0;
     unsigned int oh = 0;
@@ -235,11 +237,11 @@ image_load(
     of = *frames;
 
     if(of > 1) {
-        image = (uint8_t *)mem_alloc( ((ow * oh * oc) * of) + (2 * of));
+        image = (jpr_uint8 *)mem_alloc( ((ow * oh * oc) * of) + (2 * of));
 
     }
     else {
-        image = (uint8_t *)mem_alloc(ow * oh * oc);
+        image = (jpr_uint8 *)mem_alloc(ow * oh * oc);
     }
     b = t;
     d = image;

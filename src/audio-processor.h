@@ -34,7 +34,7 @@ struct audio_processor_s {
     audio_decoder *decoder;
     unsigned int spectrum_bars;
     unsigned int buffer_len; /* buffer len does NOT account for channels */
-    int16_t *buffer; /* stores incoming samples - buffer_len * channels */
+    jpr_int16 *buffer; /* stores incoming samples - buffer_len * channels */
     SCALAR_TYPE *mbuffer; /* stores a downmixed version of samples */
     SCALAR_TYPE *wbuffer; /* stores window function factors */
     COMPLEX_TYPE *obuffer; /* buffer_len/2 + 1 output points */

@@ -1,3 +1,4 @@
+#include "int.h"
 #include "mpd_ez.h"
 #include "video-generator.h"
 #include "mpdc.h"
@@ -43,6 +44,8 @@ static int
 lua_send_message(lua_State *L) {
   mpdc_connection *ctx;
   const char *message;
+  int r;
+
   ctx = lua_touserdata(L, lua_upvalueindex(1));
   message = lua_tostring(L,1);
 
@@ -51,7 +54,7 @@ lua_send_message(lua_State *L) {
       return 1;
   }
 
-  int r = mpdc_sendmessage(ctx,"visualizer",message);
+  r = mpdc_sendmessage(ctx,"visualizer",message);
 
   if(r <= 0) {
       lua_pushboolean(L,0);
@@ -71,8 +74,8 @@ static void onmeta(void *ctx, const char *key, const char *value) {
 }
 
 static int write_avi_header(video_generator *v) {
-    uint8_t buf[327];
-    uint8_t *b = buf;
+    jpr_uint8 buf[327];
+    jpr_uint8 *b = buf;
     unsigned int r = 0;
 
     str_cpy((char *)b,"RIFF");
@@ -167,7 +170,7 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,0); /* length */
     b += format_dword(b,v->framebuf_audio_len);
     b += format_dword(b,0); /* quality */
-    b += format_dword(b,v->processor->decoder->channels * sizeof(int16_t)); /* samplesize */
+    b += format_dword(b,v->processor->decoder->channels * sizeof(jpr_int16)); /* samplesize */
     b += format_word(b,0); /* left top right bottom */
     b += format_word(b,0);
     b += format_word(b,0);
@@ -179,7 +182,7 @@ static int write_avi_header(video_generator *v) {
     b += format_word(b,v->processor->decoder->channels);
     b += format_dword(b,v->processor->decoder->samplerate);
     b += format_dword(b,v->framebuf_audio_len);
-    b += format_word(b,v->processor->decoder->channels * sizeof(int16_t));
+    b += format_word(b,v->processor->decoder->channels * sizeof(jpr_int16));
     b += format_word(b,16);
     b += format_word(b,0);
     str_cpy((char *)b,"LIST");
@@ -231,6 +234,7 @@ int video_generator_loop(video_generator *v) {
 #ifndef NDEBUG
     int lua_top;
 #endif
+    int pro_offset;
     unsigned int samps;
     int r = 0;
     unsigned int i = 0;
@@ -240,7 +244,7 @@ int video_generator_loop(video_generator *v) {
         mpd_ez_loop(v);
     }
 
-    int pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
+    pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
 
     samps = audio_processor_process(v->processor, v->samples_per_frame);
     r = samps < v->samples_per_frame;
@@ -296,7 +300,7 @@ int video_generator_loop(video_generator *v) {
 
     wake_queue();
 
-    mem_cpy(v->framebuf + 16 + v->framebuf_video_len,(uint8_t *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
+    mem_cpy(v->framebuf + 16 + v->framebuf_video_len,(jpr_uint8 *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
     if(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i)) return 1;
 
     if(i != v->framebuf_len) return 1;
@@ -319,14 +323,16 @@ int video_generator_reload(video_generator *v) {
 }
 
 int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *d, const char *filename, const char *luascript, jpr_proc_pipe *out) {
-    v->mpd = NULL;
-    v->out = out;
     char *rpath;
     char *tmp;
+    char *dir;
     const char *err_str;
 #ifndef NDEBUG
     int lua_top;
 #endif
+    v->mpd = NULL;
+    v->out = out;
+
     rpath = mem_alloc(sizeof(char)*PATH_MAX);
     if(rpath == NULL) {
         LOG_ERROR("out of memory");
@@ -339,7 +345,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         mem_free(rpath);
         return 1;
     }
-    char *dir;
     rpath[0] = 0;
     tmp[0] = 0;
 
@@ -433,7 +438,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     v->duration = (((double)d->framecount) / ((double)d->samplerate));
 
     v->framebuf_video_len = v->width * v->height * 3;
-    v->framebuf_audio_len = v->samples_per_frame * d->channels * sizeof(int16_t);
+    v->framebuf_audio_len = v->samples_per_frame * d->channels * sizeof(jpr_int16);
     v->framebuf_len = v->framebuf_video_len + v->framebuf_audio_len + 16;
 
     v->framebuf = mem_alloc(v->framebuf_len);

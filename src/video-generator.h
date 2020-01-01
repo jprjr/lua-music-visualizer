@@ -2,12 +2,14 @@
 #define VIDEO_GENERATOR_H
 
 #include "audio-processor.h"
+#include "int.h"
 #include "audio-decoder.h"
-#include "thread.h"
 #include "mpdc.h"
-#include <lua.h>
 #include "lua-image.h"
 #include "jpr_proc.h"
+#define THREAD_U64 jpr_uint64
+#include "thread.h"
+#include <lua.h>
 
 typedef struct video_generator_s video_generator;
 
@@ -18,7 +20,7 @@ struct video_generator_s {
     unsigned int height;
     unsigned int fps;
     jpr_proc_pipe *out;
-    uint8_t *framebuf;
+    jpr_uint8 *framebuf;
     unsigned int framebuf_len;
     unsigned int framebuf_video_len;
     unsigned int framebuf_audio_len;

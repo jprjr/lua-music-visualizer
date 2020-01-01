@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "int.h"
 #include "gui.h"
 #include "cli.h"
 #include "utf.h"
@@ -40,7 +41,7 @@ static char *w_to_mb(const wchar_t *src) {
         return NULL;
     }
 
-    width = utf_conv_utf16w_utf8((uint8_t *)str,src,0);
+    width = utf_conv_utf16w_utf8((jpr_uint8 *)str,src,0);
 
     if(width <= 0) {
         mem_free(str);

@@ -7,18 +7,18 @@
 
 #define ID3_MIN(a,b) ( a < b ? a : b)
 
-static const uint8_t allzero[10] = "\0\0\0\0\0\0\0\0\0\0";
+static const jpr_uint8 allzero[10] = "\0\0\0\0\0\0\0\0\0\0";
 
 struct str_alloc_s {
     char *s;
-    unsigned int a;
+    size_t a;
 };
 
 typedef struct str_alloc_s str_alloc;
 
-#define STR_ALLOC_ZERO { .s = NULL, .a = 0 }
+#define STR_ALLOC_ZERO { NULL, 0 }
 
-static int str_alloc_resize(str_alloc *s, unsigned int size) {
+static int str_alloc_resize(str_alloc *s, size_t size) {
     char *t = NULL;
     if(s->a >= size) return 0;
     t = mem_realloc(s->s,size);
@@ -34,8 +34,8 @@ static int str_alloc_resize(str_alloc *s, unsigned int size) {
     return 0;
 }
 
-static unsigned int utf8_len_or_copy(uint8_t *dest, const uint8_t *src, unsigned int max) {
-    unsigned int len = ID3_MIN(str_len((const char *)src),max);
+static size_t utf8_len_or_copy(jpr_uint8 *dest, const jpr_uint8 *src, size_t max) {
+    size_t len = ID3_MIN(str_len((const char *)src),max);
     if(dest != NULL) {
         str_ncpy((char *)dest,(const char *)src,len);
     }
@@ -47,25 +47,25 @@ void process_id3(audio_decoder *a, jpr_file *f) {
     /* does not close out the file, that's the responsibility of the
      * calling function */
     char buffer[10];
-    buffer[0] = 0;
     str_alloc buffer2 = STR_ALLOC_ZERO;
     str_alloc buffer3 = STR_ALLOC_ZERO;
-    unsigned int (*text_func)(uint8_t *, const uint8_t *, unsigned int) = NULL;
+    size_t (*text_func)(jpr_uint8 *, const jpr_uint8 *, size_t) = NULL;
+    size_t id3_size = 0;
+    size_t header_size = 0;
+    size_t frame_size = 0;
+    size_t dec_len = 0;
+    jpr_uint8 id3_ver = 0;
 
-    unsigned int id3_size = 0;
-    unsigned int header_size = 0;
-    unsigned int frame_size = 0;
-    unsigned int dec_len = 0;
-    uint8_t id3_ver = 0;
+    buffer[0] = 0;
 
     if(file_read(f,buffer,10) != 10) return;
     if(str_ncmp(buffer,"ID3",3) != 0) return;
-    id3_ver = (uint8_t)buffer[3];
+    id3_ver = (jpr_uint8)buffer[3];
     id3_size =
-      (((unsigned int)buffer[6]) << 21) +
-      (((unsigned int)buffer[7]) << 14) +
-      (((unsigned int)buffer[8]) << 7 ) +
-      (((unsigned int)buffer[9]));
+      (((size_t)buffer[6]) << 21) +
+      (((size_t)buffer[7]) << 14) +
+      (((size_t)buffer[8]) << 7 ) +
+      (((size_t)buffer[9]));
 
     switch(id3_ver) {
         case 2: header_size = 6; break;
@@ -78,24 +78,24 @@ void process_id3(audio_decoder *a, jpr_file *f) {
     if(buffer[5] & 0x20) {
         if(file_read(f,buffer,6) != 6) return;
         frame_size =
-          (((unsigned int)buffer[0]) << 21) +
-          (((unsigned int)buffer[1]) << 14) +
-          (((unsigned int)buffer[2]) << 7 ) +
-          (((unsigned int)buffer[3]));
+          (((size_t)buffer[0]) << 21) +
+          (((size_t)buffer[1]) << 14) +
+          (((size_t)buffer[2]) << 7 ) +
+          (((size_t)buffer[3]));
         frame_size -= 6;
         file_seek(f,frame_size,JPR_FILE_CUR);
     }
 
     while(id3_size > 0) {
         if(file_read(f,buffer,header_size) != header_size) goto id3_done;
-        if(mem_cmp((const uint8_t *)buffer,allzero,header_size) == 0) goto id3_done;
+        if(mem_cmp((const jpr_uint8 *)buffer,allzero,header_size) == 0) goto id3_done;
 
         id3_size -= header_size;
         if(header_size == 10) {
-            frame_size = unpack_uint32be((uint8_t *)buffer + 4);
+            frame_size = unpack_uint32be((jpr_uint8 *)buffer + 4);
             buffer[4] = 0;
         } else {
-            frame_size = unpack_uint24be((uint8_t *)buffer+3);
+            frame_size = unpack_uint24be((jpr_uint8 *)buffer+3);
             buffer[3] = 0;
         }
         id3_size -= frame_size;
@@ -120,10 +120,10 @@ void process_id3(audio_decoder *a, jpr_file *f) {
 
         if(text_func == NULL) continue;
 
-        dec_len = text_func(NULL,(uint8_t *)buffer2.s+1,frame_size-1) + 1;
+        dec_len = text_func(NULL,(jpr_uint8 *)buffer2.s+1,frame_size-1) + 1;
 
         if(str_alloc_resize(&buffer3,dec_len)) goto id3_done;
-        buffer3.s[text_func((uint8_t *)buffer3.s,(uint8_t *)buffer2.s+1,frame_size-1)] = 0;
+        buffer3.s[text_func((jpr_uint8 *)buffer3.s,(jpr_uint8 *)buffer2.s+1,frame_size-1)] = 0;
 
         if(str_icmp(buffer,"tpe1") == 0) {
             a->onmeta(a->meta_ctx,"artist",buffer3.s);

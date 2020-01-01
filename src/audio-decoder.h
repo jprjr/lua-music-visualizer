@@ -1,6 +1,8 @@
 #ifndef AUDIO_DECODER_H
 #define AUDIO_DECODER_H
 
+#include "int.h"
+
 #ifndef DECODE_FLAC
 #define DECODE_FLAC 1
 #endif
@@ -81,7 +83,7 @@ struct audio_decoder_s {
 
 int audio_decoder_init(audio_decoder *);
 int audio_decoder_open(audio_decoder *, const char *filename);
-unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, int16_t *buf);
+unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, jpr_int16 *buf);
 void audio_decoder_close(audio_decoder *a);
 
 #endif

@@ -340,26 +340,28 @@ jpr_uint64 file_write(jpr_file *f, const void *buf, jpr_uint64 n) {
 #define MAX_TYPE DWORD
 #define MAX_VAL 0xFFFFFFFFU
 #define WRITE_IMP \
-    if(!WriteFile(f->fd,buf,m,&t,NULL)) return 0;
+    if(!WriteFile(f->fd,(const void *)&b[r],m,&t,NULL)) return 0;
 #else
 #define TEMP_TYPE ssize_t
 #define MAX_TYPE size_t
 #define MAX_VAL SIZE_MAX
 #define WRITE_IMP \
-    t = jpr_write(f->fd,buf,m); \
+    t = jpr_write(f->fd,(const void *)&b[r],m); \
     if(t <= 0) return r;
 #endif
     TEMP_TYPE t;
     MAX_TYPE m;
+    const jpr_uint8 *b;
     r = 0;
     t = 0;
     m = 0;
+    b = buf;
     while(n > 0) {
         m = (MAX_TYPE)( n > MAX_VAL ? MAX_VAL : n );
         WRITE_IMP
         r += t;
         n -= t;
-        if((MAX_TYPE)t != m) return r;
+        if(t == 0) return r;
     }
     return r;
 #undef TEMP_TYPE
@@ -375,28 +377,30 @@ jpr_uint64 file_read(jpr_file *f, void *buf, jpr_uint64 n) {
 #define MAX_TYPE DWORD
 #define MAX_VAL 0xFFFFFFFFU
 #define READ_IMP \
-    if(!ReadFile(f->fd,buf,m,&t,NULL)) return 0;
+    if(!ReadFile(f->fd,(void *)&b[r],m,&t,NULL)) return 0;
 #define FILE_EOF f->eof = 1;
 #else
 #define TEMP_TYPE ssize_t
 #define MAX_TYPE size_t
 #define MAX_VAL SIZE_MAX
 #define READ_IMP \
-    t = jpr_read(f->fd,buf,m); \
+    t = jpr_read(f->fd,(void *)&b[r],m); \
     if(t < 0) return r;
 #define FILE_EOF f->eof = 1;
 #endif
     TEMP_TYPE t;
     MAX_TYPE m;
+    jpr_uint8 *b;
     r = 0;
     t = 0;
     m = 0;
+    b = buf;
     while(n > 0) {
         m = (MAX_TYPE)( n > MAX_VAL ? MAX_VAL : n );
         READ_IMP
         r += t;
         n -= t;
-        if((MAX_TYPE)t != m) {
+        if(t == 0) {
             FILE_EOF
             return r;
         }

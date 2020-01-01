@@ -21,20 +21,27 @@ static void ez_mpdc_response_begin(mpdc_connection *conn,const char *cmd) {
 }
 
 
-static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char *key, const uint8_t *value, unsigned int length) {
-    (void)length;
-
-    conn_info *info = (conn_info *)conn->ctx;
-    video_generator *v = info->v;
-    const char *t;
-    const char *err_str;
+static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char *key, const jpr_uint8 *value, unsigned int length) {
 #ifndef NDEBUG
-    int lua_state = lua_gettop(v->L);
+    int lua_state;
+#endif
+    conn_info *info;
+    video_generator *v;
+    const char *t;
+    char *c;
+    const char *err_str;
+    jpr_uint64 tmp_int;
+    jpr_uint64 tmp_fac;
+
+    (void)length;
+    info = (conn_info *)conn->ctx;
+    v = info->v;
+#ifndef NDEBUG
+    lua_state = lua_gettop(v->L);
 #endif
 
-    jpr_uint64 tmp_int = 0;
-    jpr_uint64 tmp_fac = 0;
-    char *c;
+    tmp_int = 0;
+    tmp_fac = 0;
 
     lua_getglobal(v->L,"song"); /* push */
 
@@ -210,7 +217,7 @@ static int ez_ndelay_on(SOCKET fd)
 #endif
 }
 
-static int ez_read_func(void *ctx, uint8_t *buf, unsigned int count) {
+static int ez_read_func(void *ctx, jpr_uint8 *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
     int r;
     do {
@@ -219,7 +226,7 @@ static int ez_read_func(void *ctx, uint8_t *buf, unsigned int count) {
     return r;
 }
 
-static int ez_write_func(void *ctx, const uint8_t *buf, unsigned int count) {
+static int ez_write_func(void *ctx, const jpr_uint8 *buf, unsigned int count) {
     conn_info *conn = (conn_info *)ctx;
     int r;
     do {
@@ -253,7 +260,7 @@ static int ez_resolve(mpdc_connection *c, const char *hostname) {
 }
 
 
-static int ez_connect(mpdc_connection *c, const char *host, uint16_t port) {
+static int ez_connect(mpdc_connection *c, const char *host, jpr_uint16 port) {
 
 #ifndef _WIN32
     struct sockaddr_un u_addr;
@@ -346,15 +353,18 @@ static void ez_disconnect(mpdc_connection *c) {
 
 int mpd_ez_setup(video_generator *v) {
     int r = 0;
-    char *mpdc_host = getenv("MPD_HOST");
-    char *mpdc_port = getenv("MPD_PORT");
+    char *mpdc_host;
+    char *mpdc_port;
+    conn_info *info;
+
+    mpdc_host = getenv("MPD_HOST");
+    mpdc_port = getenv("MPD_PORT");
     if(mpdc_host == NULL) return 0;
 
-    v->mpd = mem_alloc(sizeof(mpdc_connection));
+    v->mpd = (mpdc_connection *)mem_alloc(sizeof(mpdc_connection));
     if(v->mpd == NULL) return 1;
 
-    conn_info *info = NULL;
-    info = mem_alloc(sizeof(conn_info));
+    info = (conn_info *)mem_alloc(sizeof(conn_info));
     if(info == NULL) return 1;
 
 #ifdef _WIN32

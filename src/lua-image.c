@@ -1,3 +1,4 @@
+#include "int.h"
 #include "image.h"
 #include "lua-image.h"
 #include "image.lua.lh"
@@ -5,6 +6,7 @@
 #include "str.h"
 #include "mem.h"
 #include "util.h"
+#include "int.h"
 #include <lauxlib.h>
 
 #include <assert.h>
@@ -46,8 +48,8 @@ wake_queue(void) {
 }
 
 static int
-lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, unsigned int channels, uint8_t *image) {
-    uint8_t *l_image;
+lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, unsigned int channels, jpr_uint8 *image) {
+    jpr_uint8 *l_image;
     int idx;
 
 #ifndef NDEBUG
@@ -91,7 +93,7 @@ lua_image_from_memory(lua_State *L, unsigned int width, unsigned int height, uns
 }
 
 void
-lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *image) {
+lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 *image) {
     lua_State *L = (lua_State *)Lua;
 #ifndef NDEBUG
     int lua_top = lua_gettop(L);
@@ -105,7 +107,7 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *i
     unsigned int i = 0;
     int delay = 0;
 
-    uint8_t *b = NULL;
+    jpr_uint8 *b = NULL;
     lua_rawgeti(L,LUA_REGISTRYINDEX,table_ref);
 
     table_ind = lua_gettop(L);
@@ -220,8 +222,8 @@ queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, un
 
 static int
 lua_image_thread(void *userdata) {
-    (void)userdata;
     image_q *q = NULL;
+    (void)userdata;
 
     while(1) {
         thread_signal_wait(&t_signal,THREAD_SIGNAL_WAIT_INFINITE);
@@ -252,6 +254,10 @@ lua_image_new(lua_State *L) {
     int image_ind = 0;
     int frame_ind = 0;
     int delay_ind = 0;
+    unsigned int width;
+    unsigned int height;
+    unsigned int channels;
+    jpr_uint8 *image;
 #ifndef NDEBUG
     int lua_top = lua_gettop(L);
 #endif
@@ -259,9 +265,10 @@ lua_image_new(lua_State *L) {
     if(lua_isstring(L,1)) {
       filename = lua_tostring(L,1);
     }
-    unsigned int width    = (unsigned int)luaL_optinteger(L,2,0);
-    unsigned int height   = (unsigned int)luaL_optinteger(L,3,0);
-    unsigned int channels = (unsigned int)luaL_optinteger(L,4,0);
+
+    width    = (unsigned int)luaL_optinteger(L,2,0);
+    height   = (unsigned int)luaL_optinteger(L,3,0);
+    channels = (unsigned int)luaL_optinteger(L,4,0);
 
     if(filename == NULL && (width == 0 || height == 0 || channels == 0) ) {
         lua_pushnil(L);
@@ -312,9 +319,9 @@ lua_image_new(lua_State *L) {
         lua_pushliteral(L,"fixed");
         lua_setfield(L,table_ind,"state");
 
-        uint8_t *image = lua_newuserdata(L,(sizeof(uint8_t) * width * height * channels));
+        image = lua_newuserdata(L,(sizeof(jpr_uint8) * width * height * channels));
         lua_setfield(L,image_ind,"image");
-        mem_set(image,0,sizeof(uint8_t) * width * height * channels);
+        mem_set(image,0,sizeof(jpr_uint8) * width * height * channels);
 
         lua_pushinteger(L,IMAGE_FIXED);
         lua_setfield(L,image_ind,"image_state");
@@ -424,8 +431,8 @@ lua_image_load(lua_State *L) {
     int delay_ind = 0;
     unsigned int i = 0;
 
-    uint8_t *t = NULL;
-    uint8_t *b = NULL;
+    jpr_uint8 *t = NULL;
+    jpr_uint8 *b = NULL;
 
     if(!lua_istable(L,1)) {
         lua_pushnil(L);
@@ -556,19 +563,22 @@ lua_image_load(lua_State *L) {
 
 static int
 lua_image_get_pixel(lua_State *L) {
-    uint8_t *image = NULL;
+    jpr_uint8 *image = NULL;
     unsigned int index = 0;
     unsigned int width = 0;
     unsigned int height = 0;
     unsigned int channels = 0;
+    lua_Integer x;
+    lua_Integer y;
+
     if(!lua_istable(L,1)) {
         lua_pushnil(L);
         lua_pushliteral(L,"Missing argument self");
         return 2;
     }
 
-    lua_Integer x = luaL_checkinteger(L,2);
-    lua_Integer y = luaL_checkinteger(L,3);
+    x = luaL_checkinteger(L,2);
+    y = luaL_checkinteger(L,3);
 
     lua_getfield(L,1,"image");
     image = lua_touserdata(L,-1);
@@ -608,7 +618,7 @@ lua_image_get_pixel(lua_State *L) {
 
 static int
 lua_image_draw_rectangle(lua_State *L) {
-    uint8_t *image = NULL;
+    jpr_uint8 *image = NULL;
     unsigned int width = 0;
     unsigned int height = 0;
     unsigned int channels = 0;
@@ -625,20 +635,29 @@ lua_image_draw_rectangle(lua_State *L) {
     unsigned int alpha;
     unsigned int alpha_inv;
 
+    lua_Integer x1;
+    lua_Integer y1;
+    lua_Integer x2;
+    lua_Integer y2;
+    lua_Integer r;
+    lua_Integer g;
+    lua_Integer b;
+    lua_Integer a;
+
     if(!lua_istable(L,1)) {
         lua_pushnil(L);
         lua_pushliteral(L,"Missing argument self");
         return 2;
     }
 
-    lua_Integer x1 = luaL_checkinteger(L,2);
-    lua_Integer y1 = luaL_checkinteger(L,3);
-    lua_Integer x2 = luaL_checkinteger(L,4);
-    lua_Integer y2 = luaL_checkinteger(L,5);
-    lua_Integer r = luaL_checkinteger(L,6);
-    lua_Integer g = luaL_checkinteger(L,7);
-    lua_Integer b = luaL_checkinteger(L,8);
-    lua_Integer a = luaL_optinteger(L,9,255);
+    x1 = luaL_checkinteger(L,2);
+    y1 = luaL_checkinteger(L,3);
+    x2 = luaL_checkinteger(L,4);
+    y2 = luaL_checkinteger(L,5);
+    r  = luaL_checkinteger(L,6);
+    g  = luaL_checkinteger(L,7);
+    b  = luaL_checkinteger(L,8);
+    a  = luaL_optinteger(L,9,255);
 
     if(a == 0) {
         lua_pushboolean(L,1);
@@ -764,7 +783,7 @@ lua_image_draw_rectangle(lua_State *L) {
 }
 
 static int lua_image_set_pixel(lua_State *L) {
-    uint8_t *image = NULL;
+    jpr_uint8 *image = NULL;
 
     unsigned int index = 0;
     unsigned int width = 0;
@@ -773,18 +792,25 @@ static int lua_image_set_pixel(lua_State *L) {
     unsigned int alpha = 0;
     unsigned int alpha_inv = 0;
 
+    lua_Integer x;
+    lua_Integer y;
+    lua_Integer r;
+    lua_Integer g;
+    lua_Integer b;
+    lua_Integer a;
+
     if(!lua_istable(L,1)) {
         lua_pushnil(L);
         lua_pushliteral(L,"Missing argument self");
         return 2;
     }
 
-    lua_Integer x = luaL_checkinteger(L,2);
-    lua_Integer y = luaL_checkinteger(L,3);
-    lua_Integer r = luaL_checkinteger(L,4);
-    lua_Integer g = luaL_checkinteger(L,5);
-    lua_Integer b = luaL_checkinteger(L,6);
-    lua_Integer a = luaL_optinteger(L,7,255);
+    x = luaL_checkinteger(L,2);
+    y = luaL_checkinteger(L,3);
+    r = luaL_checkinteger(L,4);
+    g = luaL_checkinteger(L,5);
+    b = luaL_checkinteger(L,6);
+    a = luaL_optinteger(L,7,255);
 
     if(a == 0) {
         lua_pushboolean(L,1);
@@ -844,8 +870,8 @@ static int lua_image_set_pixel(lua_State *L) {
 static int
 lua_image_set(lua_State *L) {
     /* image:set(src) */
-    uint8_t *image_one = NULL;
-    uint8_t *image_two = NULL;
+    jpr_uint8 *image_one = NULL;
+    jpr_uint8 *image_two = NULL;
     lua_Integer image_one_len = 0;
     lua_Integer image_two_len = 0;
 
@@ -883,8 +909,8 @@ static int
 lua_image_blend(lua_State *L) {
     /* image:blend(src,alpha) */
     int i = 0;
-    uint8_t *image_one = NULL;
-    uint8_t *image_two = NULL;
+    jpr_uint8 *image_one = NULL;
+    jpr_uint8 *image_two = NULL;
     lua_Integer a;
     lua_Integer alpha;
     lua_Integer alpha_inv;
@@ -942,18 +968,18 @@ lua_image_blend(lua_State *L) {
 
 static int
 lua_image_stamp_image(lua_State *L) {
-    uint8_t *image_one = NULL;
-    uint8_t *image_two = NULL;
+    jpr_uint8 *image_one = NULL;
+    jpr_uint8 *image_two = NULL;
 
     lua_Integer x;
     lua_Integer y;
 
     int hflip = 0;
     int vflip = 0;
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
+    jpr_uint8 r;
+    jpr_uint8 g;
+    jpr_uint8 b;
+    jpr_uint8 a;
     lua_Integer aa = -1;
 
     int mask_left = 0;
@@ -1127,8 +1153,9 @@ lua_image_stamp_image(lua_State *L) {
 
 static int
 lua_image_get_ref(lua_State *L) {
+    intptr_t r;
     lua_pushvalue(L,1);
-    intptr_t r = luaL_ref(L,LUA_REGISTRYINDEX);
+    r = luaL_ref(L,LUA_REGISTRYINDEX);
     lua_pushinteger(L,r);
     return 1;
 }
@@ -1142,8 +1169,8 @@ lua_image_from_ref(lua_State *L) {
 
 static int
 lua_image_rotate(lua_State *L) {
-    uint8_t *original;
-    uint8_t *rotated;
+    jpr_uint8 *original;
+    jpr_uint8 *rotated;
     int width;
     int height;
     int h_width;
@@ -1159,10 +1186,10 @@ lua_image_rotate(lua_State *L) {
     int frame_ind;
     int diag;
     unsigned int index;
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
+    jpr_uint8 r;
+    jpr_uint8 g;
+    jpr_uint8 b;
+    jpr_uint8 a;
     double rads;
 
     double cos_rads;

@@ -2,6 +2,8 @@
 #define LUA_IMAGE_H
 
 #include <lua.h>
+#include "int.h"
+#define THREAD_U64 jpr_uint64
 #include "thread.h"
 
 enum IMAGE_STATE {
@@ -19,7 +21,7 @@ typedef struct image_q {
     unsigned int height;
     unsigned int channels;
     unsigned int frames;
-    uint8_t *image;
+    jpr_uint8 *image;
 } image_q;
 
 
@@ -34,7 +36,7 @@ int
 luaclose_image();
 
 void
-lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, uint8_t *image);
+lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 *image);
 
 void
 queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, unsigned int height, unsigned int channels);

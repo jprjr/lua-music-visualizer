@@ -17,19 +17,23 @@
 #define MY_PI 3.14159265358979323846
 
 static SCALAR_TYPE itur_468(double freq) {
+    double h1;
+    double h2;
+    double r1;
     /* only calculate this for freqs > 1000 */
     if(freq >= 1000.0f) {
         return 0.0f;
     }
-    double h1 = (-4.737338981378384 * pow(10,-24) * pow(freq,6)) +
-                ( 2.043828333606125 * pow(10,-15) * pow(freq,4)) -
-                ( 1.363894795463638 * pow(10,-7)  * pow(freq,2)) +
-                1;
-    double h2 = ( 1.306612257412824 * pow(10,-19) * pow(freq,5)) -
-                ( 2.118150887518656 * pow(10,-11) * pow(freq,3)) +
-                ( 5.559488023498642 * pow(10,-4)  * freq);
-    double r1 = ( 1.246332637532143 * pow(10,-4) * freq ) /
-                sqrt((h1 * h1) + (h2 * h2));
+    h1 = (-4.737338981378384 * pow(10,-24) * pow(freq,6)) +
+         ( 2.043828333606125 * pow(10,-15) * pow(freq,4)) -
+         ( 1.363894795463638 * pow(10,-7)  * pow(freq,2)) +
+         1;
+    h2 = ( 1.306612257412824 * pow(10,-19) * pow(freq,5)) -
+         ( 2.118150887518656 * pow(10,-11) * pow(freq,3)) +
+         ( 5.559488023498642 * pow(10,-4)  * freq);
+    r1 = ( 1.246332637532143 * pow(10,-4) * freq ) /
+         sqrt((h1 * h1) + (h2 * h2));
+
     return 18.2f + (20.0f * log10(r1));
 }
 
@@ -67,6 +71,8 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
     double octaves = ceil(log2(FREQ_MAX / FREQ_MIN));
     double interval = 1.0f / (octaves / p->spectrum_bars);
     double bin_size = 0.0f;
+    double upper_freq;
+    double lower_freq;
 
     if(a->samplerate == 0) return 1;
     if(a->channels == 0) return 1;
@@ -78,9 +84,9 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
     }
     p->decoder = a;
 
-    p->buffer = (int16_t *)MALLOC(sizeof(int16_t) * p->buffer_len * a->channels);
+    p->buffer = (jpr_int16 *)MALLOC(sizeof(jpr_int16) * p->buffer_len * a->channels);
     if(p->buffer == NULL) return 1;
-    mem_set(p->buffer,0,sizeof(int16_t)*(p->buffer_len * p->decoder->channels));
+    mem_set(p->buffer,0,sizeof(jpr_int16)*(p->buffer_len * p->decoder->channels));
 
     if(p->spectrum_bars > 0) {
         p->mbuffer = (SCALAR_TYPE *)MALLOC(sizeof(SCALAR_TYPE) * p->buffer_len);
@@ -125,8 +131,8 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
             }
 
             /* fudging this a bit to avoid overlap */
-            double upper_freq = p->spectrum[i].freq * pow(10, (3 * 1) / (10 * 2 * floor(interval)));
-            double lower_freq = p->spectrum[i].freq / pow(10, (3 * 1) / (10 * 2 * ceil(interval)));
+            upper_freq = p->spectrum[i].freq * pow(10, (3 * 1) / (10 * 2 * floor(interval)));
+            lower_freq = p->spectrum[i].freq / pow(10, (3 * 1) / (10 * 2 * ceil(interval)));
 
             p->spectrum[i].first_bin = (unsigned int)floor(lower_freq / bin_size);
             p->spectrum[i].last_bin = (unsigned int)floor(upper_freq / bin_size);

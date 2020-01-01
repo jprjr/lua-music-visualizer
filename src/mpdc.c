@@ -133,10 +133,11 @@ static unsigned int str_nlen_e(const char *src, unsigned int max) {
 
 /* does NOT terminate the string */
 static int mpdc__ringbuf_putstr(mpdc_ringbuf *rb, const char *src) {
+    const char *e;
     if(str_nlen_e(src,mpdc__ringbuf_capacity(rb)) > mpdc__ringbuf_bytes_free(rb)) {
         return 0;
     }
-    const char *e = src;
+    e = src;
     while(*e) {
         if(*e == '"' || *e == '\\') {
             *rb->head++ = '\\';
@@ -171,10 +172,15 @@ static jpr_uint8 mpdc__op_last(mpdc_connection *conn) {
 
 
 static int mpdc__ringbuf_findchr(mpdc_ringbuf *rb, char ch) {
-    unsigned int n = mpdc__ringbuf_bytes_used(rb);
-    int r = 0;
+    jpr_uint8 *t;
+    unsigned int n;
+    int r;
+
+    n = mpdc__ringbuf_bytes_used(rb);
     if( n == 0 ) return -1;
-    jpr_uint8 *t = rb->tail;
+
+    r = 0;
+    t = rb->tail;
     while(n-- > 0) {
         if((char)*t == ch) return r;
         t++;
@@ -209,15 +215,21 @@ static int mpdc__ringbuf_read(mpdc_ringbuf *rb,unsigned int count) {
 #define mpdc_ringbuf_fill(rb) mpdc__ringbuf_read(rb,mpdc__ringbuf_bytes_free(rb))
 
 static int mpdc__ringbuf_write(mpdc_ringbuf *rb, unsigned int count) {
-    unsigned int bytes_used = mpdc__ringbuf_bytes_used(rb);
+    const jpr_uint8 *bufend;
+    int m;
+    int n;
+    unsigned int bytes_used;
+    unsigned int d;
+
+    bytes_used = mpdc__ringbuf_bytes_used(rb);
     if(count > bytes_used) return 0;
 
-    const jpr_uint8 *bufend = mpdc__ringbuf_end(rb);
-    int m = 0;
-    int n = 0;
+    bufend = mpdc__ringbuf_end(rb);
+    m = 0;
+    n = 0;
 
     do {
-        unsigned int d = MIN((unsigned int)(bufend - rb->tail),count);
+        d = MIN((unsigned int)(bufend - rb->tail),count);
         n = rb->write(rb->write_ctx,rb->tail,d);
         if(n > 0) {
             rb->tail += n;
@@ -231,8 +243,10 @@ static int mpdc__ringbuf_write(mpdc_ringbuf *rb, unsigned int count) {
 }
 
 static int mpdc__ringbuf_flushline(mpdc_ringbuf *rb, int *exp) {
+    int n;
+
     *exp = -1;
-    int n = mpdc__ringbuf_findchr(rb,'\n');
+    n = mpdc__ringbuf_findchr(rb,'\n');
     if(n != -1) {
         *exp = n+1;
         n = mpdc__ringbuf_write(rb,n+1);
@@ -364,9 +378,10 @@ static int mpdc__write_notify_default(mpdc_connection *conn) {
 
 static int mpdc__process(mpdc_connection *conn, int *len) {
     int ok = 0;
-    *len = 0;
     unsigned int t = 0;
     char *s = NULL;
+
+    *len = 0;
     do {
         if(conn->_mode == 0 || (conn->_mode ==1 && conn->_bytes == 0)) {
             *len = mpdc__ringbuf_getline(&conn->in,(char *)conn->scratch);
@@ -399,7 +414,7 @@ static int mpdc__process(mpdc_connection *conn, int *len) {
                 }
                 else {
                     conn->cb_level++;
-                    conn->response(conn,mpdc__command[conn->state],(const char *)conn->scratch,(const uint8_t *)conn->scratch + t + 2,((unsigned int)*len) - t - 2);
+                    conn->response(conn,mpdc__command[conn->state],(const char *)conn->scratch,(const jpr_uint8 *)conn->scratch + t + 2,((unsigned int)*len) - t - 2);
                     conn->cb_level--;
                 }
             }
@@ -595,13 +610,15 @@ int mpdc_connect(mpdc_connection *conn) {
 
 STATIC
 int mpdc_send(mpdc_connection *conn) {
+    int exp;
+    int r;
+
     if(mpdc_ringbuf_is_empty(&conn->out)) return 0;
     if(!handshook(conn)) {
         return conn->read_notify(conn) > 0;
     }
 
-    int exp;
-    int r = mpdc__ringbuf_flushline(&conn->out,&exp);
+    r = mpdc__ringbuf_flushline(&conn->out,&exp);
     if(r == -1) return -1;
     if(r == exp) {
         if(conn->state == MPDC_COMMAND_IDLE) {
@@ -832,13 +849,16 @@ unsigned int mpdc__putsize(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt
 
 STATIC
 int mpdc__put(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt, ...) {
-    const char *f = fmt;
-    va_list va;
-    va_start(va,fmt);
     char *s;
     unsigned int u;
     int d;
-    jpr_uint8 cur_op = 255;
+    const char *f;
+    va_list va;
+    jpr_uint8 cur_op;
+
+    f = fmt;
+    va_start(va,fmt);
+    cur_op = 255;
 
 #if __STDC_VERSION__ > 199901L
     unsigned int putsize = mpdc__putsize(conn,cmd,fmt,va);

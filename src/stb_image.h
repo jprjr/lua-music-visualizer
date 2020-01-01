@@ -6583,10 +6583,10 @@ static void *stbi__load_gif_main(stbi__context *s, int **delays, int *x, int *y,
 
 static void *stbi__gif_load(stbi__context *s, int *x, int *y, int *comp, int req_comp, stbi__result_info *ri)
 {
-    (void)ri;
    stbi_uc *u = 0;
    stbi__gif g;
    STBI_ZERO_MEMORY(&g, sizeof(g));
+   (void)ri;
 
    u = stbi__gif_load_next(s, &g, comp, req_comp, 0);
    if (u == (stbi_uc *) s) u = 0;  // end of animated gif marker

@@ -40,7 +40,7 @@ CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res
 
 BIN2CSRC = src/bin2c.c
 
-OPT_CFLAGS = -O2 -g -DNDEBUG -std=c89 -pedantic -Werror
+OPT_CFLAGS = -O2 -g -DNDEBUG -std=c89 -pedantic -Werror -Wno-comment -Wno-unused-function -Wno-long-long
 CFLAGS = -Wall -Wextra
 LDFLAGS =
 STRIP_FLAG =

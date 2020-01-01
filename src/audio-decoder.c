@@ -7,6 +7,7 @@
 #include "unpack.h"
 #include "util.h"
 #include "jpr_proc.h"
+#include "int.h"
 
 #define AUDIO_MAX(a,b) ( a > b ? a : b)
 #define AUDIO_MIN(a,b) ( a < b ? a : b)
@@ -34,16 +35,19 @@
 #include "jpr_pcm.h"
 
 static size_t read_proc(void *userdata, void *buf, size_t bytes) {
+    jpr_uint64 r;
     audio_decoder *a = (audio_decoder *)userdata;
-    return (size_t)file_read(a->file,buf,bytes);
+    r = file_read(a->file,buf,(jpr_uint64)bytes);
+    if(r > 0xFFFFFFFF) r = 0xFFFFFFFF;
+    return (size_t)r;
 }
 
-static uint32_t seek_proc(void *userdata, int offset, unsigned int origin) {
+static jpr_uint32 seek_proc(void *userdata, int offset, unsigned int origin) {
     audio_decoder *a = (audio_decoder *)userdata;
-    int64_t r = 0;
-    r = file_seek(a->file,offset,origin);
-    if(r <= 0) return 0;
-    return (uint32_t)r;
+    jpr_uint64 r = 0;
+    r = file_seek(a->file,(jpr_int64)offset,origin);
+    if(r > 0xFFFFFFFF) r = 0xFFFFFFF;
+    return (jpr_uint32)r;
 }
 
 #if DECODE_FLAC
@@ -76,12 +80,12 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
 #if DECODE_WAV
 static void wav_id3(audio_decoder *a, const char *filename) {
     jpr_file *f = NULL;
-    uint32_t bytes = 0;
-    uint32_t cbytes = 0;
-    uint32_t tbytes = 0;
-    uint8_t buffer[12];
-    uint8_t *buffer_tmp = NULL;
-    uint8_t *b = NULL;
+    jpr_uint32 bytes = 0;
+    jpr_uint32 cbytes = 0;
+    jpr_uint32 tbytes = 0;
+    jpr_uint8 buffer[12];
+    jpr_uint8 *buffer_tmp = NULL;
+    jpr_uint8 *b = NULL;
     if(a->onmeta == NULL) return;
 
     f = file_open(filename,"rb");
@@ -263,7 +267,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
     return 0;
 }
 
-unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, int16_t *buf) {
+unsigned int audio_decoder_decode(audio_decoder *a, unsigned int framecount, jpr_int16 *buf) {
     switch(a->type) {
 #if DECODE_FLAC
         case 0: return (unsigned int)drflac_read_pcm_frames_s16(a->ctx.pFlac,framecount,buf);

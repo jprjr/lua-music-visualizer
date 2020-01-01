@@ -678,18 +678,18 @@ thread_ptr_t thread_create( int (*thread_proc)( void* ), void* user_data, char c
     {
     #if defined( _WIN32 )
 
-        (void)name;
         DWORD thread_id;
         HANDLE handle = CreateThread( NULL, stack_size > 0 ? (size_t)stack_size : 0U, 
             (LPTHREAD_START_ROUTINE)(uintptr_t) thread_proc, user_data, 0, &thread_id );
         if( !handle ) return NULL;
+        (void)name;
 
         return (thread_ptr_t) handle;
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
-        (void)stack_size;
 
         pthread_t thread;
+        (void)stack_size;
         if( 0 != pthread_create( &thread, NULL, ( void* (*)( void * ) ) thread_proc, user_data ) )
             return NULL;
 
@@ -753,11 +753,11 @@ void thread_set_high_priority( thread_ptr_t thread )
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        (void)thread;
         struct sched_param sp;
         memset( &sp, 0, sizeof( sp ) );
         sp.sched_priority = sched_get_priority_min( SCHED_RR );
         pthread_setschedparam( pthread_self(), SCHED_RR, &sp);
+        (void)thread;
 
     #else 
         #error Unknown platform.
@@ -963,6 +963,7 @@ int thread_signal_wait( thread_signal_t* signal, int timeout_ms )
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
         struct timespec ts;
+        int failed = 0;
         if( timeout_ms >= 0 )
             {
             struct timeval tv;
@@ -973,7 +974,6 @@ int thread_signal_wait( thread_signal_t* signal, int timeout_ms )
             ts.tv_nsec %= ( 1000 * 1000 * 1000 );
             }
 
-        int failed = 0;
         pthread_mutex_lock( &internal->mutex );
         while( !internal->value && !failed )
             {
@@ -1249,13 +1249,14 @@ void thread_timer_wait( thread_timer_t* timer, THREAD_U64 nanoseconds )
 
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        (void)timer;
         struct timespec rem;
         struct timespec req;
         req.tv_sec = nanoseconds / 1000000000ULL;
         req.tv_nsec = nanoseconds - req.tv_sec * 1000000000ULL;
         while( nanosleep( &req, &rem ) )
             req = rem;
+
+        (void)timer;
 
     #else
         #error Unknown platform.
@@ -1359,6 +1360,7 @@ void thread_queue_term( thread_queue_t* queue )
 
 void thread_queue_produce( thread_queue_t* queue, void* value )
     {
+    int tail;
     #ifndef NDEBUG
         if( thread_atomic_int_compare_and_swap( &queue->id_produce_is_set, 0, 1 ) == 0 )
             queue->id_produce = thread_current_thread_id();
@@ -1366,7 +1368,7 @@ void thread_queue_produce( thread_queue_t* queue, void* value )
     #endif
     if( thread_atomic_int_load( &queue->count ) == queue->size )
         thread_signal_wait( &queue->space_open, THREAD_SIGNAL_WAIT_INFINITE );
-    int tail = thread_atomic_int_inc( &queue->tail );
+    tail = thread_atomic_int_inc( &queue->tail );
     queue->values[ tail % queue->size ] = value;
     if( thread_atomic_int_inc( &queue->count ) == 0 )
         thread_signal_raise( &queue->data_ready );
@@ -1375,6 +1377,8 @@ void thread_queue_produce( thread_queue_t* queue, void* value )
 
 void* thread_queue_consume( thread_queue_t* queue )
     {
+    int head;
+    void *retval;
     #ifndef NDEBUG
         if( thread_atomic_int_compare_and_swap( &queue->id_consume_is_set, 0, 1 ) == 0 )
             queue->id_consume = thread_current_thread_id();
@@ -1382,8 +1386,8 @@ void* thread_queue_consume( thread_queue_t* queue )
     #endif
     if( thread_atomic_int_load( &queue->count ) == 0 )
         thread_signal_wait( &queue->data_ready, THREAD_SIGNAL_WAIT_INFINITE );
-    int head = thread_atomic_int_inc( &queue->head );
-    void* retval = queue->values[ head % queue->size ];
+    head = thread_atomic_int_inc( &queue->head );
+    retval = queue->values[ head % queue->size ];
     if( thread_atomic_int_dec( &queue->count ) == queue->size )
         thread_signal_raise( &queue->space_open );
     return retval;

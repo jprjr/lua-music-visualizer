@@ -247,7 +247,9 @@ int mpdc__put(mpdc_connection *connection, jpr_uint8 cmd, const char *fmt, ...);
 #define mpdc_readmessages(conn) mpdc__zero_arg((conn), MPDC_COMMAND_READMESSAGES)
 
 /* used to provide "overloading" */
+#if __STDC_VERSION__ >= 199901L
 #define GET_MACRO(_1,_2,_3,_4,NAME,...) NAME
+#endif
 
 #define mpdc_albumart(conn,path,offset) mpdc__put((conn), MPDC_COMMAND_ALBUMART,"su",path,offset)
 
@@ -277,11 +279,15 @@ int mpdc__put(mpdc_connection *connection, jpr_uint8 cmd, const char *fmt, ...);
 
 #define mpdc_play1(conn) mpdc__zero_arg((conn), MPDC_COMMAND_PLAY)
 #define mpdc_play2(conn,songpos) mpdc__put((conn),MPDC_COMMAND_PLAY,"u",songpos)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_play(...) GET_MACRO(__VA_ARGS__,void,void,mpdc_play2,mpdc_play1)(__VA_ARGS__)
+#endif
 
 #define mpdc_playid1(conn) mpdc__zero_arg((conn), MPDC_COMMAND_PLAYID)
 #define mpdc_playid2(conn,songpos) mpdc__put((conn),MPDC_COMMAND_PLAYID,"u",songpos)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_playid(...) GET_MACRO(__VA_ARGS__,void,void,mpdc_playid2,mpdc_playid1)(__VA_ARGS__)
+#endif
 
 #define mpdc_seek(conn,songpos,time) mpdc__put((conn),MPDC_COMMAND_SEEK,"uu",songpos,time)
 
@@ -293,17 +299,23 @@ int mpdc__put(mpdc_connection *connection, jpr_uint8 cmd, const char *fmt, ...);
 
 #define mpdc_addid2(conn,uri) mpdc__put((conn),MPDC_COMMAND_ADDID,"s",uri)
 #define mpdc_addid3(conn,uri,pos) mpdc__put((conn),MPDC_COMMAND_ADDID,"su",uri,pos)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_addid(...) GET_MACRO(__VA_ARGS__,void,mpdc_addid3,mpdc_addid2,void)(__VA_ARGS__)
+#endif
 
 #define mpdc_delete2(conn,pos) mpdc__put((conn),MPDC_COMMAND_DELETE,"u",pos)
 #define mpdc_delete3(conn,start,end) mpdc__put((conn),MPDC_COMMAND_DELETE,"u:U",start,end)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_delete(...) GET_MACRO(__VA_ARGS__,void,mpdc_delete3,mpdc_delete2,void)(__VA_ARGS__)
+#endif
 
 #define mpdc_deleteid(conn,id) mpdc__put((conn),MPDC_COMMAND_DELETEID,"u",id)
 
 #define mpdc_move4(conn,start,end,to) mpdc__put((conn),MPDC_COMMAND_MOVE,"u:Uu",start,end,to)
 #define mpdc_move3(conn,from,to) mpdc__put((conn),MPDC_COMMAND_MOVE,"uu", from, to)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_move(...) GET_MACRO(__VA_ARGS__,mpdc_move4,mpdc_move3,void,void)(__VA_ARGS__)
+#endif
 
 #define mpdc_moveid(conn,from,to) mpdc__put((conn),MPDC_COMMAND_MOVEID,"uu",from,to)
 
@@ -311,22 +323,30 @@ int mpdc__put(mpdc_connection *connection, jpr_uint8 cmd, const char *fmt, ...);
 
 #define mpdc_playlistid1(conn) mpdc__zero_arg((conn),MPDC_COMMAND_PLAYLISTID)
 #define mpdc_playlistid2(conn,id) mpdc__put((conn),MPDC_COMMAND_PLAYLISTID,"u",id)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_playlistid(...) GET_MACRO(__VA_ARGS__,void,void,mpdc_playlistid2,mpdc_playlistid1)(__VA_ARGS__)
+#endif
 
 #define mpdc_playlistinfo1(conn) mpdc__zero_arg((conn),MPDC_COMMAND_PLAYLISTINFO)
 #define mpdc_playlistinfo2(conn,pos) mpdc__put((conn),MPDC_COMMAND_PLAYLISTINFO,"u",pos)
 #define mpdc_playlistinfo3(conn,start,end) mpdc__put((conn),MPDC_COMMAND_PLAYLISTINFO,"u:U",start,end)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_playlistinfo(...) GET_MACRO(__VA_ARGS__,void,mpdc_playlistinfo3,mpdc_playlistinfo2,mpdc_playlistinfo1)(__VA_ARGS__)
+#endif
 
 #define mpdc_playlistsearch(conn,tag,needle) mpdc__put((conn),MPDC_COMMAND_PLAYLISTSEARCH,"ss",tag,needle)
 
 #define mpdc_plchanges2(conn,version) mpdc__put((conn),MPDC_COMMAND_PLCHANGES,"u",version)
 #define mpdc_plchanges4(conn,version,start,end) mpdc__put((conn),MPDC_COMMAND_PLCHANGES,"uu:U",version,start,end)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_plchanges(...) GET_MACRO(__VA_ARGS__,mpdc_plchanges4,void,void,mpdc_plchanges1)(__VA_ARGS__)
+#endif
 
 #define mpdc_plchangesposid2(conn,version) mpdc__put((conn),MPDC_COMMAND_PLCHANGESPOSID,"u",version)
 #define mpdc_plchangesposid4(conn,version,start,end) mpdc__put((conn),MPDC_COMMAND_PLCHANGESPOSID,"uu:U",version,start,end)
+#if __STDC_VERSION__ >= 199901L
 #define mpdc_plchangesposid(...) GET_MACRO(__VA_ARGS__,mpdc_plchangesposid4,void,void,mpdc_plchangesposid1)(__VA_ARGS__)
+#endif
 
 #define mpdc_prio(conn,prio,start,end) mpdc__put((conn),MPDC_COMMAND_PRIO,"uu:U",prio,start,end)
 #define mpdc_priod(conn,prio,id) mpdc__put((conn),MPDC_COMMAND_PRIOD,"uu",prio,id)
@@ -339,6 +359,5 @@ int mpdc__put(mpdc_connection *connection, jpr_uint8 cmd, const char *fmt, ...);
 
 #define mpdc_consume(...) GET_MACRO(__VA_ARGS__,void,void,mpdc_consume2,mpdc_consume1)(__VA_ARGS__)
 #endif
-
 
 #endif
