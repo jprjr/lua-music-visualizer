@@ -15,7 +15,7 @@
 #define MY_PI 3.14159265358979323846
 #define rad(degrees) ( ((double)degrees) * MY_PI / 180.0)
 
-#ifdef _MSC_VER && MSC_VER <= 1400
+#if defined(_MSC_VER) && MSC_VER <= 1400
 static double round32(double r) {
 	double t;
 	__asm {

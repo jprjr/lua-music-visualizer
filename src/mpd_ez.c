@@ -412,10 +412,38 @@ void mpd_ez_start(video_generator *v) {
 int mpd_ez_loop(video_generator *v) {
     int r = 0;
     conn_info *info = (conn_info *)v->mpd->ctx;
-	struct timeval tv;
 	int events;
 
-#ifndef JPR_WINDOWS
+#ifdef JPR_WINDOWS
+
+    struct timeval tv;
+
+    FD_ZERO(&info->readfds);
+    FD_ZERO(&info->writefds);
+
+    if(info->mode) {
+        FD_SET(info->fd,&info->writefds);
+    }
+    else {
+        FD_SET(info->fd,&info->readfds);
+    }
+
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+
+    do {
+        events = select(1,&info->readfds,&info->writefds,NULL,&tv);
+    } while ( (events == -1) && (errno == EINTR));
+    if(events == 0) return 0;
+    if(FD_ISSET(info->fd,&info->readfds)) {
+        r = mpdc_receive(v->mpd);
+    }
+    else if(FD_ISSET(info->fd,&info->writefds)) {
+        r = mpdc_send(v->mpd);
+    }
+
+#else
+
     do {
         events = poll(&(info->pfd),1,0);
     } while( (events == -1) && (errno == EINTR));
@@ -434,31 +462,6 @@ int mpd_ez_loop(video_generator *v) {
         LOG_ERROR(strerror(errno));
         mpdc_disconnect(v->mpd);
         return -1;
-    }
-#else
-    FD_ZERO(&info->readfds);
-    FD_ZERO(&info->writefds);
-
-    if(info->mode) {
-        FD_SET(info->fd,&info->writefds);
-    }
-    else {
-        FD_SET(info->fd,&info->readfds);
-    }
-
-
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-
-    do {
-        events = select(1,&info->readfds,&info->writefds,NULL,&tv);
-    } while ( (events == -1) && (errno == EINTR));
-    if(events == 0) return 0;
-    if(FD_ISSET(info->fd,&info->readfds)) {
-        r = mpdc_receive(v->mpd);
-    }
-    else if(FD_ISSET(info->fd,&info->writefds)) {
-        r = mpdc_send(v->mpd);
     }
 #endif
     return r;

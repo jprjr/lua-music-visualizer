@@ -228,14 +228,10 @@ static void audio_processor_fft(audio_processor *p) {
     for(i=0;i<p->spectrum_bars;i++) {
         p->spectrum[i].amp = find_amplitude_max((double)p->buffer_len,p->obuffer,p->spectrum[i].first_bin,p->spectrum[i].last_bin);
 
-#if __STDC_VERSION__ >= 199901L
-        if(!isfinite(p->spectrum[i].amp)) {
-#else
 #ifdef _MSC_VER
 		if(!_finite(p->spectrum[i].amp)) {
 #else
-		if(!finite(p->spectrum[i].amp)) {
-#endif
+        if(!isfinite(p->spectrum[i].amp)) {
 #endif
             p->spectrum[i].amp = -999.0f;
         }

@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <errno.h>
 #define WRITE_STDERR(s) \
-    while( (write(2,s,str_len(s)) == -1) && (errno == EINTR) )
+    while( (write(2,s,str_len(s)) == -1) && (errno == EINTR) ) {}
 #define JPR_EXIT(e) exit(e)
 #endif
 
