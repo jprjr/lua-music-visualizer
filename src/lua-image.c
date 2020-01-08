@@ -4,27 +4,20 @@
 #include "image.lua.lh"
 #include "thread.h"
 #include "str.h"
-#include "mem.h"
 #include "util.h"
 #include "int.h"
+#include "mat.h"
 #include <lauxlib.h>
 
 #include <assert.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define MY_PI 3.14159265358979323846
 #define rad(degrees) ( ((double)degrees) * MY_PI / 180.0)
 
-#if defined(_MSC_VER) && MSC_VER <= 1400
-static double round32(double r) {
-	double t;
-	__asm {
-        fld r
-		fistp t
-	}
-	return (t);
-}
-#define round round32
+#if defined(_MSC_VER) && _MSC_VER <= 1400
+#define round(x) d_round(x)
 #endif
 
 #if !defined(luaL_newlibtable) \
@@ -195,7 +188,7 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 
     lua_pushinteger(L,frames);
     lua_setfield(L,table_ind,"framecount");
 
-    mem_free(image);
+    free(image);
     lua_pop(L,1);
 
 #ifndef NDEBUG
@@ -207,14 +200,14 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 
 
 void
 queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, unsigned int height, unsigned int channels) {
-    image_q *q = (image_q *)mem_alloc(sizeof(image_q));
+    image_q *q = (image_q *)malloc(sizeof(image_q));
 
     if(q == NULL) {
         LOG_ERROR("error: out of memory");
         JPR_EXIT(1);
     }
 
-    q->filename = mem_alloc(str_len(filename) + 1);
+    q->filename = malloc(str_len(filename) + 1);
     if(q->filename == NULL) {
         LOG_ERROR("error: out of memory");
         JPR_EXIT(1);
@@ -559,7 +552,7 @@ lua_image_load(lua_State *L) {
         lua_pushinteger(L,frames);
         lua_setfield(L,1,"framecount");
 
-        mem_free(t);
+        free(t);
 
         lua_pushboolean(L,1);
         return 1;

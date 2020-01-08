@@ -1,9 +1,9 @@
 #include "audio-processor.h"
 #include "audio-decoder.h"
-#include "mem.h"
 #include "str.h"
 #include <math.h>
 #include <float.h>
+#include <stdlib.h>
 
 #ifndef INFINITY
 #ifdef HUGE_VALF

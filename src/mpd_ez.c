@@ -1,7 +1,6 @@
 #include "mpd_ez.h"
 #include "scan.h"
 #include "str.h"
-#include "mem.h"
 #include "util.h"
 #include "int.h"
 #include "norm.h"
@@ -363,10 +362,10 @@ int mpd_ez_setup(video_generator *v) {
     mpdc_port = getenv("MPD_PORT");
     if(mpdc_host == NULL) return 0;
 
-    v->mpd = (mpdc_connection *)mem_alloc(sizeof(mpdc_connection));
+    v->mpd = (mpdc_connection *)malloc(sizeof(mpdc_connection));
     if(v->mpd == NULL) return 1;
 
-    info = (conn_info *)mem_alloc(sizeof(conn_info));
+    info = (conn_info *)malloc(sizeof(conn_info));
     if(info == NULL) return 1;
 
 #ifdef _WIN32

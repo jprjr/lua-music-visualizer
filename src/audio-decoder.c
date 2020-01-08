@@ -3,11 +3,12 @@
 #include "utf.h"
 #include "str.h"
 #include "file.h"
-#include "mem.h"
 #include "unpack.h"
 #include "util.h"
 #include "jpr_proc.h"
 #include "int.h"
+
+#include <stdlib.h>
 
 #define AUDIO_MAX(a,b) ( a > b ? a : b)
 #define AUDIO_MIN(a,b) ( a < b ? a : b)
@@ -115,7 +116,7 @@ static void wav_id3(audio_decoder *a, const char *filename) {
 
             if(str_incmp((char *)buffer,"INFO",4) == 0) {
                 bytes -= cbytes; /* going to finish out this chunk */
-                buffer_tmp = mem_alloc(cbytes);
+                buffer_tmp = malloc(cbytes);
                 if(buffer_tmp == NULL) goto closereturn;
                 if(file_read(f,buffer_tmp,cbytes) != cbytes) goto closereturn;
                 b = buffer_tmp;
@@ -148,7 +149,7 @@ static void wav_id3(audio_decoder *a, const char *filename) {
     }
 
 closereturn:
-    if(buffer_tmp != NULL) mem_free(buffer_tmp);
+    if(buffer_tmp != NULL) free(buffer_tmp);
     if(f != NULL) file_close(f);
     return;
 }
@@ -207,14 +208,14 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
 
-        p = mem_alloc(sizeof(drmp3));
+        p = malloc(sizeof(drmp3));
         if(p == NULL) {
             LOG_DEBUG("out of memory");
             return 1;
         }
         a->ctx.pMp3 = (drmp3 *)p;
         if(!drmp3_init(a->ctx.pMp3,read_proc,(drmp3_seek_proc)seek_proc,a,NULL)) {
-            mem_free(p);
+            free(p);
             a->ctx.pMp3 = NULL;
             file_close(a->file);
             a->file = NULL;
@@ -295,7 +296,7 @@ void audio_decoder_close(audio_decoder *a) {
 #if DECODE_MP3
         case 1: {
             drmp3_uninit(a->ctx.pMp3);
-            mem_free(a->ctx.pMp3);
+            free(a->ctx.pMp3);
             a->ctx.pMp3 = NULL;
             break;
         }

@@ -16,7 +16,8 @@
 #else
 #include "int.h"
 #endif
-#include "norm.h"
+
+#include "attr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,13 +32,13 @@ char *str_chr(const char *s, char c);
 char *str_rchr(const char *s, char c);
 void *mem_cpy(void *dest, const void *src, size_t n);
 void *mem_move(void *dest, const void *src, size_t n);
-void *mem_chr(const void *src, jpr_uint8 c, size_t n);
-int mem_cmp(const void *p1, const void *p2, size_t n);
-void *mem_set(void *s, jpr_uint8 c, size_t n);
+void *mem_chr(const void *src, int c, size_t n);
+int mem_cmp(const void *p1, const void *p2, size_t n) attr_pure;
+void *mem_set(void *s, int c, size_t n);
 char *str_dup(const char *s);
 int str_cmp(const char *s1, const char *s2);
 char *str_str(const char *h, const char *n);
-size_t str_len(const char *s);
+size_t str_len(const char *s) attr_pure;
 size_t str_nlen(const char *s, size_t m);
 size_t wstr_len(const wchar_t *s);
 int str_ncmp(const char *s1, const char *s2, size_t m);

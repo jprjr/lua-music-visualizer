@@ -237,15 +237,15 @@ static int videoplayerBtnCb(Ihandle *self) {
 
 static void tearDownGenerator(void) {
     if(decoder != NULL) {
-        mem_free(decoder);
+        free(decoder);
         decoder = NULL;
     }
     if(processor != NULL) {
-        mem_free(processor);
+        free(processor);
         processor = NULL;
     }
     if(generator != NULL) {
-        mem_free(generator);
+        free(generator);
         generator = NULL;
     }
 }
@@ -287,11 +287,11 @@ static int setupVideoGenerator(void) {
         if(path_setcwd(workdir) != 0) goto videogenerator_fail;
     }
 
-    decoder = (audio_decoder *)mem_alloc(sizeof(audio_decoder));
+    decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(decoder == NULL) goto videogenerator_fail;
-    processor = (audio_processor *)mem_alloc(sizeof(audio_processor));
+    processor = (audio_processor *)malloc(sizeof(audio_processor));
     if(processor == NULL) goto videogenerator_fail;
-    generator = (video_generator *)mem_alloc(sizeof(video_generator));
+    generator = (video_generator *)malloc(sizeof(video_generator));
     if(generator == NULL) goto videogenerator_fail;
 
     generator->width = width;
@@ -368,7 +368,7 @@ static int saveButtonCb(Ihandle *self) {
       }
     } while(*f);
 
-    args = (char **)mem_alloc(sizeof(char *)*total_args);
+    args = (char **)malloc(sizeof(char *)*total_args);
     if(args == NULL) goto cleanshitup_save;
     a = args;
     f = ffmpegargs;
@@ -398,7 +398,7 @@ static int saveButtonCb(Ihandle *self) {
     startVideoGenerator(songfile,scriptfile,(const char *const *)args);
 
 cleanshitup_save:
-    if(args != NULL) mem_free(args);
+    if(args != NULL) free(args);
 
     return IUP_DEFAULT;
 }
@@ -411,7 +411,7 @@ static int startButtonCb(Ihandle *self) {
     char **a;
     (void)self;
 
-    args = (char **)mem_alloc(sizeof(char *) * 10);
+    args = (char **)malloc(sizeof(char *) * 10);
     if(args == NULL) goto cleanshitup_start;
     a = args;
     *a++ = videoplayerfile;
@@ -430,7 +430,7 @@ static int startButtonCb(Ihandle *self) {
     startVideoGenerator(songfile,scriptfile,(const char *const *)args);
 
 cleanshitup_start:
-    if(args != NULL) mem_free(args);
+    if(args != NULL) free(args);
 
     return IUP_DEFAULT;
 }

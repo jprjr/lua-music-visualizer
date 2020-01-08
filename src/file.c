@@ -2,10 +2,10 @@
 
 #include "norm.h"
 #include "file.h"
-#include "mem.h"
 #include "str.h"
 #include "util.h"
 #include <limits.h>
+#include <stdlib.h>
 
 #ifdef JPR_WINDOWS
 #include "utf.h"
@@ -96,7 +96,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
     access = 0;
     shared = 0;
 
-    f = (jpr_file *)mem_alloc(sizeof(jpr_file));
+    f = (jpr_file *)malloc(sizeof(jpr_file));
     if(f == NULL) {
         goto file_open_cleanup;
     }
@@ -118,7 +118,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
     if(wide_filename_len == 0) {
         goto file_open_cleanup;
     }
-    wide_filename = (wchar_t *)mem_alloc(sizeof(wchar_t) * (wide_filename_len + 1));
+    wide_filename = (wchar_t *)malloc(sizeof(wchar_t) * (wide_filename_len + 1));
     if(wide_filename == NULL) {
         goto file_open_cleanup;
     }
@@ -147,7 +147,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
             break;
         }
         default: {
-            mem_free(f);
+            free(f);
             f = NULL;
             goto file_open_cleanup;
         }
@@ -158,7 +158,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
 
     f->fd = CreateFileW(wide_filename,access,shared,NULL,disposition,0,0);
     if(f->fd == INVALID_HANDLE_VALUE) {
-        mem_free(f);
+        free(f);
         f = NULL;
     }
     else {
@@ -168,7 +168,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
     }
 
 file_open_cleanup:
-    if(wide_filename != NULL) mem_free(wide_filename);
+    if(wide_filename != NULL) free(wide_filename);
 
 #else
 
@@ -182,7 +182,7 @@ file_open_cleanup:
     if(filename == NULL) return f;
     if(mode == NULL) return f;
 
-    f = (jpr_file *)mem_alloc(sizeof(jpr_file));
+    f = (jpr_file *)malloc(sizeof(jpr_file));
     if(f == NULL) return f;
 
     f->eof = 0;
@@ -211,7 +211,7 @@ file_open_cleanup:
             break;
         }
         default: {
-            mem_free(f);
+            free(f);
             return NULL;
         }
     }
@@ -236,7 +236,7 @@ file_open_cleanup:
     }
     f->fd = jpr_open(filename,flags,0666);
     if(f->fd == -1) {
-        mem_free(f);
+        free(f);
         f = NULL;
     }
     else {
@@ -252,7 +252,7 @@ void file_free(jpr_file *f) {
     if(!f->closed) {
         file_close(f);
     }
-    mem_free(f);
+    free(f);
     return;
 }
 

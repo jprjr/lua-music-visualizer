@@ -29,6 +29,7 @@ OBJS = \
   src/pack.o \
   src/char.o \
   src/scan.o \
+  src/mat.o \
   src/version.o
 
 LUALHS = \
@@ -40,10 +41,15 @@ CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res
 
 BIN2CSRC = src/bin2c.c
 
-OPT_CFLAGS = -O2 -g -DNDEBUG -std=c89 -pedantic -Werror -Wno-comment -Wno-unused-function -Wno-long-long
+OPT_CFLAGS = -O2 -g -DNDEBUG -Wno-comment -Wno-unused-function -Wno-long-long
 CFLAGS = -Wall -Wextra
 LDFLAGS =
 STRIP_FLAG =
+NASM_PLAT = macho64
+NASM_FLAGS =
+
+src/mat.o: src/mat.s
+	nasm -I src -f $(NASM_PLAT) $(NASM_FLAGS) -o $@ $^
 
 %.o: %.c $(LUALHS)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) -o $@ -c $<

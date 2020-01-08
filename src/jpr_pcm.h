@@ -2,6 +2,7 @@
 #define JPR_PCM_H
 
 #include "int.h"
+#include <stdlib.h>
 
 typedef size_t (* jprpcm_read_proc)(void* userdata, void* buf, size_t len);
 typedef jpr_uint32 (* jprpcm_seek_proc)(void* userdata, int offset, unsigned int origin);
@@ -37,7 +38,7 @@ jprpcm *jprpcm_open(jprpcm_read_proc readProc, jprpcm_seek_proc seekProc, void *
     jprpcm *pcm;
     jpr_uint64 bytes;
 
-    pcm = (jprpcm *)mem_alloc(sizeof(jprpcm));
+    pcm = (jprpcm *)malloc(sizeof(jprpcm));
     if(pcm == NULL) {
         return NULL;
     }
@@ -66,7 +67,7 @@ jpr_uint64 jprpcm_read_pcm_frames_s16(jprpcm *pcm, jpr_uint64 framecount, jpr_in
 }
 
 void jprpcm_close(jprpcm *pcm) {
-    mem_free(pcm);
+    free(pcm);
 }
 
 #endif

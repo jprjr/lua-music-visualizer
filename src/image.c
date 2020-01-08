@@ -1,25 +1,15 @@
 #include "image.h"
 #include "file.h"
-#include "mem.h"
 #include "str.h"
 #include "int.h"
+
+#include <stdlib.h>
 
 #define STBI_NO_STDIO
 #define STBI_NO_HDR
 #define STBI_ASSERT(x)
-#define STBI_COPY_MEMORY(dst,src,len) mem_cpy((dst),(src),len)
-#define STBI_SET_MEMORY(dst,v,len) mem_set((dst),v,len)
-#define STBI_MALLOC mem_alloc
-#define STBI_REALLOC mem_realloc
-#define STBI_FREE mem_free
-#define STBI_STR_CMP(s1,s2) str_cmp(s1,s2)
-#define STBI_STR_NCMP(s1,s2,n) str_ncmp(s1,s2,n)
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#define STBIR_MALLOC(size,c) ((void)(c), mem_alloc(size))
-#define STBIR_FREE(ptr,c)    ((void)(c), mem_free(ptr))
-#define STBIR_COPY_MEMORY(dst,src,len) mem_cpy((dst),(src),len)
-#define STBIR_SET_MEMORY(dst,v,len) mem_set((dst),v,len)
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 
 #include "stb_image_resize.h"
@@ -66,7 +56,7 @@ flip_and_bgr(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned
     unsigned int byte;
     unsigned int ibyte;
     unsigned int bytes_per_row = width * channels;
-    jpr_uint8 *temp_row = (jpr_uint8 *)mem_alloc(bytes_per_row);
+    jpr_uint8 *temp_row = (jpr_uint8 *)malloc(bytes_per_row);
     jpr_uint8 temp;
 
     for(y=0; y<maxheight;y++) {
@@ -96,7 +86,7 @@ flip_and_bgr(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned
         }
     }
 
-    mem_free(temp_row);
+    free(temp_row);
 }
 
 void
@@ -237,11 +227,11 @@ image_load(
     of = *frames;
 
     if(of > 1) {
-        image = (jpr_uint8 *)mem_alloc( ((ow * oh * oc) * of) + (2 * of));
+        image = (jpr_uint8 *)malloc( ((ow * oh * oc) * of) + (2 * of));
 
     }
     else {
-        image = (jpr_uint8 *)mem_alloc(ow * oh * oc);
+        image = (jpr_uint8 *)malloc(ow * oh * oc);
     }
     b = t;
     d = image;
@@ -265,7 +255,7 @@ image_load(
     }
 
     stbi_image_free(t);
-    if(delays != NULL) mem_free(delays);
+    if(delays != NULL) free(delays);
 
     return image;
 }

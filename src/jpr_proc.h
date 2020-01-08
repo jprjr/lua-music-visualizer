@@ -15,18 +15,6 @@
   #define JPR_PROC_IMPLEMENTATION
   #include "jpr_proc.h"
 
-  By default, this will use standard library/built-ins like strlen
-  and strcat.
-  You can add
-  #define JPRP_STRLEN(x) my_strlen(x)
-  #define JPRP_STRCAT(dest,src) my_strcat(dest,src)
-  #define JPRP_STRCPY(dest,src) my_strcpy(dest,src)
-  #define JPRP_MEMSET(dest,val,len) my_memset(dest,val,len)
-  #define JPRP_MALLOC(size) my_malloc(size)
-  #define JPRP_FREE(ptr,userdata) my_free(ptr)
-  if you want to use some other implementation. On Windows, you can
-  build binaries that only link against kernel32 if you do this.
-
   There's two basic types you use: jpr_proc_info and jpr_proc_pipe.
 
   You allocate a proc_info struct and call jpr_proc_info_init on it.
@@ -43,33 +31,7 @@
 
 #include <stddef.h>
 #include <limits.h>
-
-#if !defined(JPRP_MALLOC) || !defined(JPRP_FREE)
-#include <stdlib.h>
-#ifndef JPRP_MALLOC
-#define JPRP_MALLOC(size) malloc(size)
-#endif
-#ifndef JPRP_FREE
-#define JPRP_FREE(ptr) free(ptr)
-#endif
-#endif
-
-#if !defined(JPRP_STRLEN) || !defined(JPRP_STRCAT) || !defined(JPRP_STRCPY) || !defined(JPRP_MEMSET)
 #include <string.h>
-#ifndef JPRP_STRLEN
-#define JPRP_STRLEN(x) strlen(x)
-#endif
-#ifndef JPRP_STRCAT
-#define JPRP_STRCAT(d,s) strcat(d,s)
-#endif
-#ifndef JPRP_STRCPY
-#define JPRP_STRCPY(d,s) strcpy(d,s)
-#endif
-#ifndef JPRP_MEMSET
-#define JPRP_MEMSET(dest,val,len) memset(dest,val,len)
-#endif
-#endif
-
 
 typedef struct jpr_proc_info_s jpr_proc_info;
 typedef struct jpr_proc_pipe_s jpr_proc_pipe;
@@ -186,13 +148,13 @@ static unsigned int jpr_strcat_escape(char *d, const char *s) {
     char echar = '\0';
     int ecount = 0;
 
-    if(d != NULL) d += JPRP_STRLEN(d);
+    if(d != NULL) d += strlen(d);
     while(*s) {
         ecount = 0;
         switch(*s) {
             case '"':  ecount=1; echar='\\'; break;
             case '\\': {
-                if(JPRP_STRLEN(s) == 1) {
+                if(strlen(s) == 1) {
                     ecount=1;echar='\\';
                 }
                 else {
@@ -319,9 +281,7 @@ int jpr_proc_pipe_close(jpr_proc_pipe *pipe) {
     return !r;
 #else
     int r;
-    do {
-    r = close(pipe->pipe);
-    } while( (r == -1) && (errno == EINTR));
+    r = jpr_close(pipe->pipe);
     if(r == 0) pipe->pipe = -1;
     return r;
 #endif
@@ -351,23 +311,23 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
 
     if(info->pid != -1) return r;
 
-    sa = (SECURITY_ATTRIBUTES *)JPRP_MALLOC(sizeof(SECURITY_ATTRIBUTES));
+    sa = (SECURITY_ATTRIBUTES *)malloc(sizeof(SECURITY_ATTRIBUTES));
     if(sa == NULL) {
         goto error;
     }
 
-    pi = (PROCESS_INFORMATION *)JPRP_MALLOC(sizeof(PROCESS_INFORMATION));
+    pi = (PROCESS_INFORMATION *)malloc(sizeof(PROCESS_INFORMATION));
     if(pi == NULL) {
         goto error;
     }
 
-    si = (STARTUPINFOW *)JPRP_MALLOC(sizeof(STARTUPINFOW));
+    si = (STARTUPINFOW *)malloc(sizeof(STARTUPINFOW));
     if(si == NULL) {
         goto error;
     }
-    JPRP_MEMSET(sa,0,sizeof(SECURITY_ATTRIBUTES));
-    JPRP_MEMSET(pi,0,sizeof(PROCESS_INFORMATION));
-    JPRP_MEMSET(si,0,sizeof(STARTUPINFOW));
+    memset(sa,0,sizeof(SECURITY_ATTRIBUTES));
+    memset(pi,0,sizeof(PROCESS_INFORMATION));
+    memset(si,0,sizeof(STARTUPINFOW));
 
     while(*p != NULL) {
         args_len += jpr_strcat_escape(NULL,*p) + 3; /* +1 space, +2 quote */
@@ -375,34 +335,33 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
     }
     args_len += 25; /* null terminator, plus the api guide suggests having extra memory or something */
 
-    cmdLine = (char *)JPRP_MALLOC(args_len);
+    cmdLine = (char *)malloc(args_len);
     if(cmdLine == NULL) {
         goto error;
     }
-    cmdLine[0] = 0;
 
     p = argv;
-    JPRP_STRCAT(cmdLine,"\"");
+    strcat(cmdLine,"\"");
     jpr_strcat_escape(cmdLine,*p);
-    JPRP_STRCAT(cmdLine,"\"");
+    strcat(cmdLine,"\"");
     p++;
 
     while(*p != NULL) {
-        JPRP_STRCAT(cmdLine," \"");
+        strcat(cmdLine," \"");
         jpr_strcat_escape(cmdLine,*p);
-        JPRP_STRCAT(cmdLine,"\"");
+        strcat(cmdLine,"\"");
         p++;
     }
 
     args_len = MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,cmdLine,-1,NULL,0);
-    wCmdLine = (wchar_t *)JPRP_MALLOC(args_len * sizeof(wchar_t));
+    wCmdLine = (wchar_t *)malloc(args_len * sizeof(wchar_t));
     if(wCmdLine == NULL) {
         goto error;
     }
-    JPRP_MEMSET(wCmdLine,0,args_len * sizeof(wchar_t));
+    memset(wCmdLine,0,args_len * sizeof(wchar_t));
     MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,cmdLine,args_len,wCmdLine,args_len);
-    JPRP_FREE(cmdLine);
-	cmdLine = NULL;
+    free(cmdLine);
+    cmdLine = NULL;
 
     sa->nLength = sizeof(SECURITY_ATTRIBUTES);
     sa->lpSecurityDescriptor = NULL;
@@ -577,32 +536,32 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
     if(pid == 0) {
         if(in_fds[0] != -1) {
             jpr_dup2(in_fds[0],0);
-            close(in_fds[0]);
+            jpr_close(in_fds[0]);
         }
 
         if(out_fds[1] != -1) {
             jpr_dup2(out_fds[1],1);
-            close(out_fds[1]);
+            jpr_close(out_fds[1]);
         }
 
         if(err_fds[1] != -1) {
             jpr_dup2(err_fds[1],2);
-            close(err_fds[1]);
+            jpr_close(err_fds[1]);
         }
 
         if(strchr(argv[0],'/') == NULL) {
             while(path) {
-                JPRP_STRCPY(argv0,path);
+                strcpy(argv0,path);
                 t = strchr(argv0,':');
                 if(t != NULL) {
                     *t = '\0';
                 }
 
-                if(JPRP_STRLEN(argv0)) {
-                    JPRP_STRCAT(argv0,"/");
+                if(strlen(argv0)) {
+                    strcat(argv0,"/");
                 }
-                if(JPRP_STRLEN(argv0) + argv0len < 4095) {
-                    JPRP_STRCAT(argv0,argv[0]);
+                if(strlen(argv0) + argv0len < 4095) {
+                    strcat(argv0,argv[0]);
                 }
                 execve(argv0,(char * const*)argv,environ);
 
@@ -675,11 +634,11 @@ error:
 
 success:
 #ifdef _WIN32
-    if(cmdLine != NULL)  JPRP_FREE(cmdLine);
-    if(wCmdLine != NULL) JPRP_FREE(wCmdLine);
-    if(sa != NULL)       JPRP_FREE(sa);
-    if(pi != NULL)       JPRP_FREE(pi);
-    if(si != NULL)       JPRP_FREE(si);
+    if(cmdLine != NULL) free(cmdLine);
+    if(wCmdLine != NULL) free(wCmdLine);
+    if(sa != NULL) free(sa);
+    if(pi != NULL) free(pi);
+    if(si != NULL) free(si);
 #endif
 
     return r;
@@ -715,14 +674,15 @@ int jpr_proc_pipe_open_file(jpr_proc_pipe *pipe, const char *filename, const cha
     }
 
     wLen = MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,filename,-1,NULL,0);
-    wFilename = (wchar_t *)JPRP_MALLOC(sizeof(wchar_t)*wLen);
+    wFilename = (wchar_t *)malloc(wLen);
     if(wFilename == NULL) return -1;
-    JPRP_MEMSET(wFilename,0,sizeof(wchar_t)*wLen);
+    memset(wFilename,0,sizeof(wchar_t)*wLen);
     MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,filename,wLen,wFilename,wLen);
 
     pipe->pipe = CreateFileW(wFilename,access,0,NULL,disp,0,0);
 
-    JPRP_FREE(wFilename);
+    free(wFilename);
+    wFilename = NULL;
 
     if(pipe->pipe == INVALID_HANDLE_VALUE) return 1;
     if(disp == OPEN_ALWAYS) {

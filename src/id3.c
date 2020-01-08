@@ -3,7 +3,7 @@
 #include "str.h"
 #include "unpack.h"
 #include "file.h"
-#include "mem.h"
+#include <stdlib.h>
 
 #define ID3_MIN(a,b) ( a < b ? a : b)
 
@@ -21,10 +21,10 @@ typedef struct str_alloc_s str_alloc;
 static int str_alloc_resize(str_alloc *s, size_t size) {
     char *t = NULL;
     if(s->a >= size) return 0;
-    t = mem_realloc(s->s,size);
+    t = realloc(s->s,size);
     if(t == NULL) {
       if(s->s != NULL) {
-        mem_free(s->s);
+        free(s->s);
         s->s = NULL;
       }
       return 1;
@@ -148,8 +148,8 @@ void process_id3(audio_decoder *a, jpr_file *f) {
 
     id3_done:
 
-    if(buffer2.s != NULL) mem_free(buffer2.s);
-    if(buffer3.s != NULL) mem_free(buffer3.s);
+    if(buffer2.s != NULL) free(buffer2.s);
+    if(buffer3.s != NULL) free(buffer3.s);
 
     return;
 }

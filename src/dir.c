@@ -6,8 +6,9 @@
 #endif
 
 #include "dir.h"
-#include "mem.h"
 #include "str.h"
+
+#include <stdlib.h>
 
 #ifdef JPR_WINDOWS
 struct jpr_dir_s {
@@ -34,7 +35,7 @@ jpr_dire *dir_read(jpr_dir *dir) {
 
     entry = NULL;
     if(dir->d == INVALID_HANDLE_VALUE) return entry;
-    entry = (jpr_dire *)mem_alloc(sizeof(jpr_dire));
+    entry = (jpr_dire *)malloc(sizeof(jpr_dire));
     if(entry == NULL) return entry;
     mem_set(entry,0,sizeof(jpr_dire));
 
@@ -43,7 +44,7 @@ jpr_dire *dir_read(jpr_dir *dir) {
         dire_free(entry);
         return NULL;
     }
-    filename = mem_alloc(filename_width + 1);
+    filename = malloc(filename_width + 1);
     if(filename == NULL) {
         dire_free(entry);
         return NULL;
@@ -77,7 +78,7 @@ jpr_dire *dir_read(jpr_dir *dir) {
       }
 
     }
-    entry->path = mem_alloc(str_len(dir->dir) + str_len(entry->filename) + 2);
+    entry->path = malloc(str_len(dir->dir) + str_len(entry->filename) + 2);
     if(entry->path == NULL) {
         dire_free(entry);
         return NULL;
@@ -118,11 +119,11 @@ jpr_dire *dir_read(jpr_dir *dir) {
     de = readdir(dir->d);
     if(de == NULL) return NULL;
 
-    entry = (jpr_dire *)mem_alloc(sizeof(jpr_dire));
+    entry = (jpr_dire *)malloc(sizeof(jpr_dire));
     if(entry == NULL) return entry;
     mem_set(entry,0,sizeof(jpr_dire));
 
-    entry->filename = mem_alloc(str_len(de->d_name)+1);
+    entry->filename = malloc(str_len(de->d_name)+1);
 
     /* LCOV_EXCL_START */
     if(entry->filename == NULL) {
@@ -133,7 +134,7 @@ jpr_dire *dir_read(jpr_dir *dir) {
 
     str_cpy(entry->filename,de->d_name);
 
-    entry->path = mem_alloc(str_len(dir->dir) + str_len(entry->filename) + 2);
+    entry->path = malloc(str_len(dir->dir) + str_len(entry->filename) + 2);
 
     /* LCOV_EXCL_START */
     if(entry->path == NULL) {
@@ -176,7 +177,7 @@ jpr_dir *dir_open(const char *filename) {
 #endif
     dir = NULL;
 
-    dir = (jpr_dir*)mem_alloc(sizeof(jpr_dir));
+    dir = (jpr_dir*)malloc(sizeof(jpr_dir));
     if(dir == NULL) return dir;
 	dir->dir = NULL;
 
@@ -187,7 +188,7 @@ jpr_dir *dir_open(const char *filename) {
 
     wide_filename_len = utf_conv_utf8_utf16w(NULL,(const jpr_uint8 *)filename,0);
     if(wide_filename_len == 0) goto dir_open_error;
-    wide_filename = (wchar_t *)mem_alloc(sizeof(wchar_t) * (wide_filename_len + 4));
+    wide_filename = (wchar_t *)malloc(sizeof(wchar_t) * (wide_filename_len + 4));
     if(wide_filename == NULL) goto dir_open_error;
     if(wide_filename_len != utf_conv_utf8_utf16w(wide_filename,(const jpr_uint8 *)filename, 0)) goto dir_open_error;
     if(wide_filename_len > 1) {
@@ -212,17 +213,17 @@ jpr_dir *dir_open(const char *filename) {
     }
 
     dir_open_cleanup:
-    if(wide_filename != NULL) mem_free(wide_filename);
+    if(wide_filename != NULL) free(wide_filename);
 #else
     dir->d = opendir(filename);
     if(dir->d == NULL) {
-        mem_free(dir);
+        free(dir);
         dir = NULL;
     }
 
 #endif
     if(dir != NULL) {
-      dir->dir = mem_alloc(str_len(filename) + 1);
+      dir->dir = malloc(str_len(filename) + 1);
       /* LCOV_EXCL_START */
       if(dir->dir == NULL) {
           dir_close(dir);
@@ -236,9 +237,9 @@ jpr_dir *dir_open(const char *filename) {
 }
 
 void dire_free(jpr_dire *entry) {
-    if(entry->filename != NULL) mem_free(entry->filename);
-    if(entry->path != NULL) mem_free(entry->path);
-    mem_free(entry);
+    if(entry->filename != NULL) free(entry->filename);
+    if(entry->path != NULL) free(entry->path);
+    free(entry);
 }
 
 int dir_close(jpr_dir *dir) {
@@ -251,8 +252,8 @@ int dir_close(jpr_dir *dir) {
     r = closedir(dir->d);
 #endif
     if(r == 0) {
-        if(dir->dir != NULL) mem_free(dir->dir);
-        mem_free(dir);
+        if(dir->dir != NULL) free(dir->dir);
+        free(dir);
     }
     return r;
 }

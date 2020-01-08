@@ -11,9 +11,6 @@
 #define WIN32_LEAN_AND_MEAN 1
 #endif
 #include <windows.h>
-#define MAIN_SIG 
-#else
-#define MAIN_SIG int main(int argc, char *argv[], char *envp[])
 #endif
 
 #include <stdlib.h>
@@ -24,7 +21,6 @@
 #include "cli.h"
 #include "utf.h"
 #include "str.h"
-#include "mem.h"
 
 static char *w_to_mb(const wchar_t *src) {
     char *str;
@@ -32,7 +28,7 @@ static char *w_to_mb(const wchar_t *src) {
     str = NULL;
 
     width = utf_conv_utf16w_utf8(NULL,src,0);
-    str = mem_alloc(sizeof(char) * (width + 1));
+    str = malloc(sizeof(char) * (width + 1));
     if(str == NULL) {
         return NULL;
     }
@@ -69,7 +65,7 @@ int wmain(int argc, wchar_t *argv[], wchar_t *envp[]) {
 	int i;
 
 	(void)envp;
-	newargv = (char **)mem_alloc(sizeof(char *) * (argc + 1));
+	newargv = (char **)malloc(sizeof(char *) * (argc + 1));
     if(newargv == NULL) return 1;
 
     for(i = 0; i < argc; i++) {
@@ -81,9 +77,9 @@ int wmain(int argc, wchar_t *argv[], wchar_t *envp[]) {
 	r = main(argc, newargv, NULL);
 
 	for(i = 0; i < argc; i++) {
-        mem_free(newargv[i]);
+        free(newargv[i]);
     }
-    mem_free(newargv);
+    free(newargv);
 
 	return r;
 }

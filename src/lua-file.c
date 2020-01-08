@@ -1,5 +1,4 @@
 #include "norm.h"
-#include "mem.h"
 #include "dir.h"
 #include "path.h"
 #include "lua-file.h"
@@ -7,6 +6,7 @@
 
 #include <lua.h>
 #include <lauxlib.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,7 +41,7 @@ lua_file_realpath(lua_State *L) {
     char *p = path_absolute(path);
     if(p != NULL) {
         lua_pushstring(L,p);
-        mem_free(p);
+        free(p);
     } else {
         lua_pushnil(L);
     }
@@ -54,7 +54,7 @@ lua_file_basename(lua_State *L) {
     char *b = path_basename(folder);
     if(b != NULL) {
         lua_pushstring(L,b);
-        mem_free(b);
+        free(b);
     } else {
         lua_pushnil(L);
     }
@@ -67,7 +67,7 @@ lua_file_dirname(lua_State *L) {
     char *b = path_dirname(folder);
     if(b != NULL) {
         lua_pushstring(L,b);
-        mem_free(b);
+        free(b);
     } else {
         lua_pushnil(L);
     }
@@ -79,7 +79,7 @@ lua_file_getcwd(lua_State *L) {
     char *cwd = path_getcwd();
     if(cwd != NULL) {
         lua_pushstring(L,cwd);
-        mem_free(cwd);
+        free(cwd);
     } else {
         lua_pushnil(L);
     }

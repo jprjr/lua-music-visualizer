@@ -2,7 +2,6 @@
 #include "path.h"
 #include "utf.h"
 #include "str.h"
-#include "mem.h"
 
 #ifdef JPR_WINDOWS
 #include "mem.h"
@@ -10,6 +9,7 @@
 #include <unistd.h>
 #include <limits.h>
 #endif
+#include <stdlib.h>
 
 #ifdef JPR_WINDOWS
 static wchar_t *to_wchar(const char *str) {
@@ -23,13 +23,13 @@ static wchar_t *to_wchar(const char *str) {
     if(wide_str_len == 0) {
         return NULL;
     }
-    wide_str = (wchar_t *)mem_alloc(sizeof(wchar_t) * (wide_str_len + 1));
+    wide_str = (wchar_t *)malloc(sizeof(wchar_t) * (wide_str_len + 1));
     /* LCOV_EXCL_START */
     if(wide_str == NULL) {
         return NULL;
     }
     if(wide_str_len != utf_conv_utf8_utf16w(wide_str,(const jpr_uint8 *)str,0)) {
-        mem_free(wide_str);
+        free(wide_str);
         return NULL;
     }
     wide_str[wide_str_len] = 0;
@@ -101,7 +101,7 @@ int path_exists(const char *filename) {
     r = (GetFileAttributesW(wide_filename) != INVALID_FILE_ATTRIBUTES);
 
     path_exists_cleanup:
-    if(wide_filename != NULL) mem_free(wide_filename);
+    if(wide_filename != NULL) free(wide_filename);
 #else
     if(access(filename,F_OK) != -1) {
         r = 1;
@@ -116,7 +116,7 @@ char *path_basename(const char *filename) {
     char *ret;
 
     if(filename == NULL || str_len(filename) == 0) {
-        ret = mem_alloc(2);
+        ret = malloc(2);
         /* LCOV_EXCL_START */
         if(ret == NULL) return ret;
         /* LCOV_EXCL_STOP */
@@ -128,7 +128,7 @@ char *path_basename(const char *filename) {
     sep = last_slash(filename, &len);
 
     if(filename[sep] == '\0') { /* no slashes found */
-        ret = mem_alloc(len + 1);
+        ret = malloc(len + 1);
         /* LCOV_EXCL_START */
         if(ret == NULL) return ret;
         /* LCOV_EXCL_STOP */
@@ -137,7 +137,7 @@ char *path_basename(const char *filename) {
     else {
         len = len - sep - 1;
         if(len == 0) len++;
-        ret = mem_alloc(len + 1);
+        ret = malloc(len + 1);
         /* LCOV_EXCL_START */
         if(ret == NULL) return ret;
         /* LCOV_EXCL_STOP */
@@ -168,7 +168,7 @@ char *path_dirname(const char *filename) {
     }
 
     if(filename == NULL || str_len(filename) == 0 || filename[sep] == '\0') {
-        ret = mem_alloc(2);
+        ret = malloc(2);
         /* LCOV_EXCL_START */
         if(ret == NULL) return ret;
         /* LCOV_EXCL_STOP */
@@ -177,7 +177,7 @@ char *path_dirname(const char *filename) {
         return ret;
     }
 
-    ret = mem_alloc(sep + 1 + (sep == 0));
+    ret = malloc(sep + 1 + (sep == 0));
     /* LCOV_EXCL_START */
     if(ret == NULL) return ret;
     /* LCOV_EXCL_STOP */
@@ -207,7 +207,7 @@ char *path_getcwd(void) {
 
     len = GetCurrentDirectory(0,NULL);
 
-    wdir = (TCHAR *)mem_alloc(sizeof(TCHAR) * len);
+    wdir = (TCHAR *)malloc(sizeof(TCHAR) * len);
     /* LCOV_EXCL_START */
     if(wdir == NULL) {
         return NULL;
@@ -217,30 +217,30 @@ char *path_getcwd(void) {
 
     slen = utf_conv_utf16w_utf8(NULL,wdir,0);
     if(slen == 0) {
-        mem_free(wdir);
+        free(wdir);
         return NULL;
     }
-    dir = mem_alloc(slen + 1 + (slen == 0));
+    dir = malloc(slen + 1 + (slen == 0));
     /* LCOV_EXCL_START */
     if(dir == NULL) {
-        mem_free(wdir);
+        free(wdir);
         return NULL;
     }
     /* LCOV_EXCL_STOP */
     if(slen != utf_conv_utf16w_utf8((jpr_uint8 *)dir,wdir,0)) {
-        mem_free(wdir);
-        mem_free(dir);
+        free(wdir);
+        free(dir);
         return NULL;
     }
     dir[slen] = '\0';
 
-    mem_free(wdir);
+    free(wdir);
 #else
-    dir = mem_alloc(PATH_MAX);
+    dir = malloc(PATH_MAX);
     /* LCOV_EXCL_START */
     if(dir == NULL) return NULL;
     if(getcwd(dir,PATH_MAX) == NULL) {
-        mem_free(dir);
+        free(dir);
         return NULL;
     }
     /* LCOV_EXCL_STOP */
@@ -277,15 +277,15 @@ char *path_absolute(const char *f) {
 
     cwd = path_getcwd();
     t_len = str_len(cwd) + f_len + 1;
-    t = mem_alloc(t_len+1 + (t_len == 0));
+    t = malloc(t_len+1 + (t_len == 0));
     /* LCOV_EXCL_START */
     if(t == NULL) {
-        mem_free(cwd);
+        free(cwd);
         return t;
     }
     /* LCOV_EXCL_STOP */
     str_cpy(t,cwd);
-    mem_free(cwd);
+    free(cwd);
 #ifdef JPR_WINDOWS
     str_cat(t,"\\");
 #else
@@ -318,7 +318,7 @@ int path_setcwd(const char *dir) {
     r = SetCurrentDirectoryW(wide_filename) == 0;
 
     path_setcwd_cleanup:
-    if(wide_filename != NULL) mem_free(wide_filename);
+    if(wide_filename != NULL) free(wide_filename);
 
 #else
     r = chdir(dir);
