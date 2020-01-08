@@ -4,7 +4,7 @@ ENV LUAJIT_VER=2.1.0-beta3
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y gcc-multilib upx \
-    mingw-w64 curl make patch build-essential git pkg-config
+    mingw-w64 nasm curl make patch build-essential git pkg-config
 
 RUN mkdir -p /src && \
     cd /src && \

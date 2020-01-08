@@ -180,7 +180,7 @@ int audio_decoder_init(audio_decoder *a) {
 
 int audio_decoder_open(audio_decoder *a, const char *filename) {
     void *p = NULL;
-#if !DECODE_MP3
+#if !DECODE_MP3 && !DECODE_WAV
     (void)p;
 #endif
 
@@ -188,7 +188,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
     if(str_iends(filename,".flac")) {
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
-        a->ctx.pFlac = drflac_open_with_metadata(read_proc,(drflac_seek_proc)seek_proc,flac_meta,a);
+        a->ctx.pFlac = drflac_open_with_metadata(read_proc,(drflac_seek_proc)seek_proc,flac_meta,a,NULL);
         if(a->ctx.pFlac == NULL) {
             file_close(a->file);
             a->file = NULL;
@@ -214,7 +214,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
             return 1;
         }
         a->ctx.pMp3 = (drmp3 *)p;
-        if(!drmp3_init(a->ctx.pMp3,read_proc,(drmp3_seek_proc)seek_proc,a,NULL)) {
+        if(!drmp3_init(a->ctx.pMp3,read_proc,(drmp3_seek_proc)seek_proc,a,NULL,NULL)) {
             free(p);
             a->ctx.pMp3 = NULL;
             file_close(a->file);
@@ -235,8 +235,15 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
 
-        a->ctx.pWav = drwav_open(read_proc,(drwav_seek_proc)seek_proc,a);
-        if(a->ctx.pWav == NULL) {
+        p = malloc(sizeof(drwav));
+        if(p == NULL) {
+            LOG_DEBUG("out of memory");
+            return 1;
+        }
+        a->ctx.pWav = (drwav *)p;
+        if(!drwav_init(a->ctx.pWav,read_proc,(drwav_seek_proc)seek_proc,a,NULL)) {
+            free(p);
+            a->ctx.pWav = NULL;
             file_close(a->file);
             a->file = NULL;
             return 1;
@@ -303,7 +310,8 @@ void audio_decoder_close(audio_decoder *a) {
 #endif
 #if DECODE_WAV
         case 2: {
-            drwav_close(a->ctx.pWav);
+            drwav_uninit(a->ctx.pWav);
+            free(a->ctx.pWav);
             a->ctx.pWav = NULL;
             break;
         }
