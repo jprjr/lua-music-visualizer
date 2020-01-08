@@ -6,6 +6,10 @@
 #include "norm.h"
 #include <assert.h>
 #include <errno.h>
+#include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 #define MPD_FILE   0x01
 #define MPD_TITLE  0x02

@@ -10,6 +10,9 @@
 #include <wchar.h>
 #endif
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 

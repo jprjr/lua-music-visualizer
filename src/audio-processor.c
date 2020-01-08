@@ -4,6 +4,9 @@
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 #ifndef INFINITY
 #ifdef HUGE_VALF

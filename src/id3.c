@@ -4,6 +4,9 @@
 #include "unpack.h"
 #include "file.h"
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 #define ID3_MIN(a,b) ( a < b ? a : b)
 

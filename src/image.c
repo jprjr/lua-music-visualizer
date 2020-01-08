@@ -5,6 +5,10 @@
 
 #include <stdlib.h>
 
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
+
 #define STBI_NO_STDIO
 #define STBI_NO_HDR
 #define STBI_ASSERT(x)
@@ -118,6 +122,7 @@ image_probe(const char *filename, unsigned int *width, unsigned int *height, uns
 
     if(stbi_info_from_callbacks(&io_callbacks,f,&x,&y,&c) == 0) {
         file_close(f);
+        file_free(f);
         return 0;
     }
 
@@ -140,6 +145,7 @@ image_probe(const char *filename, unsigned int *width, unsigned int *height, uns
         *height = y * (*width) / x;
     }
     file_close(f);
+    file_free(f);
 
     return 1;
 }
@@ -185,6 +191,7 @@ stbi_xload(
     }
 
     file_close(f);
+    file_free(f);
     return result;
 }
 

@@ -9,6 +9,9 @@
 #include "str.h"
 
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 #ifdef JPR_WINDOWS
 struct jpr_dir_s {

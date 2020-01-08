@@ -12,6 +12,9 @@
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 #define MY_PI 3.14159265358979323846
 #define rad(degrees) ( ((double)degrees) * MY_PI / 180.0)

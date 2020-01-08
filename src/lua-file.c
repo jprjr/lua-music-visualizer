@@ -7,6 +7,9 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {

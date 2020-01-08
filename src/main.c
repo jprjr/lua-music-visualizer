@@ -16,6 +16,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
+
 #include "int.h"
 #include "gui.h"
 #include "cli.h"
@@ -53,10 +57,17 @@ int main(int argc, char *argv[], char *envp[]) {
     if(argc < 2) {
         ret = gui_start(argc,argv);
         if(ret != -1) {
+#ifndef NDEBUG
+            stb_leakcheck_dumpmem();
+#endif
             return ret;
         }
     }
-    return cli_start(argc,argv);
+    ret = cli_start(argc,argv);
+#ifndef NDEBUG
+    stb_leakcheck_dumpmem();
+#endif
+    return ret;
 }
 
 int wmain(int argc, wchar_t *argv[], wchar_t *envp[]) {

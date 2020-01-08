@@ -6,6 +6,9 @@
 #include "util.h"
 #include <limits.h>
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 #ifdef JPR_WINDOWS
 #include "utf.h"

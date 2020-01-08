@@ -9,6 +9,9 @@
 #endif
 
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 #ifdef JPR_WINDOWS
 static wchar_t *to_wchar(const char *str) {

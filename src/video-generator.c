@@ -28,6 +28,10 @@
 #endif
 #endif
 
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
+
 #include <assert.h>
 #include <errno.h>
 #include <string.h>

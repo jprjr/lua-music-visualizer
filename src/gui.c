@@ -20,6 +20,10 @@
 
 #include "jpr_proc.h"
 
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
+
 static audio_decoder *decoder = NULL;
 static audio_processor *processor = NULL;
 static video_generator *generator = NULL;
