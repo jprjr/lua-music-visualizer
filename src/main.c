@@ -58,6 +58,7 @@ int main(int argc, char *argv[], char *envp[]) {
         ret = gui_start(argc,argv);
         if(ret != -1) {
 #ifndef NDEBUG
+            printf("stb_leakcheck_dumpmem follows (nothing == no leaks)\n");
             stb_leakcheck_dumpmem();
 #endif
             return ret;
@@ -65,6 +66,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     ret = cli_start(argc,argv);
 #ifndef NDEBUG
+    printf("stb_leakcheck_dumpmem follows (nothing == no leaks)\n");
     stb_leakcheck_dumpmem();
 #endif
     return ret;

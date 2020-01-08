@@ -6,7 +6,7 @@ ENV LUAJIT_VER=2.1.0-beta3
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y gcc-multilib \
-    mingw-w64 curl make patch build-essential git pkg-config
+    mingw-w64 nasm curl make patch build-essential git pkg-config
 
 RUN mkdir -p /src && \
     cd /src && \
@@ -97,15 +97,15 @@ RUN \
     mkdir -p /dist/win64 && \
     mkdir -p /dist/linux && \
     make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" clean && \
-    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" -j4 && \
+    make -f Makefile.windows.docker NASM_PLAT=win32 TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" -j4 && \
     mv lua-music-visualizer.exe lua-music-visualizer-32.exe && \
     mv *.exe /dist/win32/ && \
     make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" clean && \
-    make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" -j4 && \
+    make -f Makefile.windows.docker NASM_PLAT=win64 TARGET=x86_64-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" -j4 && \
     mv lua-music-visualizer.exe lua-music-visualizer-64.exe && \
     mv *.exe /dist/win64/ && \
     make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 clean && \
-    make OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" && \
+    make OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" NASM_PLAT=elf64 && \
     mv lua-music-visualizer /dist/linux && \
     make clean
 

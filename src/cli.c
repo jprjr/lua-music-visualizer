@@ -166,6 +166,7 @@ int cli_start(int argc, char **argv) {
 
     jpr_proc_pipe f;
     jpr_proc_info i;
+    int exitcode;
 
     self = *argv++;
     argc--;
@@ -361,7 +362,9 @@ int cli_start(int argc, char **argv) {
     }
 #ifndef _WIN32
     quitting:
+    /*
     kill(getpid(),SIGTERM);
+    */
 
     while(thread_queue_count(&queue) > 0) {
         sig = thread_queue_consume(&queue);
@@ -372,6 +375,8 @@ int cli_start(int argc, char **argv) {
     video_generator_close(generator);
 
     jpr_proc_pipe_close(&f);
+    jpr_proc_info_kill(&i);
+    jpr_proc_info_wait(&i,&exitcode);
     free(decoder);
     free(processor);
     free(generator);

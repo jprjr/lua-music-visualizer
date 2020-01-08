@@ -33,6 +33,10 @@
 #include <limits.h>
 #include <string.h>
 
+#ifndef _WIN32
+#include <signal.h>
+#endif
+
 typedef struct jpr_proc_info_s jpr_proc_info;
 typedef struct jpr_proc_pipe_s jpr_proc_pipe;
 
@@ -43,6 +47,8 @@ extern "C" {
 int jpr_proc_info_init(jpr_proc_info *);
 int jpr_proc_spawn(jpr_proc_info *, const char * const *argv, jpr_proc_pipe *in, jpr_proc_pipe *out, jpr_proc_pipe *err);
 int jpr_proc_info_wait(jpr_proc_info *, int *);
+void jpr_proc_info_term(jpr_proc_info *);
+void jpr_proc_info_kill(jpr_proc_info *);
 
 int jpr_proc_pipe_init(jpr_proc_pipe *);
 int jpr_proc_pipe_write(jpr_proc_pipe *, const char *, unsigned int len, unsigned int *written);
@@ -193,6 +199,25 @@ int jpr_proc_info_init(jpr_proc_info *info) {
     return 0;
 }
 
+void jpr_proc_info_term(jpr_proc_info *info) {
+#ifdef _WIN32
+    if(info->handle == INVALID_HANDLE_VALUE) return;
+    TerminateProcess(info->handle,0);
+#else
+    if(info->pid == -1) return;
+    kill(info->pid,SIGTERM);
+#endif
+}
+
+void jpr_proc_info_kill(jpr_proc_info *info) {
+#ifdef _WIN32
+    if(info->handle == INVALID_HANDLE_VALUE) return;
+    TerminateProcess(info->handle,0);
+#else
+    if(info->pid == -1) return;
+    kill(info->pid,SIGKILL);
+#endif
+}
 
 int jpr_proc_info_wait(jpr_proc_info *info, int *e) {
 #ifdef _WIN32
