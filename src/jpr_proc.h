@@ -339,6 +339,7 @@ int jpr_proc_spawn(jpr_proc_info *info, const char * const *argv, jpr_proc_pipe 
     if(cmdLine == NULL) {
         goto error;
     }
+	memset(cmdLine,0,args_len);
 
     p = argv;
     strcat(cmdLine,"\"");

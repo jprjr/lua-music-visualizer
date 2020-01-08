@@ -3,12 +3,11 @@
 #include "utf.h"
 #include "str.h"
 
-#ifdef JPR_WINDOWS
-#include "mem.h"
-#else
+#ifndef JPR_WINDOWS
 #include <unistd.h>
 #include <limits.h>
 #endif
+
 #include <stdlib.h>
 
 #ifdef JPR_WINDOWS

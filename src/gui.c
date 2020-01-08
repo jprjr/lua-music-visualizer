@@ -2,6 +2,7 @@
 #ifdef JPR_WINDOWS
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <iup.h>
 #include <iup_config.h>
 #include <windows.h>
@@ -14,7 +15,6 @@
 #include "str.h"
 #include "scan.h"
 #include "fmt.h"
-#include "mem.h"
 #include "util.h"
 #include "path.h"
 
