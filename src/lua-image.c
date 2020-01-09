@@ -121,7 +121,7 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 
 
     table_ind = lua_gettop(L);
 
-    if(image == NULL) {
+    if(UNLIKELY(image == NULL)) {
       lua_pushnil(L);
       lua_setfield(L,table_ind,"frames");
 
@@ -205,13 +205,13 @@ void
 queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, unsigned int height, unsigned int channels) {
     image_q *q = (image_q *)malloc(sizeof(image_q));
 
-    if(q == NULL) {
+    if(UNLIKELY(q == NULL)) {
         LOG_ERROR("error: out of memory");
         JPR_EXIT(1);
     }
 
     q->filename = malloc(str_len(filename) + 1);
-    if(q->filename == NULL) {
+    if(UNLIKELY(q->filename == NULL)) {
         LOG_ERROR("error: out of memory");
         JPR_EXIT(1);
     }
@@ -239,11 +239,11 @@ lua_image_thread(void *userdata) {
         while(thread_queue_count(&thread_queue) > 0) {
             q = (image_q *)thread_queue_consume(&thread_queue);
 
-            if(q == NULL) {
+            if(UNLIKELY(q == NULL)) {
                 continue;
             }
 
-            if(q->table_ref < 0) {
+            if(UNLIKELY(q->table_ref < 0)) {
                 thread_exit(0);
             }
 
@@ -279,7 +279,7 @@ lua_image_new(lua_State *L) {
     height   = (unsigned int)luaL_optinteger(L,3,0);
     channels = (unsigned int)luaL_optinteger(L,4,0);
 
-    if(filename == NULL && (width == 0 || height == 0 || channels == 0) ) {
+    if(UNLIKELY(filename == NULL && (width == 0 || height == 0 || channels == 0) )) {
         lua_pushnil(L);
         lua_pushliteral(L,"Need either filename, or width/height/channels");
         return 2;
@@ -507,7 +507,7 @@ lua_image_load(lua_State *L) {
 
     if(!async) {
         t = image_load(filename,&width,&height,&channels,&frames);
-        if(t == NULL) {
+        if(UNLIKELY(t == NULL)) {
             lua_pushnil(L);
             lua_setfield(L,1,"frames");
             lua_pushnil(L);

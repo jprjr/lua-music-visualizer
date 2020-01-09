@@ -33,7 +33,7 @@ static char *w_to_mb(const wchar_t *src) {
 
     width = utf_conv_utf16w_utf8(NULL,src,0);
     str = malloc(sizeof(char) * (width + 1));
-    if(str == NULL) {
+    if(UNLIKELY(str == NULL)) {
         return NULL;
     }
 
@@ -79,7 +79,7 @@ int wmain(int argc, wchar_t *argv[], wchar_t *envp[]) {
 
 	(void)envp;
 	newargv = (char **)malloc(sizeof(char *) * (argc + 1));
-    if(newargv == NULL) return 1;
+    if(UNLIKELY(newargv == NULL)) return 1;
 
     for(i = 0; i < argc; i++) {
         newargv[i] = w_to_mb(argv[i]);

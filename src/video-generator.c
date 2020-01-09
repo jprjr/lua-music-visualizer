@@ -16,6 +16,7 @@
 #include <lauxlib.h>
 #include "str.h"
 #include "pack.h"
+#include "attr.h"
 #include <limits.h>
 
 #if 0
@@ -59,14 +60,14 @@ lua_send_message(lua_State *L) {
   ctx = lua_touserdata(L, lua_upvalueindex(1));
   message = lua_tostring(L,1);
 
-  if(message == NULL) {
+  if(UNLIKELY(message == NULL)) {
       lua_pushboolean(L,0);
       return 1;
   }
 
   r = mpdc_sendmessage(ctx,"visualizer",message);
 
-  if(r <= 0) {
+  if(UNLIKELY(r <= 0)) {
       lua_pushboolean(L,0);
   }
   else {
@@ -202,8 +203,8 @@ static int write_avi_header(video_generator *v) {
     b += 4;
     (void)b;
 
-    if(jpr_proc_pipe_write(v->out,(const char *)buf,326,&r)) return 1;
-    if (r != 326) return 1;
+    if(UNLIKELY(jpr_proc_pipe_write(v->out,(const char *)buf,326,&r))) return 1;
+    if(UNLIKELY(r != 326)) return 1;
     return 0;
 }
 
@@ -263,7 +264,7 @@ int video_generator_loop(video_generator *v) {
 
     while(thread_queue_count(&(v->image_queue)) > 0) {
         q = thread_queue_consume(&(v->image_queue));
-        if(q != NULL) {
+        if(LIKELY(q != NULL)) {
             lua_load_image_cb(v->L,q->table_ref,q->frames,q->image);
             luaL_unref(v->L,LUA_REGISTRYINDEX,q->table_ref);
             free(q->filename);
@@ -279,7 +280,7 @@ int video_generator_loop(video_generator *v) {
 #endif
       lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
       lua_getfield(v->L,-1,"onframe");
-      if(lua_isfunction(v->L,-1)) {
+      if(LIKELY(lua_isfunction(v->L,-1))) {
           lua_pushvalue(v->L,-2);
           lua_pcall(v->L,1,0,0);
 
@@ -311,9 +312,9 @@ int video_generator_loop(video_generator *v) {
     wake_queue();
 
     mem_cpy(v->framebuf + 16 + v->framebuf_video_len,(jpr_uint8 *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
-    if(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i)) return 1;
+    if(UNLIKELY(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i))) return 1;
 
-    if(i != v->framebuf_len) return 1;
+    if(UNLIKELY(i != v->framebuf_len)) return 1;
 
     return r;
 }
@@ -344,7 +345,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     v->out = out;
 
     rpath = malloc(sizeof(char)*PATH_MAX);
-    if(rpath == NULL) {
+    if(UNLIKELY(rpath == NULL)) {
         LOG_ERROR("out of memory");
         return 1;
     }
@@ -374,7 +375,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     luaL_openlibs(v->L);
 
 	script_path = path_absolute(luascript);
-	if(script_path == NULL) {
+	if(UNLIKELY(script_path == NULL)) {
 	    WRITE_STDERR("error finding the full path for ");
         LOG_ERROR(luascript);
         free(rpath);
@@ -383,7 +384,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
 	}
 
     dir = path_dirname(script_path);
-	if(dir == NULL) {
+	if(UNLIKELY(dir == NULL)) {
 		WRITE_STDERR("error finding dirname for ");
 		LOG_ERROR(luascript);
         free(rpath);
@@ -443,7 +444,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     v->framebuf_len = v->framebuf_video_len + v->framebuf_audio_len + 16;
 
     v->framebuf = malloc(v->framebuf_len);
-    if(v->framebuf == NULL) {
+    if(UNLIKELY(v->framebuf == NULL)) {
         LOG_ERROR("out of memory");
         free(rpath);
         free(dir);

@@ -62,6 +62,7 @@ flip_and_bgr(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned
     unsigned int bytes_per_row = width * channels;
     jpr_uint8 *temp_row = (jpr_uint8 *)malloc(bytes_per_row);
     jpr_uint8 temp;
+    if(UNLIKELY(temp_row == NULL)) return;
 
     for(y=0; y<maxheight;y++) {
         byte = (y * width* channels);
@@ -242,6 +243,12 @@ image_load(
     }
     b = t;
     d = image;
+
+    if(UNLIKELY(image == NULL)) {
+        stbi_image_free(t);
+        free(delays);
+        return NULL;
+    }
 
     for(i=0;i<of;i++) {
         if(ow  != og_w || oh != og_h) {

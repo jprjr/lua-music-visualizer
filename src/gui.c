@@ -292,11 +292,11 @@ static int setupVideoGenerator(void) {
     }
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
-    if(decoder == NULL) goto videogenerator_fail;
+    if(UNLIKELY(decoder == NULL)) goto videogenerator_fail;
     processor = (audio_processor *)malloc(sizeof(audio_processor));
-    if(processor == NULL) goto videogenerator_fail;
+    if(UNLIKELY(processor == NULL)) goto videogenerator_fail;
     generator = (video_generator *)malloc(sizeof(video_generator));
-    if(generator == NULL) goto videogenerator_fail;
+    if(UNLIKELY(generator == NULL)) goto videogenerator_fail;
 
     generator->width = width;
     generator->height = height;

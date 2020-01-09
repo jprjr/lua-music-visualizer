@@ -367,10 +367,10 @@ int mpd_ez_setup(video_generator *v) {
     if(mpdc_host == NULL) return 0;
 
     v->mpd = (mpdc_connection *)malloc(sizeof(mpdc_connection));
-    if(v->mpd == NULL) return 1;
+    if(UNLIKELY(v->mpd == NULL)) return 1;
 
     info = (conn_info *)malloc(sizeof(conn_info));
-    if(info == NULL) return 1;
+    if(UNLIKELY(info == NULL)) return 1;
 
 #ifdef _WIN32
     r = WSAStartup(MAKEWORD(2,2), &(info->wsaData));

@@ -7,11 +7,11 @@
 extern "C" {
 #endif
 
-double d_round(double x) attr_const;
-double d_sqrt(double x) attr_const;
+attr_const double d_round(double x);
+attr_const double d_sqrt(double x);
 
-double round(double x) attr_const;
-double sqrt(double x) attr_const;
+attr_const double round(double x);
+attr_const double sqrt(double x);
 
 #ifdef __cplusplus
 }

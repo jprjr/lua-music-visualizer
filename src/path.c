@@ -2,6 +2,7 @@
 #include "path.h"
 #include "utf.h"
 #include "str.h"
+#include "attr.h"
 
 #ifndef JPR_WINDOWS
 #include <unistd.h>
@@ -27,10 +28,10 @@ static wchar_t *to_wchar(const char *str) {
     }
     wide_str = (wchar_t *)malloc(sizeof(wchar_t) * (wide_str_len + 1));
     /* LCOV_EXCL_START */
-    if(wide_str == NULL) {
+    if(UNLIKELY(wide_str == NULL)) {
         return NULL;
     }
-    if(wide_str_len != utf_conv_utf8_utf16w(wide_str,(const jpr_uint8 *)str,0)) {
+    if(UNLIKELY(wide_str_len != utf_conv_utf8_utf16w(wide_str,(const jpr_uint8 *)str,0))) {
         free(wide_str);
         return NULL;
     }
@@ -94,7 +95,7 @@ int path_exists(const char *filename) {
     wide_filename = to_wchar(filename);
 
     /* LCOV_EXCL_START */
-    if(wide_filename == NULL) {
+    if(UNLIKELY(wide_filename == NULL)) {
         r = -1;
         goto path_exists_cleanup;
     }
@@ -120,7 +121,7 @@ char *path_basename(const char *filename) {
     if(filename == NULL || str_len(filename) == 0) {
         ret = malloc(2);
         /* LCOV_EXCL_START */
-        if(ret == NULL) return ret;
+        if(UNLIKELY(ret == NULL)) return ret;
         /* LCOV_EXCL_STOP */
         ret[0] = '.';
         ret[1] = '\0';
@@ -132,7 +133,7 @@ char *path_basename(const char *filename) {
     if(filename[sep] == '\0') { /* no slashes found */
         ret = malloc(len + 1);
         /* LCOV_EXCL_START */
-        if(ret == NULL) return ret;
+        if(UNLIKELY(ret == NULL)) return ret;
         /* LCOV_EXCL_STOP */
         str_cpy(ret,filename);
     }
@@ -141,7 +142,7 @@ char *path_basename(const char *filename) {
         if(len == 0) len++;
         ret = malloc(len + 1);
         /* LCOV_EXCL_START */
-        if(ret == NULL) return ret;
+        if(UNLIKELY(ret == NULL)) return ret;
         /* LCOV_EXCL_STOP */
         str_cpy(ret,&filename[sep+1]);
     }
@@ -172,7 +173,7 @@ char *path_dirname(const char *filename) {
     if(filename == NULL || str_len(filename) == 0 || filename[sep] == '\0') {
         ret = malloc(2);
         /* LCOV_EXCL_START */
-        if(ret == NULL) return ret;
+        if(UNLIKELY(ret == NULL)) return ret;
         /* LCOV_EXCL_STOP */
         ret[0] = '.';
         ret[1] = '\0';
@@ -181,7 +182,7 @@ char *path_dirname(const char *filename) {
 
     ret = malloc(sep + 1 + (sep == 0));
     /* LCOV_EXCL_START */
-    if(ret == NULL) return ret;
+    if(UNLIKELY(ret == NULL)) return ret;
     /* LCOV_EXCL_STOP */
     str_ncpy(ret,filename,sep);
     ret[sep] = '\0';
@@ -211,7 +212,7 @@ char *path_getcwd(void) {
 
     wdir = (TCHAR *)malloc(sizeof(TCHAR) * len);
     /* LCOV_EXCL_START */
-    if(wdir == NULL) {
+    if(UNLIKELY(wdir == NULL)) {
         return NULL;
     }
     /* LCOV_EXCL_STOP */
@@ -224,7 +225,7 @@ char *path_getcwd(void) {
     }
     dir = malloc(slen + 1 + (slen == 0));
     /* LCOV_EXCL_START */
-    if(dir == NULL) {
+    if(UNLIKELY(dir == NULL)) {
         free(wdir);
         return NULL;
     }
@@ -240,7 +241,7 @@ char *path_getcwd(void) {
 #else
     dir = malloc(PATH_MAX);
     /* LCOV_EXCL_START */
-    if(dir == NULL) return NULL;
+    if(UNLIKELY(dir == NULL)) return NULL;
     if(getcwd(dir,PATH_MAX) == NULL) {
         free(dir);
         return NULL;
@@ -281,7 +282,7 @@ char *path_absolute(const char *f) {
     t_len = str_len(cwd) + f_len + 1;
     t = malloc(t_len+1 + (t_len == 0));
     /* LCOV_EXCL_START */
-    if(t == NULL) {
+    if(UNLIKELY(t == NULL)) {
         free(cwd);
         return t;
     }

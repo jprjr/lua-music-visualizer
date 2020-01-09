@@ -105,7 +105,7 @@ static int usage(const char *self, int e) {
 static int version(void) {
     jpr_file *f;
     f = file_open("-","w");
-    if(f == NULL) return 1;
+    if(UNLIKELY(f == NULL)) return 1;
     file_write(f,lua_music_vis_version,lua_music_vis_version_len);
     file_close(f);
     file_free(f);
@@ -295,7 +295,7 @@ int cli_start(int argc, char **argv) {
 
     block_signals();
     signal_thread = thread_create(signal_thread_proc,&queue,NULL,THREAD_STACK_SIZE_DEFAULT);
-    if(signal_thread == NULL) {
+    if(UNLIKELY(signal_thread == NULL)) {
         quit(1,NULL);
     }
 #endif
@@ -304,11 +304,11 @@ int cli_start(int argc, char **argv) {
     if(jpr_proc_pipe_init(&f)) return 1;
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
-    if(decoder == NULL) quit(1,NULL);
+    if(UNLIKELY(decoder == NULL)) quit(1,NULL);
     processor = (audio_processor *)malloc(sizeof(audio_processor));
-    if(processor == NULL) quit(1,decoder,NULL);
+    if(UNLIKELY(processor == NULL)) quit(1,decoder,NULL);
     generator = (video_generator *)malloc(sizeof(video_generator));
-    if(generator == NULL) quit(1,decoder,processor,NULL);
+    if(UNLIKELY(generator == NULL)) quit(1,decoder,processor,NULL);
 
     if(width == 0) width     =       1280;
     if(height == 0) height   =        720;

@@ -1,6 +1,7 @@
 #include "audio-processor.h"
 #include "audio-decoder.h"
 #include "str.h"
+#include "attr.h"
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
@@ -35,7 +36,7 @@
 #endif
 
 
-static SCALAR_TYPE itur_468(double freq) {
+attr_const static SCALAR_TYPE itur_468(double freq) {
     double h1;
     double h2;
     double r1;
@@ -59,16 +60,16 @@ static SCALAR_TYPE itur_468(double freq) {
 #ifdef USE_FFTW3
 #define cpx_abs(c) cabs(c)
 #else
-static SCALAR_TYPE cpx_abs(COMPLEX_TYPE c) {
+attr_const static SCALAR_TYPE cpx_abs(COMPLEX_TYPE c) {
     return (SCALAR_TYPE)(sqrt( (c.r * c.r) + (c.i * c.i)));
 }
 #endif
 
-static SCALAR_TYPE cpx_amp(double buffer_len, COMPLEX_TYPE c) {
+attr_const static SCALAR_TYPE cpx_amp(double buffer_len, COMPLEX_TYPE c) {
     return (SCALAR_TYPE)(20.0f * log10(2.0f * cpx_abs(c) /buffer_len));
 }
 
-static SCALAR_TYPE find_amplitude_max(double buffer_len, COMPLEX_TYPE *out, unsigned int start, unsigned int end) {
+attr_pure static SCALAR_TYPE find_amplitude_max(double buffer_len, COMPLEX_TYPE *out, unsigned int start, unsigned int end) {
     unsigned int i = 0;
     SCALAR_TYPE val = -INFINITY;
     SCALAR_TYPE tmp = 0.0f;
@@ -80,7 +81,7 @@ static SCALAR_TYPE find_amplitude_max(double buffer_len, COMPLEX_TYPE *out, unsi
     return val;
 }
 
-static SCALAR_TYPE window_blackman_harris(int i, int n) {
+attr_const static SCALAR_TYPE window_blackman_harris(int i, int n) {
     SCALAR_TYPE a = (SCALAR_TYPE)((2.0f * MY_PI) / (n - 1));
     return (SCALAR_TYPE)(0.35875 - 0.48829*cos(a*i) + 0.14128*cos(2*a*i) - 0.01168*cos(3*a*i));
 }
@@ -104,21 +105,21 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
     p->decoder = a;
 
     p->buffer = (jpr_int16 *)MALLOC(sizeof(jpr_int16) * p->buffer_len * a->channels);
-    if(p->buffer == NULL) return 1;
+    if(UNLIKELY(p->buffer == NULL)) return 1;
     mem_set(p->buffer,0,sizeof(jpr_int16)*(p->buffer_len * p->decoder->channels));
 
     if(p->spectrum_bars > 0) {
         p->mbuffer = (SCALAR_TYPE *)MALLOC(sizeof(SCALAR_TYPE) * p->buffer_len);
-        if(p->mbuffer == NULL) return 1;
+        if(UNLIKELY(p->mbuffer == NULL)) return 1;
 
         p->wbuffer = (SCALAR_TYPE *)MALLOC(sizeof(SCALAR_TYPE) * p->buffer_len);
-        if(p->wbuffer == NULL) return 1;
+        if(UNLIKELY(p->wbuffer == NULL)) return 1;
 
         p->obuffer = (COMPLEX_TYPE *)MALLOC(sizeof(COMPLEX_TYPE) * ( (p->buffer_len / 2) + 1));
-        if(p->obuffer == NULL) return 1;
+        if(UNLIKELY(p->obuffer == NULL)) return 1;
 
         p->spectrum = (frange *)MALLOC(sizeof(frange) * (p->spectrum_bars + 1));
-        if(p->spectrum == NULL) return 1;
+        if(UNLIKELY(p->spectrum == NULL)) return 1;
 
         mem_set(p->mbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
         mem_set(p->wbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
@@ -131,7 +132,7 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
 #else
         p->plan = kiss_fftr_alloc(p->buffer_len, 0, NULL, NULL);
 #endif
-        if(p->plan == NULL) return 1;
+        if(UNLIKELY(p->plan == NULL)) return 1;
         while(i<p->buffer_len) {
             p->wbuffer[i] = window_blackman_harris(i,p->buffer_len);
             i++;
