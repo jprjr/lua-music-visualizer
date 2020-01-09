@@ -23,27 +23,28 @@
 extern "C" {
 #endif
 
-
+attr_pure
 char *str_nchr(const char *s, char c, size_t len);
+attr_pure
 char *str_nrchr(const char *s, char c, size_t len);
 
 #ifdef JPR_NO_STDLIB
-char *str_chr(const char *s, char c);
-char *str_rchr(const char *s, char c);
+attr_pure char *str_chr(const char *s, char c);
+attr_pure char *str_rchr(const char *s, char c);
 void *mem_cpy(void *dest, const void *src, size_t n);
 void *mem_move(void *dest, const void *src, size_t n);
-void *mem_chr(const void *src, int c, size_t n);
-int mem_cmp(const void *p1, const void *p2, size_t n) attr_pure;
+attr_pure void *mem_chr(const void *src, int c, size_t n);
+attr_pure int mem_cmp(const void *p1, const void *p2, size_t n);
 void *mem_set(void *s, int c, size_t n);
 char *str_dup(const char *s);
-int str_cmp(const char *s1, const char *s2);
-char *str_str(const char *h, const char *n);
-size_t str_len(const char *s) attr_pure;
-size_t str_nlen(const char *s, size_t m);
-size_t wstr_len(const wchar_t *s);
-int str_ncmp(const char *s1, const char *s2, size_t m);
-int str_icmp(const char *s1, const char *s2);
-int str_incmp(const char *s1, const char *s2, size_t m);
+attr_pure int str_cmp(const char *s1, const char *s2);
+attr_pure char *str_str(const char *h, const char *n);
+attr_pure size_t str_len(const char *s);
+attr_pure size_t str_nlen(const char *s, size_t m);
+attr_pure size_t wstr_len(const wchar_t *s);
+attr_pure int str_ncmp(const char *s1, const char *s2, size_t m);
+attr_pure int str_icmp(const char *s1, const char *s2);
+attr_pure int str_incmp(const char *s1, const char *s2, size_t m);
 char *str_cat(char *d, const char *s);
 char *str_cpy(char *d, const char *p);
 char *str_ncpy(char *d, const char *s, size_t max);
@@ -84,8 +85,8 @@ char *str_ncat(char *d, const char *s, size_t max);
 
 size_t str_nlower(char *d, const char *str, size_t max);
 size_t str_lower(char *d, const char *str);
-size_t str_ends(const char *s, const char *q);
-size_t str_iends(const char *s, const char *q);
+attr_pure size_t str_ends(const char *s, const char *q);
+attr_pure size_t str_iends(const char *s, const char *q);
 
 #define str_equals(s,q) (str_cmp(s,q) == 0)
 #define str_starts(s,q) (str_ncmp(s,q,str_len(q)) == 0)

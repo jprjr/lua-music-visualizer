@@ -6,6 +6,8 @@
 #include "norm.h"
 #include "str.h"
 
+
+
 /*
  * utility methods:
  * LOG_ERROR(s) - write (s) to stderr

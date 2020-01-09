@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include "attr.h"
 #ifndef _WIN32
 #include <signal.h>
 #endif
@@ -20,12 +21,6 @@
 #include <stdlib.h>
 #ifndef NDEBUG
 #include "stb_leakcheck.h"
-#endif
-
-#ifdef __GNUC__
-#define attr_noreturn __attribute__((noreturn))
-#else
-#define attr_noreturn
 #endif
 
 #ifndef _WIN32

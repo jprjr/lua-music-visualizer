@@ -1145,8 +1145,13 @@ void* thread_atomic_ptr_load( thread_atomic_ptr_t* atomic )
 void thread_atomic_ptr_store( thread_atomic_ptr_t* atomic, void* desired )
     {
     #if defined( _WIN32 )
-    
+
+        #pragma warning( push )
+        #pragma warning( disable: 4302 ) // 'type cast' : truncation from 'void *' to 'LONG'
+        #pragma warning( disable: 4311 ) // pointer truncation from 'void *' to 'LONG'
+        #pragma warning( disable: 4312 ) // conversion from 'LONG' to 'PVOID' of greater size
         InterlockedExchangePointer( &atomic->ptr, desired );
+#pragma warning( pop )
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
@@ -1162,8 +1167,12 @@ void thread_atomic_ptr_store( thread_atomic_ptr_t* atomic, void* desired )
 void* thread_atomic_ptr_swap( thread_atomic_ptr_t* atomic, void* desired )
     {
     #if defined( _WIN32 )
-    
+            #pragma warning( push )
+        #pragma warning( disable: 4302 ) // 'type cast' : truncation from 'void *' to 'LONG'
+        #pragma warning( disable: 4311 ) // pointer truncation from 'void *' to 'LONG'
+        #pragma warning( disable: 4312 ) // conversion from 'LONG' to 'PVOID' of greater size
         return InterlockedExchangePointer( &atomic->ptr, desired );
+		 #pragma warning( pop )
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
