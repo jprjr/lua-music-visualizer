@@ -108,7 +108,6 @@ static int version(void) {
     if(UNLIKELY(f == NULL)) return 1;
     file_write(f,lua_music_vis_version,lua_music_vis_version_len);
     file_close(f);
-    file_free(f);
     return 0;
 }
 

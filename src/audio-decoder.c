@@ -156,7 +156,6 @@ closereturn:
     if(buffer_tmp != NULL) free(buffer_tmp);
     if(f != NULL) {
         file_close(f);
-        file_free(f);
     }
     return;
 }
@@ -172,7 +171,6 @@ static void mp3_id3(audio_decoder *a, const char *filename) {
     }
     process_id3(a,f);
     file_close(f);
-    file_free(f);
 }
 #endif
 
@@ -199,7 +197,6 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->ctx.pFlac = drflac_open_with_metadata(read_proc,(drflac_seek_proc)seek_proc,flac_meta,a,NULL);
         if(a->ctx.pFlac == NULL) {
             file_close(a->file);
-            file_free(a->file);
             a->file = NULL;
             return 1;
         }
@@ -227,7 +224,6 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
             free(p);
             a->ctx.pMp3 = NULL;
             file_close(a->file);
-            file_free(a->file);
             a->file = NULL;
             return 1;
         }
@@ -255,7 +251,6 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
             free(p);
             a->ctx.pWav = NULL;
             file_close(a->file);
-            file_free(a->file);
             a->file = NULL;
             return 1;
         }
@@ -272,7 +267,6 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         a->ctx.pPcm = jprpcm_open(read_proc,seek_proc,a,a->samplerate,a->channels);
         if(a->ctx.pPcm == NULL) {
             file_close(a->file);
-            file_free(a->file);
             a->file = NULL;
             return 1;
         }
@@ -335,7 +329,6 @@ void audio_decoder_close(audio_decoder *a) {
         }
     }
     file_close(a->file);
-    file_free(a->file);
     a->file = NULL;
 }
 

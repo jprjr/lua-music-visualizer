@@ -39,7 +39,7 @@ static int jpr_dup2(int fd, int fd2) {
     return r;
 }
 
-static int jpr_open(const char *path, int flag, int mode) {
+static int jpr_open(const char * RESTRICT path, int flag, int mode) {
     int r;
     do {
         r = open(path,flag,mode);
@@ -73,6 +73,7 @@ static ssize_t jpr_read(int fd, void *buf, size_t n) {
 
 #endif
 
+attr_nonnull12
 jpr_file *file_open(const char *filename, const char *mode) {
     jpr_file *f;
 
@@ -85,12 +86,6 @@ jpr_file *file_open(const char *filename, const char *mode) {
     DWORD shared;
 
     f = NULL;
-    if(filename == NULL) {
-        return f;
-    }
-    if(mode == NULL) {
-        return f;
-    }
 
     wide_filename = NULL;
     wide_filename_len = 0;
@@ -100,7 +95,7 @@ jpr_file *file_open(const char *filename, const char *mode) {
     shared = 0;
 
     f = (jpr_file *)malloc(sizeof(jpr_file));
-    if(f == NULL) {
+    if(UNLIKELY(f == NULL)) {
         goto file_open_cleanup;
     }
 
@@ -118,14 +113,14 @@ jpr_file *file_open(const char *filename, const char *mode) {
     }
 
     wide_filename_len = utf_conv_utf8_utf16w(NULL,(const jpr_uint8 *)filename,0);
-    if(wide_filename_len == 0) {
+    if(UNLIKELY(wide_filename_len == 0)) {
         goto file_open_cleanup;
     }
     wide_filename = (wchar_t *)malloc(sizeof(wchar_t) * (wide_filename_len + 1));
-    if(wide_filename == NULL) {
+    if(UNLIKELY(wide_filename == NULL)) {
         goto file_open_cleanup;
     }
-    if(wide_filename_len != utf_conv_utf8_utf16w(wide_filename,(const jpr_uint8 *)filename,0)) {
+    if(UNLIKELY(wide_filename_len != utf_conv_utf8_utf16w(wide_filename,(const jpr_uint8 *)filename,0))) {
         goto file_open_cleanup;
     }
     wide_filename[wide_filename_len] = 0;
@@ -182,11 +177,8 @@ file_open_cleanup:
 
     f = NULL;
 
-    if(filename == NULL) return f;
-    if(mode == NULL) return f;
-
     f = (jpr_file *)malloc(sizeof(jpr_file));
-    if(f == NULL) return f;
+    if(UNLIKELY(f == NULL)) return f;
 
     f->eof = 0;
     f->fd = -1;
@@ -251,36 +243,22 @@ file_open_cleanup:
     return f;
 }
 
-void file_free(jpr_file *f) {
-    if(!f->closed) {
-        file_close(f);
-    }
-    free(f);
-    return;
-}
-
+attr_nonnull1
 int file_close(jpr_file *f) {
     int r;
-    if(f == NULL || f->closed) {
-        return 0;
-    }
-
 #ifdef JPR_WINDOWS
     r = CloseHandle(f->fd);
-    if(r) {
-        f->closed = 1;
-    }
+    free(f);
     return !r;
 #else
     r = jpr_close(f->fd);
-    if(r == 0) {
-        f->closed = 1;
-    }
+    free(f);
     return r;
 #endif
 
 }
 
+attr_nonnull1
 jpr_int64 file_tell(jpr_file *f) {
 #if defined(JPR_WINDOWS)
     LARGE_INTEGER zero;
@@ -298,6 +276,7 @@ jpr_int64 file_tell(jpr_file *f) {
 }
 
 
+attr_nonnull1
 jpr_int64 file_seek(jpr_file *f, jpr_int64 offset, enum JPR_FILE_POS whence) {
 #ifdef JPR_WINDOWS
     DWORD w_whence;
@@ -336,6 +315,7 @@ jpr_int64 file_seek(jpr_file *f, jpr_int64 offset, enum JPR_FILE_POS whence) {
 #endif
 }
 
+attr_nonnull12
 jpr_uint64 file_write(jpr_file *f, const void *buf, jpr_uint64 n) {
     jpr_uint64 r;
 #ifdef JPR_WINDOWS
@@ -373,6 +353,7 @@ jpr_uint64 file_write(jpr_file *f, const void *buf, jpr_uint64 n) {
 #undef WRITE_IMP
 }
 
+attr_nonnull12
 jpr_uint64 file_read(jpr_file *f, void *buf, jpr_uint64 n) {
     jpr_uint64 r;
 #ifdef JPR_WINDOWS
@@ -416,10 +397,12 @@ jpr_uint64 file_read(jpr_file *f, void *buf, jpr_uint64 n) {
 #undef FILE_EOF
 }
 
+attr_nonnull1
 int file_eof(jpr_file *f) {
     return f->eof;
 }
 
+attr_nonnull1
 int file_coe(jpr_file *f) {
 #ifdef JPR_WINDOWS
     if(f->fd != INVALID_HANDLE_VALUE) {
@@ -436,6 +419,7 @@ int file_coe(jpr_file *f) {
 #endif
 }
 
+attr_nonnull1
 int file_uncoe(jpr_file *f) {
 #ifdef JPR_WINDOWS
     if(f->fd != INVALID_HANDLE_VALUE) {
@@ -452,6 +436,7 @@ int file_uncoe(jpr_file *f) {
 #endif
 }
 
+attr_nonnull12
 int file_dupe(jpr_file *f, jpr_file *f2) {
 #ifdef JPR_WINDOWS
     if(f->fd != INVALID_HANDLE_VALUE) {
@@ -468,3 +453,44 @@ int file_dupe(jpr_file *f, jpr_file *f2) {
 #endif
 }
 
+#if JPR_ALIAS_STDLIB
+attr_nonnull12
+FILE *fopen(const char * RESTRICT path, const char * RESTRICT mode) {
+    return (FILE *)file_open(path,mode);
+}
+
+attr_nonnull1
+int fclose(FILE *f) {
+    return file_close((jpr_file *)f);
+}
+
+attr_nonnull1
+int fseek(FILE *f, long offset, int whence) {
+    return (int)file_seek((jpr_file *)f,(int64_t)offset,whence);
+}
+
+attr_nonnull1
+int fseeko(FILE *f, off_t offset, int whence) {
+    return (int)file_seek((jpr_file *)f,(int64_t)offset,whence);
+}
+
+attr_nonnull1
+void rewind(FILE *f) {
+    file_seek((jpr_file *)f,0,JPR_FILE_SET);
+    return;
+}
+
+attr_nonnull1
+long ftell(FILE *f) {
+    int64_t r = file_tell((jpr_file *)f);
+    if(r > LONG_MAX) r = LONG_MAX;
+    if(r < LONG_MIN) r = LONG_MIN;
+    return (long)r;
+}
+
+attr_nonnull1
+off_t ftello(FILE *f) {
+    int64_t r = file_tell((jpr_file *)f);
+    return (off_t)r;
+}
+#endif
