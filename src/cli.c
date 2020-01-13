@@ -46,22 +46,39 @@ static int signal_thread_proc(void *userdata) {
         thread_queue_produce(queue,sig);
         switch(*sig) {
 #ifdef SIGUSR1
-            case SIGUSR1: break;
+            case SIGUSR1: {
+                break;
+            }
 #endif
 #ifdef SIGHUP
-            case SIGHUP: break;
+            case SIGHUP: {
+                break;
+            }
 #endif
 #ifdef SIGINT
-            case SIGINT: thread_exit(0); break;
+            case SIGINT: {
+                thread_exit(0);
+                UNREACHABLE
+                break;
+            }
 #endif
 #ifdef SIGTERM
-            case SIGTERM: thread_exit(0); break;
+            case SIGTERM: {
+                thread_exit(0);
+                UNREACHABLE
+                break;
+            }
 #endif
-            default: thread_exit(1); break;
+            default: {
+                thread_exit(1);
+                UNREACHABLE
+                break;
+            }
         }
         sig = (int *)malloc(sizeof(int));
     }
     thread_exit(1);
+    UNREACHABLE
     return 1;
 }
 
@@ -356,18 +373,11 @@ int cli_start(int argc, char **argv) {
     }
 #ifndef _WIN32
     quitting:
-    /*
-    kill(getpid(),SIGTERM);
-    */
-
-    while(thread_queue_count(&queue) > 0) {
-        sig = thread_queue_consume(&queue);
-        free(sig);
-    }
+    /* signal thread may still be waiting on a signal
+     * if we get here because of end-of-file */
+    kill(getpid(),SIGINT);
 #endif
-
     video_generator_close(generator);
-
     jpr_proc_pipe_close(&f);
     jpr_proc_info_kill(&i);
     jpr_proc_info_wait(&i,&exitcode);
@@ -375,6 +385,11 @@ int cli_start(int argc, char **argv) {
     free(processor);
     free(generator);
 #ifndef _WIN32
+    while(thread_queue_count(&queue) > 0) {
+        sig = thread_queue_consume(&queue);
+        free(sig);
+    }
+
     thread_join(signal_thread);
     thread_destroy(signal_thread);
     thread_queue_term(&queue);

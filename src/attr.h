@@ -10,9 +10,11 @@
 #define LIKELY(x) __builtin_expect(!!(x),1)
 #define UNLIKELY(x) __builtin_expect(!!(x),0)
 #define RESTRICT restrict
+#define UNREACHABLE __builtin_unreachable();
 #elif defined(_MSC_VER)
 #if _MSC_VER >= 1310
 #define attr_noreturn __declspec(noreturn)
+#define UNREACHABLE __assume(0);
 #endif
 #if _MSC_VER >= 1400
 #define RESTRICT __restrict
@@ -49,6 +51,10 @@
 
 #ifndef RESTRICT
 #define RESTRICT
+#endif
+
+#ifndef UNREACHABLE
+#define UNREACHABLE
 #endif
 
 #endif
