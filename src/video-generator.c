@@ -19,6 +19,10 @@
 #include "attr.h"
 #include <limits.h>
 
+#ifdef LUA_JITLIBNAME
+#include <luajit.h>
+#endif
+
 #if 0
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -333,7 +337,7 @@ int video_generator_reload(video_generator *v) {
     return 0;
 }
 
-int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *d, const char *filename, const char *luascript, jpr_proc_pipe *out) {
+int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *d, int jit, const char *modulename, const char *filename, const char *luascript, jpr_proc_pipe *out) {
     char *rpath;
     char *dir;
 	char *script_path;
@@ -373,6 +377,13 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     }
 
     luaL_openlibs(v->L);
+#ifdef LUA_JITLIBNAME
+    if(jit == 0) {
+        luaJIT_setmode(v->L,0,LUAJIT_MODE_OFF);
+    }
+#else
+    (void)jit;
+#endif
 
 	script_path = path_absolute(luascript);
 	if(UNLIKELY(script_path == NULL)) {
@@ -412,6 +423,25 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         lua_close(v->L);
         return 1;
     }
+
+    if(modulename != NULL) {
+        lua_top = lua_gettop(v->L);
+        str_cpy(rpath,"require('");
+        str_cat(rpath,modulename);
+        str_cat(rpath,"')");
+	    if(luaL_loadbuffer(v->L,rpath,str_len(rpath),"require_module") || lua_pcall(v->L,0,LUA_MULTRET,0)) {
+            err_str = lua_tostring(v->L,-1);
+            WRITE_STDERR("error loading lua module");
+            LOG_ERROR(err_str);
+            free(rpath);
+            free(dir);
+		    free(script_path);
+            lua_close(v->L);
+            return 1;
+        }
+        lua_settop(v->L,lua_top);
+    }
+
 
 #ifndef NDEBUG
     lua_top = lua_gettop(v->L);

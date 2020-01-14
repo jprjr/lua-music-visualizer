@@ -322,7 +322,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
 
     if(jpr_proc_spawn(&process,args,&child_stdin,NULL,NULL)) goto startvideo_cleanup;
 
-    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&child_stdin)) {
+    if(video_generator_init(generator,processor,decoder,1,NULL,songfile,scriptfile,&child_stdin)) {
         LOG_ERROR("error starting the video generator");
         goto startvideo_cleanup;
     }

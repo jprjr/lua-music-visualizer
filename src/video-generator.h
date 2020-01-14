@@ -36,7 +36,7 @@ struct video_generator_s {
     unsigned int mpd_tags;
 };
 
-int video_generator_init(video_generator *, audio_processor *, audio_decoder *, const char *filename, const char *luascript, jpr_proc_pipe *out);
+int video_generator_init(video_generator *, audio_processor *, audio_decoder *, int jit, const char *modulename, const char *filename, const char *luascript, jpr_proc_pipe *out);
 void video_generator_close(video_generator *);
 int video_generator_loop(video_generator *);
 int video_generator_reload(video_generator *);

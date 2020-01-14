@@ -116,6 +116,8 @@ static int usage(const char *self, int e) {
     WRITE_STDERR("  --samplerate=samplerate (enables raw input)\n");
     WRITE_STDERR("  --channels (enables raw input)\n");
     WRITE_STDERR("  --version (prints version and exits)\n");
+    WRITE_STDERR("  -l<module> -- calls require(<module>)\n");
+    WRITE_STDERR("  -joff -- turns off JIT\n");
     return e;
 }
 
@@ -149,6 +151,8 @@ int cli_start(int argc, char **argv) {
     const char *songfile;
     const char *scriptfile;
     const char *s;
+    const char *module;
+    int jit;
     char *c;
 
     audio_decoder *decoder;
@@ -182,20 +186,33 @@ int cli_start(int argc, char **argv) {
     self = *argv++;
     argc--;
 
+    module = NULL;
+    jit = 1;
+
     while(argc > 0) {
         if(str_equals(*argv,"--")) {
             argv++;
             argc--;
             break;
         }
-        else if(str_equals(*argv,"--version")) {
+        else if(str_iequals(*argv,"--version")) {
             return version();
         }
-        else if(str_equals(*argv,"--help")) {
+        else if(str_iequals(*argv,"--help")) {
             return usage(self,0);
         }
-        else if(str_equals(*argv,"-h")) {
+        else if(str_iequals(*argv,"-h")) {
             return usage(self,0);
+        }
+        else if(str_iequals(*argv,"-joff")) {
+            jit = 0;
+            argv++;
+            argc--;
+        }
+        else if(str_istarts(*argv,"-l") && str_len(&((*argv)[2])) > 0) {
+            module = &((*argv)[2]);
+            argv++;
+            argc--;
         }
         else if(str_istarts(*argv,"--width")) {
             c = str_chr(*argv,'=');
@@ -343,7 +360,7 @@ int cli_start(int argc, char **argv) {
         return 1;
     }
 
-    if(video_generator_init(generator,processor,decoder,songfile,scriptfile,&f)) {
+    if(video_generator_init(generator,processor,decoder,jit,module,songfile,scriptfile,&f)) {
         LOG_ERROR("error starting the video generator");
         quit(1,decoder,processor,generator,NULL);
         return 1;

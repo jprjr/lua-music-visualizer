@@ -89,6 +89,7 @@ attr_pure size_t str_ends(const char *s, const char *q);
 attr_pure size_t str_iends(const char *s, const char *q);
 
 #define str_equals(s,q) (str_cmp(s,q) == 0)
+#define str_iequals(s,q) (str_icmp(s,q) == 0)
 #define str_starts(s,q) (str_ncmp(s,q,str_len(q)) == 0)
 #define str_istarts(s,q) (str_incmp(s,q,str_len(q)) == 0)
 
