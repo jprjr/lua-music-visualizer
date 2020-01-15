@@ -61,17 +61,17 @@ COPY . /src/lua-music-visualizer
 WORKDIR /src/lua-music-visualizer
 
 ENV UPX_BIN=upx
-ENV STRIP_FLAG=-s
+ENV OPT_LDFLAGS=-s
 ENV OPT_CFLAGS="-O3 -DNDEBUG"
 
 RUN \
     mkdir -p /dist/win32 && \
     mkdir -p /dist/win64 && \
     make -f Makefile.windows.docker TARGET=i686-w64-mingw32 clean && \
-    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 NASM_PLAT=win32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN" -j4 && \
+    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 NASM_PLAT=win32 OPT_CFLAGS="$OPT_CFLAGS" OPT_LDFLAGS="$OPT_LDFLAGS" UPX="$UPX_BIN" -j4 && \
     cp *.exe /dist/win32/ && \
     make -f Makefile.windows.docker TARGET=i686-w64-mingw32 clean && \
-    make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 NASM_PLAT=win64 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN" -j4 && \
+    make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 NASM_PLAT=win64 OPT_CFLAGS="$OPT_CFLAGS" OPT_LDFLAGS="$OPT_LDFLAGS" UPX="$UPX_BIN" -j4 && \
     cp *.exe /dist/win64/ && \
     make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 clean
 
@@ -87,7 +87,7 @@ RUN apk add nasm file pkgconfig make gcc musl-dev luajit-dev linux-headers && \
 COPY . /src/lua-music-visualizer
 WORKDIR /src/lua-music-visualizer
 
-RUN make clean && make NASM_PLAT=elf64 CC="gcc -static -fPIE" PKGCONFIG="pkg-config --static" OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN"
+RUN make clean && make NASM_PLAT=elf64 CC="gcc -static -fPIE" PKGCONFIG="pkg-config --static" OPT_CFLAGS="$OPT_CFLAGS" OPT_LDFLAGS="$OPT_LDFLAGS" UPX="$UPX_BIN"
 RUN mkdir -p /dist && \
     cp lua-music-visualizer /dist
 
@@ -115,7 +115,7 @@ COPY . /src/lua-music-visualizer
 WORKDIR /src/lua-music-visualizer
 
 RUN make clean
-RUN make CC=/usr/osxcross/bin/o64-clang CFLAGS="-I/src/LuaJIT-${LUAJIT_VER}/src -Wall -Wextra $OPT_CFLAGS" LDFLAGS="-L/src/LuaJIT-${LUAJIT_VER}/src -lluajit -pagezero_size 10000 -image_base 100000000 -lm -pthread" HOST_CC="gcc" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX_BIN" OPT_CFLAGS="$OPT_CFLAGS"
+RUN make CC=/usr/osxcross/bin/o64-clang CFLAGS="-I/src/LuaJIT-${LUAJIT_VER}/src -Wall -Wextra" LDFLAGS="-L/src/LuaJIT-${LUAJIT_VER}/src -lluajit -pagezero_size 10000 -image_base 100000000 -lm -pthread" HOST_CC="gcc" OPT_LDFLAGS="$OPT_LDFLAGS" UPX="$UPX_BIN" OPT_CFLAGS="$OPT_CFLAGS"
 RUN mkdir -p /dist && cp lua-music-visualizer /dist/
 
 FROM alpine:3.10

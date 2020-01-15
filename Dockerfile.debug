@@ -89,23 +89,22 @@ COPY . /src/lua-music-visualizer
 WORKDIR /src/lua-music-visualizer
 
 ENV UPX=true
-ENV STRIP_FLAG=
 ENV OPT_CFLAGS="-g -O0"
 
 RUN \
     mkdir -p /dist/win32 && \
     mkdir -p /dist/win64 && \
     mkdir -p /dist/linux && \
-    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" clean && \
-    make -f Makefile.windows.docker NASM_PLAT=win32 TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" -j4 && \
+    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" UPX="$UPX" clean && \
+    make -f Makefile.windows.docker NASM_PLAT=win32 TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" UPX="$UPX" -j4 && \
     mv lua-music-visualizer.exe lua-music-visualizer-32.exe && \
     mv *.exe /dist/win32/ && \
-    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" clean && \
-    make -f Makefile.windows.docker NASM_PLAT=win64 TARGET=x86_64-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" UPX="$UPX" -j4 && \
+    make -f Makefile.windows.docker TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" UPX="$UPX" clean && \
+    make -f Makefile.windows.docker NASM_PLAT=win64 TARGET=x86_64-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" UPX="$UPX" -j4 && \
     mv lua-music-visualizer.exe lua-music-visualizer-64.exe && \
     mv *.exe /dist/win64/ && \
     make -f Makefile.windows.docker TARGET=x86_64-w64-mingw32 clean && \
-    make OPT_CFLAGS="$OPT_CFLAGS" STRIP_FLAG="$STRIP_FLAG" NASM_PLAT=elf64 && \
+    make OPT_CFLAGS="$OPT_CFLAGS" NASM_PLAT=elf64 && \
     mv lua-music-visualizer /dist/linux && \
     make clean
 

@@ -11,11 +11,11 @@ include Makefile.common
 CLEAN += lua-music-visualizer.exe src/lua-music-visualizer-global.res
 
 CFLAGS += -Wall -Wextra $(OPT_CFLAGS)
-LDFLAGS += $(STRIP_FLAG) -mconsole -municode -liup -lluajit -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lws2_32
+LDFLAGS += -mconsole -municode -liup -lluajit -lgdi32 -lcomdlg32 -lcomctl32 -luuid -loleaut32 -lole32 -lwinmm -lws2_32
 NASM_PLAT = win32
 
 lua-music-visualizer.exe: $(OBJS) src/lua-music-visualizer-global.res
-	$(TARGET_CC) -o $@ $^ $(LDFLAGS)
+	$(TARGET_CC) -o $@ $^ $(LDFLAGS) $(OPT_LDFLAGS)
 
 %.res: %.rc
 	$(TARGET_WINDRES) $< -O coff -o $@

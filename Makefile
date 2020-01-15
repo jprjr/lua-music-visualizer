@@ -12,7 +12,7 @@ LDFLAGS += $(shell $(PKGCONFIG) --libs $(LUA)) -lm -pthread
 CLEAN += lua-music-visualizer
 
 lua-music-visualizer: $(OBJS)
-	$(CC) -o $@ $^ $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS) $(OPT_LDFLAGS)
 
 release:
 	docker build -t lua-music-vis .
