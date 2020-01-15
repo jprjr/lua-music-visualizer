@@ -342,9 +342,8 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     char *dir;
 	char *script_path;
     const char *err_str;
-#ifndef NDEBUG
     int lua_top;
-#endif
+
     v->mpd = NULL;
     v->out = out;
 
