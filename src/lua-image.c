@@ -1011,6 +1011,10 @@ lua_image_stamp_image(lua_State *L) {
     int yt;
     unsigned int dxt;
     unsigned int dyt;
+    unsigned int y_transform;
+    unsigned int x_transform;
+    int y_mult;
+    int x_mult;
     int byte;
     int alpha;
     int alpha_inv;
@@ -1093,37 +1097,41 @@ lua_image_stamp_image(lua_State *L) {
     xm -= mask_right;
     ym -= mask_bottom;
 
+    while(y - 1 + ym > height) {
+        ym--;
+    }
+
+    while(x - 1 + xm > width) {
+        xm--;
+    }
+
+    if(vflip) {
+        y_mult = -1;
+        y_transform = src_height - 1;
+    } else {
+        y_mult = 1;
+        y_transform = 0;
+    }
+
+    x_transform = 1;
+    x_mult = 1;
+
+    if(hflip) {
+        x_transform += src_width;
+        x_mult = -1;
+    }
+
     for(yii=yi;yii <= ym; yii++) {
-        yt = yii;
-
-        if(vflip) {
-            yt = src_height - yii + 1;
-        }
-
         dyt = y - 1 + yii;
-
-        if(dyt > height) {
-            continue;
-        }
-
-        yt = src_height - yt;
         dyt = height - dyt;
 
+        yt = (src_height - yii - y_transform) * y_mult;
+
         for(xii=xi;xii <= xm; xii++) {
-            xt = xii;
-
-            if(hflip) {
-                xt = src_width - xii + 1;
-            }
-
             dxt = x - 1 + xii;
-
-            if(dxt > width) {
-                continue;
-            }
-
-            xt = xt - 1;
             dxt = dxt - 1;
+
+            xt = (xii - x_transform) * x_mult;
 
             byte = (yt * src_width * src_channels) + (xt * src_channels);
 
