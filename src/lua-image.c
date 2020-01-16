@@ -1150,7 +1150,7 @@ lua_image_stamp_image(lua_State *L) {
             g = image_two[byte + 1];
             r = image_two[byte + 2];
 
-            if(aa > -1 && a > 0) {
+            if(aa > -1) {
                 a = aa;
             }
 
