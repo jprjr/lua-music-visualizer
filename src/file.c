@@ -19,6 +19,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <stdio.h>
+
 static int jpr_coe(int fd) {
     int flags = fcntl(fd, F_GETFD, 0) ;
     if (flags < 0) return -1 ;
@@ -451,6 +453,48 @@ int file_dupe(jpr_file *f, jpr_file *f2) {
     }
     return 0;
 #endif
+}
+
+/* "slurps" an entire file in one go */
+attr_nonnull1
+jpr_uint8 *file_slurp(const char * RESTRICT filename, jpr_uint64 *size) {
+    jpr_file *f;
+    jpr_uint8 *data;
+    jpr_uint8 *t;
+    jpr_uint8 *d;
+    jpr_uint64 r;
+    size_t s;
+
+    *size = 0;
+    f = file_open(filename,"rb");
+    if(f == NULL) return NULL;
+    s = 0;
+    data = (jpr_uint8 *)malloc(4096);
+    if(UNLIKELY(data == NULL)) {
+        file_close(f);
+        return NULL;
+    }
+    d = &data[s];
+
+    do {
+        r = file_read(f,d,4096);
+        s += r;
+        if(r == 4096) {
+            t = (jpr_uint8 *)realloc(data,s+4096);
+            if(UNLIKELY(t == NULL)) {
+                free(data);
+                file_close(f);
+                return NULL;
+            }
+            data = t;
+            d = &data[s];
+        }
+    } while(r == 4096);
+    file_close(f);
+
+    *size = s;
+    return data;
+
 }
 
 #if JPR_ALIAS_STDLIB
