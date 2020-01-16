@@ -1094,29 +1094,36 @@ lua_image_stamp_image(lua_State *L) {
     ym -= mask_bottom;
 
     for(yii=yi;yii <= ym; yii++) {
+        yt = yii;
+
+        if(vflip) {
+            yt = src_height - yii + 1;
+        }
+
+        dyt = y - 1 + yii;
+
+        if(dyt > height) {
+            continue;
+        }
+
+        yt = src_height - yt;
+        dyt = height - dyt;
+
         for(xii=xi;xii <= xm; xii++) {
             xt = xii;
-            yt = yii;
 
             if(hflip) {
                 xt = src_width - xii + 1;
             }
-            if(vflip) {
-                yt = src_height - yii + 1;
-            }
 
             dxt = x - 1 + xii;
-            dyt = y - 1 + yii;
 
-            if(dxt > width || dyt > height) {
+            if(dxt > width) {
                 continue;
             }
 
             xt = xt - 1;
-            yt = src_height - yt;
-
             dxt = dxt - 1;
-            dyt = height - dyt;
 
             byte = (yt * src_width * src_channels) + (xt * src_channels);
 
