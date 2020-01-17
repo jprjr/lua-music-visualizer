@@ -46,7 +46,7 @@ extern "C" {
 
 int jpr_proc_info_init(jpr_proc_info *);
 int jpr_proc_spawn(jpr_proc_info *, const char * const *argv, jpr_proc_pipe *in, jpr_proc_pipe *out, jpr_proc_pipe *err);
-int jpr_proc_info_wait(jpr_proc_info *, int *);
+int jpr_proc_info_wait(jpr_proc_info *, int *, unsigned int timeout);
 void jpr_proc_info_term(jpr_proc_info *);
 void jpr_proc_info_kill(jpr_proc_info *);
 
@@ -140,9 +140,7 @@ static int jpr_close(int fd) {
 }
 static pid_t jpr_waitpid(pid_t pid, int *stat_loc, int options) {
     pid_t r;
-    do {
-        r = waitpid(pid,stat_loc,options);
-    } while( (r == -1) && (errno == EINTR));
+    r = waitpid(pid,stat_loc,options);
     return r;
 }
 #endif
@@ -219,11 +217,21 @@ void jpr_proc_info_kill(jpr_proc_info *info) {
 #endif
 }
 
-int jpr_proc_info_wait(jpr_proc_info *info, int *e) {
+int jpr_proc_info_wait(jpr_proc_info *info, int *e, unsigned int timeout) {
 #ifdef _WIN32
     DWORD exitCode;
+    DWORD dTimeout;
+    DWORD ret;
+    if(timeout) {
+        dTimeout = (DWORD)(timeout * 1000);
+    } else {
+        dTimeout = INFINITE;
+    }
     if(info->handle == INVALID_HANDLE_VALUE) return 1;
-    if(WaitForSingleObject(info->handle,INFINITE) != 0) {
+
+    ret = WaitForSingleObject(info->handle,dTimeout);
+    if(ret == WAIT_TIMEOUT) return 2;
+    if(ret != 0) {
         return 1;
     }
     if(!GetExitCodeProcess(info->handle,&exitCode)) {
@@ -235,7 +243,13 @@ int jpr_proc_info_wait(jpr_proc_info *info, int *e) {
 #else
     int st;
     if(info->pid == -1) return 1;
-    jpr_waitpid(info->pid,&st,0);
+    if(timeout) {
+        alarm(timeout);
+    }
+    if(jpr_waitpid(info->pid,&st,0) == -1) {
+        if(errno == EINTR) return 2;
+        return 1;
+    }
     jpr_proc_info_init(info);
     if(WIFEXITED(st)) {
         *e = (int)WEXITSTATUS(st);

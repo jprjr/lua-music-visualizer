@@ -14,6 +14,9 @@
 #include <stdlib.h>
 #ifndef NDEBUG
 #include "stb_leakcheck.h"
+#include <stdio.h>
+#else
+#define fprintf(...)
 #endif
 
 #define MY_PI 3.14159265358979323846
@@ -46,14 +49,10 @@ static thread_queue_t thread_queue;
 static image_q image_queue[100];
 
 static thread_queue_t *ret_queue;
-static int qsize;
 
 void
 wake_queue(void) {
-    if(qsize > 0) {
-        qsize = 0;
-        thread_signal_raise(&t_signal);
-    }
+    thread_signal_raise(&t_signal);
 }
 
 static int
@@ -223,7 +222,6 @@ queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, un
     q->channels = channels;
     q->frames = 0;
     q->image = NULL;
-    qsize++;
 
     thread_queue_produce(&thread_queue,q);
 
@@ -1410,12 +1408,17 @@ int luaimage_setup_threads(thread_queue_t *ret) {
 int luaimage_stop_threads(void) {
     image_q q;
     q.table_ref = -1;
+    fprintf(stderr,"luaimage_stop_threads: queue a -1 (stop signal)\n");
     thread_queue_produce(&thread_queue,&q);
-    qsize++;
+    fprintf(stderr,"luaimage_stop_threads: wake_queue()\n");
     wake_queue();
+    fprintf(stderr,"luaimage_stop_threads: thread_join()\n");
     thread_join(thread);
+    fprintf(stderr,"luaimage_stop_threads: thread_destroy()\n");
     thread_destroy(thread);
+    fprintf(stderr,"luaimage_stop_threads: thread_queue_term()\n");
     thread_queue_term(&thread_queue);
+    fprintf(stderr,"luaimage_stop_threads: thread_signal_term()\n");
     thread_signal_term(&t_signal);
     return 0;
 }
@@ -1426,6 +1429,7 @@ luaopen_image(lua_State *L) {
 #ifndef NDEBUG
     int lua_top = lua_gettop(L);
 #endif
+
     luaL_newmetatable(L,"image");
     lua_newtable(L);
     luaL_setfuncs(L,lua_image_image_methods,0);

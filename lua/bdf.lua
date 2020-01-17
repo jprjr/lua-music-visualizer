@@ -38,8 +38,6 @@ typedef uint8_t (*utf_decoder)(uint32_t *cp, const uint8_t *str)
     return ret
   end
   bdf.utf8_to_table = utf8_to_table
-else
-  io.stderr:write('unable to load ffi: ' .. ffi .. '\n')
 end
 
 

@@ -32,8 +32,10 @@
 #endif
 
 #ifndef NDEBUG
-static double perf_times[100];
+#include <stdio.h>
+static double video_times[100];
 static double audio_times[100];
+static double frame_times[100];
 static unsigned int framecounter;
 #ifdef JPR_WINDOWS
 #include <windows.h>
@@ -50,6 +52,8 @@ static attr_inline double ts_to_sec(struct timespec *ts) {
     return (double)ts->tv_sec + (double)ts->tv_nsec / 1000000000.0;
 }
 #endif
+#else
+#define fprintf(...)
 #endif
 
 #if 0
@@ -266,11 +270,17 @@ void video_generator_close(video_generator *v) {
         free(v->mpd->ctx);
         free(v->mpd);
     }
+    fprintf(stderr,"video_generator_close: calling luaclose_image()\n");
     luaclose_image();
+    fprintf(stderr,"video_generator_close: calling luaclose()\n");
     lua_close(v->L);
+    fprintf(stderr,"video_generator_close: audio_decoder_close()\n");
     audio_decoder_close(v->processor->decoder);
+    fprintf(stderr,"video_generator_close: audio_processor_close()\n");
     audio_processor_close(v->processor);
+    fprintf(stderr,"video_generator_close: calling thread_queue_term()\n");
     thread_queue_term(&(v->image_queue));
+    fprintf(stderr,"video_generator_close: free framebuf\n");
     free(v->framebuf);
 }
 
@@ -278,9 +288,12 @@ int video_generator_loop(video_generator *v) {
 #ifndef NDEBUG
     int lua_top;
     double avg_frame_time;
+    double avg_video_time;
     double avg_audio_time;
-    PERF_COUNTER perf_start;
-    PERF_COUNTER perf_end;
+    PERF_COUNTER frame_start;
+    PERF_COUNTER frame_end;
+    PERF_COUNTER video_start;
+    PERF_COUNTER video_end;
     PERF_COUNTER audio_start;
     PERF_COUNTER audio_end;
 #endif
@@ -292,19 +305,25 @@ int video_generator_loop(video_generator *v) {
 
 #ifndef NDEBUG
     avg_frame_time = 0.0f;
+    avg_video_time = 0.0f;
     avg_audio_time = 0.0f;
-          if (framecounter == 100) {
-              for(framecounter=0;framecounter < 100; framecounter++) {
-                  avg_audio_time += audio_times[framecounter];
-                  avg_frame_time += perf_times[framecounter];
-              }
-              avg_frame_time /= 100.0;
-              avg_frame_time *= 1000.0;
-              avg_audio_time /= 100.0;
-              avg_audio_time *= 1000.0;
-              fprintf(stderr,"audio: %f ms, video: %f ms\n",avg_audio_time,avg_frame_time);
-              framecounter = 0;
-          }
+
+    if (framecounter == 100) {
+        for(framecounter=0;framecounter < 100; framecounter++) {
+            avg_audio_time += audio_times[framecounter];
+            avg_video_time += video_times[framecounter];
+            avg_frame_time += frame_times[framecounter];
+        }
+        avg_video_time /= 100.0;
+        avg_video_time *= 1000.0;
+        avg_audio_time /= 100.0;
+        avg_audio_time *= 1000.0;
+        avg_frame_time = 100.0 / avg_frame_time;
+        fprintf(stderr,"fps: %f, audio: %f ms, video: %f ms\n",avg_frame_time, avg_audio_time,avg_video_time);
+        framecounter = 0;
+    }
+
+    SAVE_COUNTER(&frame_start);
 #endif
 
     if(v->mpd != NULL) {
@@ -345,12 +364,12 @@ int video_generator_loop(video_generator *v) {
       if(LIKELY(lua_isfunction(v->L,-1))) {
           lua_pushvalue(v->L,-2);
 #ifndef NDEBUG
-          SAVE_COUNTER(&perf_start);
+          SAVE_COUNTER(&video_start);
 #endif
           lua_pcall(v->L,1,0,0);
 #ifndef NDEBUG
-          SAVE_COUNTER(&perf_end);
-          SAVE_COUNTER_DIFF(perf_times[framecounter],perf_start,perf_end);
+          SAVE_COUNTER(&video_end);
+          SAVE_COUNTER_DIFF(video_times[framecounter],video_start,video_end);
           framecounter++;
 #endif
 
@@ -385,6 +404,9 @@ int video_generator_loop(video_generator *v) {
     if(UNLIKELY(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i))) return 1;
 
     if(UNLIKELY(i != v->framebuf_len)) return 1;
+
+    SAVE_COUNTER(&frame_end);
+    SAVE_COUNTER_DIFF(frame_times[framecounter],frame_start,frame_end);
 
     return r;
 }
@@ -809,8 +831,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
 
 #ifndef NDEBUG
     framecounter = 0;
-    memset(perf_times,0,sizeof(double) * 100);
+    memset(video_times,0,sizeof(double) * 100);
     memset(audio_times,0,sizeof(double) * 100);
+    memset(frame_times,0,sizeof(double) * 100);
 #ifdef JPR_WINDOWS
     QueryPerformanceFrequency(&perf_freq);
 #endif
