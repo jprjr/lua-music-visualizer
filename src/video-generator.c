@@ -23,6 +23,20 @@
 #include <luajit.h>
 #endif
 
+#ifndef NDEBUG
+static double perf_times[100];
+static unsigned int framecounter;
+#ifdef JPR_WINDOWS
+#include <windows.h>
+static LARGE_INTERGER perf_freq;
+#else
+#include <time.h>
+static attr_inline double ts_to_sec(struct timespec *ts) {
+    return (double)ts->tv_sec + (double)ts->tv_nsec / 1000000000.0;
+}
+#endif
+#endif
+
 #if 0
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -248,12 +262,22 @@ void video_generator_close(video_generator *v) {
 int video_generator_loop(video_generator *v) {
 #ifndef NDEBUG
     int lua_top;
+    double avg_frame_time;
+#ifdef JPR_WINDOWS
+    LARGE_INTEGER perf_start;
+    LARGE_INTEGER perf_end;
+#else
+    struct timespec perf_start;
+    struct timespec perf_end;
+#endif
 #endif
     unsigned int pro_offset;
     jpr_uint64 samps;
     int r = 0;
     unsigned int i = 0;
     image_q *q = NULL;
+
+    avg_frame_time = 0.0f;
 
     if(v->mpd != NULL) {
         mpd_ez_loop(v);
@@ -286,7 +310,33 @@ int video_generator_loop(video_generator *v) {
       lua_getfield(v->L,-1,"onframe");
       if(LIKELY(lua_isfunction(v->L,-1))) {
           lua_pushvalue(v->L,-2);
+#ifndef NDEBUG
+          if (framecounter == 100) {
+              for(framecounter=0;framecounter < 100; framecounter++) {
+                  avg_frame_time += perf_times[framecounter];
+              }
+              avg_frame_time /= 100.0;
+              avg_frame_time *= 1000.0;
+              fprintf(stderr,"%f ms\n",avg_frame_time);
+              framecounter = 0;
+          }
+#ifdef JPR_WINDOWS
+          QueryPerformanceCounter(&perf_start);
+#else
+          clock_gettime(CLOCK_MONOTONIC,&perf_start);
+#endif
+#endif
           lua_pcall(v->L,1,0,0);
+#ifndef NDEBUG
+#ifdef JPR_WINDOWS
+          QueryPerformanceCounter(&perf_end);
+          perf_times[framecounter] = (double)((perf_end.QuadPart - perf_start.QuadPart) / ((double)perf_freq.QuadPart));
+#else
+          clock_gettime(CLOCK_MONOTONIC,&perf_end);
+          perf_times[framecounter] = ts_to_sec(&perf_end) - ts_to_sec(&perf_start);
+#endif
+          framecounter++;
+#endif
 
       } else {
           lua_pop(v->L,1);
@@ -711,6 +761,14 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     free(rpath);
     free(dir);
     free(script_path);
+
+#ifndef NDEBUG
+    framecounter = 0;
+    memset(perf_times,0,sizeof(double) * 100);
+#ifdef JPR_WINDOWS
+    QueryPerformanceFrequency(&perf_freq);
+#endif
+#endif
     return 0;
 }
 
