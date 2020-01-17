@@ -3,6 +3,7 @@
 
 #if __STDC_VERSION__ >= 199901L
 #define RESTRICT restrict
+#define attr_inline inline
 #endif
 
 #ifdef __GNUC__
@@ -11,6 +12,9 @@
 #define attr_noreturn __attribute__((__noreturn__))
 #define attr_nonnull1 __attribute__((__nonnull__(1)))
 #define attr_nonnull12 __attribute__((__nonnull__(1,2)))
+#ifndef attr_inline
+#define attr_inline __inline__
+#endif
 #define LIKELY(x) __builtin_expect(!!(x),1)
 #define UNLIKELY(x) __builtin_expect(!!(x),0)
 #ifndef RESTRICT
@@ -18,6 +22,11 @@
 #endif
 #define UNREACHABLE __builtin_unreachable();
 #elif defined(_MSC_VER)
+#if _MSC_VER >= 1200
+#ifndef attr_inline
+#define attr_inline __inline
+#endif
+#endif
 #if _MSC_VER >= 1310
 #define attr_noreturn __declspec(noreturn)
 #define UNREACHABLE __assume(0);
@@ -47,6 +56,10 @@
 
 #ifndef attr_nonnull12
 #define attr_nonnull12
+#endif
+
+#ifndef attr_inline
+#define attr_inline
 #endif
 
 #ifndef LIKELY

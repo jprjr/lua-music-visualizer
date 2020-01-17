@@ -2,6 +2,9 @@
 #include "file.h"
 #include "str.h"
 #include <stdlib.h>
+#ifndef NDEBUG
+#include "stb_leakcheck.h"
+#endif
 
 jpr_text *jpr_text_open(const char * RESTRICT filename) {
     jpr_text *text;

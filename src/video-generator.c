@@ -7,8 +7,8 @@
 #include "util.h"
 #include "jpr_proc.h"
 #include "stream.lua.lh"
-#include "font.lua.lh"
 #include "lua-audio.h"
+#include "lua-bdf.h"
 #include "lua-image.h"
 #include "lua-file.h"
 #include <lua.h>
@@ -533,22 +533,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     assert(lua_top == lua_gettop(v->L));
 #endif
 
-    if(luaL_loadbuffer(v->L,font_lua,font_lua_length-1,"font.lua")) {
-        err_str = lua_tostring(v->L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(err_str);
-        free(rpath);
-        free(dir);
-		free(script_path);
-        free(v->framebuf);
-        lua_close(v->L);
-        return 1;
-    }
-
-    if(lua_pcall(v->L,0,1,0)) {
-        err_str = lua_tostring(v->L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(err_str);
+    if(UNLIKELY(luaopen_bdf(v->L) == 0)) {
         free(rpath);
         free(dir);
 		free(script_path);

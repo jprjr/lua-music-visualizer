@@ -41,7 +41,7 @@ static wchar_t *to_wchar(const char *str) {
 }
 #endif
 
-static void trim_slash(char *filename, size_t len) {
+static attr_inline void trim_slash(char *filename, size_t len) {
     while(len--) {
         if(filename[len] == '/') {
             filename[len] = '\0';

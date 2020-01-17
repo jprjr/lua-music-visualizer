@@ -9,6 +9,8 @@ OBJS = \
   src/video-generator.o \
   src/mpd_ez.o \
   src/mpdc.o \
+  src/bdf.o \
+  src/lua-bdf.o \
   src/lua-image.o \
   src/lua-file.o \
   src/lua-audio.o \
@@ -35,6 +37,7 @@ OBJS = \
   src/version.o
 
 LUALHS = \
+  src/bdf.lua.lh \
   src/font.lua.lh \
   src/image.lua.lh \
   src/stream.lua.lh
