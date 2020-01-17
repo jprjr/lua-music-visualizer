@@ -94,15 +94,8 @@ jpr_dire *dir_read(jpr_dir *dir) {
     tmp.HighPart = dir->find_data.ftLastWriteTime.dwHighDateTime;
 
     tmp2.QuadPart = tmp.QuadPart / 10000000;
-    /* c89 doesn't allow integer long long */
-    /* divide up these subtractions to effectively do -= 11644473600LL */
+    tmp2.QuadPart -= 11644473600LL;
 
-    tmp2.QuadPart -= 2147483647;
-    tmp2.QuadPart -= 2147483647;
-    tmp2.QuadPart -= 2147483647;
-    tmp2.QuadPart -= 2147483647;
-    tmp2.QuadPart -= 2147483647;
-    tmp2.QuadPart -= 907055365;
     entry->mtime = tmp2.QuadPart;
 
     tmp.LowPart = dir->find_data.nFileSizeLow;

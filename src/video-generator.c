@@ -1,3 +1,7 @@
+#ifndef USE_OLD_FONT
+#define USE_OLD_FONT 0
+#endif
+
 #include "int.h"
 #include "norm.h"
 #include "path.h"
@@ -8,7 +12,11 @@
 #include "jpr_proc.h"
 #include "stream.lua.lh"
 #include "lua-audio.h"
+#if USE_OLD_FONT
+#include "font.lua.lh"
+#else
 #include "lua-bdf.h"
+#endif
 #include "lua-image.h"
 #include "lua-file.h"
 #include <lua.h>
@@ -25,12 +33,19 @@
 
 #ifndef NDEBUG
 static double perf_times[100];
+static double audio_times[100];
 static unsigned int framecounter;
 #ifdef JPR_WINDOWS
 #include <windows.h>
-static LARGE_INTERGER perf_freq;
+#define PERF_COUNTER LARGE_INTEGER
+#define SAVE_COUNTER(c) QueryPerformanceCounter((c))
+#define SAVE_COUNTER_DIFF(dest,start,end) dest =  (double)((end.QuadPart - start.QuadPart) / ((double)perf_freq.QuadPart))
+static LARGE_INTEGER perf_freq;
 #else
 #include <time.h>
+#define PERF_COUNTER struct timespec
+#define SAVE_COUNTER(c) clock_gettime(CLOCK_MONOTONIC,(c))
+#define SAVE_COUNTER_DIFF(dest,start,end) dest = ts_to_sec(&(end)) - ts_to_sec(&(start))
 static attr_inline double ts_to_sec(struct timespec *ts) {
     return (double)ts->tv_sec + (double)ts->tv_nsec / 1000000000.0;
 }
@@ -263,13 +278,11 @@ int video_generator_loop(video_generator *v) {
 #ifndef NDEBUG
     int lua_top;
     double avg_frame_time;
-#ifdef JPR_WINDOWS
-    LARGE_INTEGER perf_start;
-    LARGE_INTEGER perf_end;
-#else
-    struct timespec perf_start;
-    struct timespec perf_end;
-#endif
+    double avg_audio_time;
+    PERF_COUNTER perf_start;
+    PERF_COUNTER perf_end;
+    PERF_COUNTER audio_start;
+    PERF_COUNTER audio_end;
 #endif
     unsigned int pro_offset;
     jpr_uint64 samps;
@@ -277,7 +290,22 @@ int video_generator_loop(video_generator *v) {
     unsigned int i = 0;
     image_q *q = NULL;
 
+#ifndef NDEBUG
     avg_frame_time = 0.0f;
+    avg_audio_time = 0.0f;
+          if (framecounter == 100) {
+              for(framecounter=0;framecounter < 100; framecounter++) {
+                  avg_audio_time += audio_times[framecounter];
+                  avg_frame_time += perf_times[framecounter];
+              }
+              avg_frame_time /= 100.0;
+              avg_frame_time *= 1000.0;
+              avg_audio_time /= 100.0;
+              avg_audio_time *= 1000.0;
+              fprintf(stderr,"audio: %f ms, video: %f ms\n",avg_audio_time,avg_frame_time);
+              framecounter = 0;
+          }
+#endif
 
     if(v->mpd != NULL) {
         mpd_ez_loop(v);
@@ -285,7 +313,14 @@ int video_generator_loop(video_generator *v) {
 
     pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
 
+#ifndef NDEBUG
+    SAVE_COUNTER(&audio_start);
+#endif
     samps = audio_processor_process(v->processor, v->samples_per_frame);
+#ifndef NDEBUG
+    SAVE_COUNTER(&audio_end);
+    SAVE_COUNTER_DIFF(audio_times[framecounter],audio_start,audio_end);
+#endif
     r = samps < v->samples_per_frame;
 
     mem_set(v->framebuf+8,0,v->framebuf_video_len);
@@ -301,7 +336,6 @@ int video_generator_loop(video_generator *v) {
         }
     }
 
-
     if(v->lua_ref != -1) {
 #ifndef NDEBUG
       lua_top = lua_gettop(v->L);
@@ -311,30 +345,12 @@ int video_generator_loop(video_generator *v) {
       if(LIKELY(lua_isfunction(v->L,-1))) {
           lua_pushvalue(v->L,-2);
 #ifndef NDEBUG
-          if (framecounter == 100) {
-              for(framecounter=0;framecounter < 100; framecounter++) {
-                  avg_frame_time += perf_times[framecounter];
-              }
-              avg_frame_time /= 100.0;
-              avg_frame_time *= 1000.0;
-              fprintf(stderr,"%f ms\n",avg_frame_time);
-              framecounter = 0;
-          }
-#ifdef JPR_WINDOWS
-          QueryPerformanceCounter(&perf_start);
-#else
-          clock_gettime(CLOCK_MONOTONIC,&perf_start);
-#endif
+          SAVE_COUNTER(&perf_start);
 #endif
           lua_pcall(v->L,1,0,0);
 #ifndef NDEBUG
-#ifdef JPR_WINDOWS
-          QueryPerformanceCounter(&perf_end);
-          perf_times[framecounter] = (double)((perf_end.QuadPart - perf_start.QuadPart) / ((double)perf_freq.QuadPart));
-#else
-          clock_gettime(CLOCK_MONOTONIC,&perf_end);
-          perf_times[framecounter] = ts_to_sec(&perf_end) - ts_to_sec(&perf_start);
-#endif
+          SAVE_COUNTER(&perf_end);
+          SAVE_COUNTER_DIFF(perf_times[framecounter],perf_start,perf_end);
           framecounter++;
 #endif
 
@@ -583,6 +599,33 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     assert(lua_top == lua_gettop(v->L));
 #endif
 
+#if USE_OLD_FONT
+    if(luaL_loadbuffer(v->L,font_lua,font_lua_length-1,"font.lua")) {
+        err_str = lua_tostring(v->L,-1);
+        WRITE_STDERR("error: ");
+        LOG_ERROR(err_str);
+        free(rpath);
+        free(dir);
+        free(script_path);
+        free(v->framebuf);
+        lua_close(v->L);
+        return 1;
+    }
+
+    if(lua_pcall(v->L,0,1,0)) {
+        err_str = lua_tostring(v->L,-1);
+        WRITE_STDERR("error: ");
+        LOG_ERROR(err_str);
+        free(rpath);
+        free(dir);
+        free(script_path);
+        free(v->framebuf);
+        lua_close(v->L);
+        return 1;
+    }
+
+#else
+
     if(UNLIKELY(luaopen_bdf(v->L) == 0)) {
         free(rpath);
         free(dir);
@@ -591,6 +634,8 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         lua_close(v->L);
         return 1;
     }
+
+#endif
 
     lua_setglobal(v->L,"font");
 
@@ -765,6 +810,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
 #ifndef NDEBUG
     framecounter = 0;
     memset(perf_times,0,sizeof(double) * 100);
+    memset(audio_times,0,sizeof(double) * 100);
 #ifdef JPR_WINDOWS
     QueryPerformanceFrequency(&perf_freq);
 #endif

@@ -1,6 +1,7 @@
 #include "bdf.h"
 #include "utf.h"
 #include "bdf.lua.lh"
+#include "util.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -92,6 +93,7 @@ static int luabdf_load(lua_State *L) {
 }
 
 int luaopen_bdf(lua_State *L) {
+    const char *err_str;
     if(luaL_loadbuffer(L,bdf_lua,bdf_lua_length-1,"bdf.lua")) {
         return 0;
     }
@@ -120,8 +122,12 @@ int luaopen_bdf(lua_State *L) {
     /* for possible LuaJIT extensions */
     lua_pushlightuserdata(L,bdf_load);
     lua_pushlightuserdata(L,bdf_free);
+    lua_pushlightuserdata(L,utf_dec_utf8);
 
-    if(lua_pcall(L,4,1,0)) {
+    if(lua_pcall(L,5,1,0)) {
+        err_str = lua_tostring(L,-1);
+        WRITE_STDERR("error loading bdf module: ");
+        LOG_ERROR(err_str);
         return 0;
     }
 
