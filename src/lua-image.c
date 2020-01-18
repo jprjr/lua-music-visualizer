@@ -913,6 +913,137 @@ lua_image_set(lua_State *L) {
 }
 
 static int
+lua_image_stamp_letter(lua_State *L) {
+    /* image:stamp_letter(font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset */
+    /* returns width of letter rendered, in pixels */
+    jpr_uint8 *image;
+    unsigned int codepoint;
+    unsigned int scale;
+    unsigned int x;
+    unsigned int y;
+    jpr_uint8 r;
+    jpr_uint8 g;
+    jpr_uint8 b;
+    unsigned int hloffset;
+    unsigned int hroffset;
+    unsigned int ytoffset;
+    unsigned int yboffset;
+    unsigned int pixel_hroffset;
+    unsigned int pixel_yboffset;
+    unsigned int width;
+    unsigned int height;
+    unsigned int xc;
+    unsigned int yc;
+    unsigned int xcc;
+    unsigned int ycc;
+    unsigned int xi;
+    unsigned int yi;
+    unsigned int w;
+    unsigned int cur;
+    unsigned int index;
+
+    unsigned int image_width;
+    unsigned int image_height;
+    unsigned int image_channels;
+
+    int dest_x;
+    int dest_y;
+
+    /* self = 1 */
+    /* font = 2 */
+
+    lua_getfield(L,1,"image");
+    image = lua_touserdata(L,-1);
+
+    lua_getfield(L,1,"width");
+    image_width = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"height");
+    image_height = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"channels");
+    image_channels = (unsigned int)lua_tointeger(L,-1);
+
+    lua_pop(L,4);
+
+    codepoint = (unsigned int)luaL_checkinteger(L,3);
+    scale     = (unsigned int)luaL_checkinteger(L,4);
+    x         = (unsigned int)luaL_checkinteger(L,5);
+    y         = (unsigned int)luaL_checkinteger(L,6);
+    r         = (jpr_uint8)luaL_checkinteger(L,7);
+    g         = (jpr_uint8)luaL_checkinteger(L,8);
+    b         = (jpr_uint8)luaL_checkinteger(L,9);
+    hloffset  = (unsigned int)luaL_optinteger(L,10,0);
+    hroffset  = (unsigned int)luaL_optinteger(L,11,0);
+    ytoffset  = (unsigned int)luaL_optinteger(L,12,0);
+    yboffset  = (unsigned int)luaL_optinteger(L,13,0);
+
+    lua_getfield(L,2,"widths");
+    lua_rawgeti(L,-1,codepoint);
+    if(lua_isnil(L,-1)) {
+        lua_getfield(L,2,"width");
+        width = (unsigned int)lua_tointeger(L,-1);
+        lua_pop(L,3);
+        lua_pushinteger(L,width * scale);
+        return 1;
+    } else {
+        width = (unsigned int)lua_tointeger(L,-1);
+        lua_pop(L,2);
+    }
+    lua_getfield(L,2,"height");
+    height = (unsigned int)lua_tointeger(L,-1);
+    lua_pop(L,1);
+
+    w = 1 << ( (width + 7) & ~0x07);
+
+    pixel_hroffset = (width * scale) - hroffset - 1;
+    pixel_yboffset = (height * scale) - yboffset - 1;
+
+    lua_getfield(L,2,"bitmaps");
+    lua_rawgeti(L,-1,codepoint);
+
+    for(yc=height;yc>=1;--yc) {
+        lua_rawgeti(L,-1,yc);
+        cur = (unsigned int)lua_tointeger(L,-1);
+        lua_pop(L,1);
+        if(cur == 0) continue;
+        for(xc=1;xc<=width;++xc) {
+            if( cur & (w >> xc)) {
+                for(yi=0;yi<scale;++yi) {
+                    ycc = (yc - 1) * scale + yi;
+                    if(ycc >= ytoffset && ycc <= pixel_yboffset) {
+                        for(xi=0;xi<scale;xi++) {
+                            xcc = (xc - 1) * scale + xi;
+                            if(xcc >= hloffset && xcc <= pixel_hroffset) {
+                                /* self:set_pixel(x+xcc,y+((yc-1) * scale) + yi, r, g, b) */
+                                /* inline this shit */
+                                dest_y = (y + ((yc - 1) * scale) + yi);
+                                dest_x = (x + xcc);
+                                if(dest_x < 1 || dest_y < 1) continue;
+                                if((unsigned int)dest_x > image_width || (unsigned int)dest_y > image_height) continue;
+                                dest_x--;
+                                dest_y = image_height - dest_y;
+                                index = (dest_y * image_width * image_channels) + (dest_x * image_channels);
+                                image[index] = b;
+                                image[index+1] = g;
+                                image[index+2] = r;
+
+                            }
+                        }
+
+                    }
+                }
+
+            }
+        }
+    }
+
+    lua_pushinteger(L,width * scale);
+    return 1;
+}
+    
+
+static int
 lua_image_blend(lua_State *L) {
     /* image:blend(src,alpha) */
     int i = 0;
@@ -1379,6 +1510,7 @@ static const struct luaL_Reg lua_image_image_methods[] = {
     { "set", lua_image_set },
     { "blend", lua_image_blend },
     { "stamp_image", lua_image_stamp_image },
+    { "stamp_letter", lua_image_stamp_letter },
     { NULL, NULL },
 };
 
