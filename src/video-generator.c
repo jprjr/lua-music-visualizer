@@ -366,7 +366,9 @@ int video_generator_loop(video_generator *v) {
 #ifndef NDEBUG
           SAVE_COUNTER(&video_start);
 #endif
-          lua_pcall(v->L,1,0,0);
+          if(lua_pcall(v->L,1,0,0)) {
+              fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
+          }
 #ifndef NDEBUG
           SAVE_COUNTER(&video_end);
           SAVE_COUNTER_DIFF(video_times[framecounter],video_start,video_end);
