@@ -61,6 +61,7 @@ bdf *bdf_load(const char * RESTRICT filename) {
     font->max_glyph = 127;
     font->total_glyphs = 0;
     reading_bitmap = 0;
+    bitmap_line = 0;
 
     while((line = jpr_text_line(text)) != NULL) {
         i++;
