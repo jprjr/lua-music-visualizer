@@ -5,7 +5,8 @@
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
-#ifndef NDEBUG
+
+#ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
 #endif
 

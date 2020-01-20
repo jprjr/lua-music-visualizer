@@ -2,7 +2,7 @@
 #include "file.h"
 #include "str.h"
 #include <stdlib.h>
-#ifndef NDEBUG
+#ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
 #endif
 

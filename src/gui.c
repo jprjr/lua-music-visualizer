@@ -20,7 +20,7 @@
 
 #include "jpr_proc.h"
 
-#ifndef NDEBUG
+#ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
 #endif
 

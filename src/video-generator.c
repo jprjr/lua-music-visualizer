@@ -31,7 +31,7 @@
 #include <luajit.h>
 #endif
 
-#ifndef NDEBUG
+#ifdef CHECK_PERFORMANCE
 #include <stdio.h>
 static double video_times[100];
 static double audio_times[100];
@@ -66,7 +66,7 @@ static attr_inline double ts_to_sec(struct timespec *ts) {
 #endif
 #endif
 
-#ifndef NDEBUG
+#ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
 #endif
 
@@ -270,23 +270,19 @@ void video_generator_close(video_generator *v) {
         free(v->mpd->ctx);
         free(v->mpd);
     }
-    fprintf(stderr,"video_generator_close: calling luaclose_image()\n");
     luaclose_image();
-    fprintf(stderr,"video_generator_close: calling luaclose()\n");
     lua_close(v->L);
-    fprintf(stderr,"video_generator_close: audio_decoder_close()\n");
     audio_decoder_close(v->processor->decoder);
-    fprintf(stderr,"video_generator_close: audio_processor_close()\n");
     audio_processor_close(v->processor);
-    fprintf(stderr,"video_generator_close: calling thread_queue_term()\n");
     thread_queue_term(&(v->image_queue));
-    fprintf(stderr,"video_generator_close: free framebuf\n");
     free(v->framebuf);
 }
 
 int video_generator_loop(video_generator *v) {
 #ifndef NDEBUG
     int lua_top;
+#endif
+#ifdef CHECK_PERFORMANCE
     double avg_frame_time;
     double avg_video_time;
     double avg_audio_time;
@@ -303,7 +299,7 @@ int video_generator_loop(video_generator *v) {
     unsigned int i = 0;
     image_q *q = NULL;
 
-#ifndef NDEBUG
+#ifdef CHECK_PERFORMANCE
     avg_frame_time = 0.0f;
     avg_video_time = 0.0f;
     avg_audio_time = 0.0f;
@@ -332,11 +328,11 @@ int video_generator_loop(video_generator *v) {
 
     pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
 
-#ifndef NDEBUG
+#ifdef CHECK_PERFORMANCE
     SAVE_COUNTER(&audio_start);
 #endif
     samps = audio_processor_process(v->processor, v->samples_per_frame);
-#ifndef NDEBUG
+#ifdef CHECK_PERFORMANCE
     SAVE_COUNTER(&audio_end);
     SAVE_COUNTER_DIFF(audio_times[framecounter],audio_start,audio_end);
 #endif
@@ -363,13 +359,13 @@ int video_generator_loop(video_generator *v) {
       lua_getfield(v->L,-1,"onframe");
       if(LIKELY(lua_isfunction(v->L,-1))) {
           lua_pushvalue(v->L,-2);
-#ifndef NDEBUG
+#ifdef CHECK_PERFORMANCE
           SAVE_COUNTER(&video_start);
 #endif
           if(lua_pcall(v->L,1,0,0)) {
               fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
           }
-#ifndef NDEBUG
+#ifdef CHECK_PERFORMANCE
           SAVE_COUNTER(&video_end);
           SAVE_COUNTER_DIFF(video_times[framecounter],video_start,video_end);
           framecounter++;
@@ -407,8 +403,10 @@ int video_generator_loop(video_generator *v) {
 
     if(UNLIKELY(i != v->framebuf_len)) return 1;
 
+#ifdef CHECK_PERFORMANCE
     SAVE_COUNTER(&frame_end);
     SAVE_COUNTER_DIFF(frame_times[framecounter],frame_start,frame_end);
+#endif
 
     return r;
 }
@@ -831,7 +829,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     free(dir);
     free(script_path);
 
-#ifndef NDEBUG
+#ifdef CHECK_PERFORMANCE
     framecounter = 0;
     memset(video_times,0,sizeof(double) * 100);
     memset(audio_times,0,sizeof(double) * 100);

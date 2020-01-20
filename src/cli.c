@@ -19,11 +19,9 @@
 #include "util.h"
 
 #include <stdlib.h>
-#ifndef NDEBUG
+
+#ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
-#include <stdio.h>
-#else
-#define fprintf(...)
 #endif
 
 #ifndef _WIN32
@@ -391,23 +389,17 @@ int cli_start(int argc, char **argv) {
         }
 #endif
     }
-    fprintf(stderr,"video_generator_loop finished\n");
+
 #ifndef _WIN32
     quitting:
     /* signal thread may still be waiting on a signal
      * if we get here because of end-of-file */
-    fprintf(stderr,"sending sigint to self\n");
     kill(getpid(),SIGINT);
 #endif
-    fprintf(stderr,"closing generator\n");
     video_generator_close(generator);
-    fprintf(stderr,"closing output pipe\n");
     jpr_proc_pipe_close(&f);
-    fprintf(stderr,"sending term signal\n");
     jpr_proc_info_term(&i);
-    fprintf(stderr,"sent term signal, calling wait\n");
     if(jpr_proc_info_wait(&i,&exitcode,5) == 2) {
-        fprintf(stderr,"wait timed out, sending kill\n");
         jpr_proc_info_kill(&i);
     }
 

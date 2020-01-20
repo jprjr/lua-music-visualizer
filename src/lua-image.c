@@ -12,11 +12,8 @@
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
-#ifndef NDEBUG
+#ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
-#include <stdio.h>
-#else
-#define fprintf(...)
 #endif
 
 #define MY_PI 3.14159265358979323846
@@ -1540,17 +1537,11 @@ int luaimage_setup_threads(thread_queue_t *ret) {
 int luaimage_stop_threads(void) {
     image_q q;
     q.table_ref = -1;
-    fprintf(stderr,"luaimage_stop_threads: queue a -1 (stop signal)\n");
     thread_queue_produce(&thread_queue,&q);
-    fprintf(stderr,"luaimage_stop_threads: wake_queue()\n");
     wake_queue();
-    fprintf(stderr,"luaimage_stop_threads: thread_join()\n");
     thread_join(thread);
-    fprintf(stderr,"luaimage_stop_threads: thread_destroy()\n");
     thread_destroy(thread);
-    fprintf(stderr,"luaimage_stop_threads: thread_queue_term()\n");
     thread_queue_term(&thread_queue);
-    fprintf(stderr,"luaimage_stop_threads: thread_signal_term()\n");
     thread_signal_term(&t_signal);
     return 0;
 }

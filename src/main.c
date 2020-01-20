@@ -14,10 +14,10 @@
 #endif
 
 #include <stdlib.h>
-#include <stdio.h>
 
-#ifndef NDEBUG
+#ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
+#include <stdio.h>
 #endif
 
 #include "int.h"
@@ -57,7 +57,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if(argc < 2) {
         ret = gui_start(argc,argv);
         if(ret != -1) {
-#ifndef NDEBUG
+#ifdef CHECK_LEAKS
             printf("stb_leakcheck_dumpmem follows (nothing == no leaks)\n");
             stb_leakcheck_dumpmem();
 #endif
@@ -65,7 +65,7 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
     ret = cli_start(argc,argv);
-#ifndef NDEBUG
+#ifdef CHECK_LEAKS
     printf("stb_leakcheck_dumpmem follows (nothing == no leaks)\n");
     stb_leakcheck_dumpmem();
 #endif

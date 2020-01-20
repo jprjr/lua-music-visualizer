@@ -7,7 +7,8 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdlib.h>
-#ifndef NDEBUG
+
+#ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
 #endif
 
