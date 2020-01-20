@@ -142,7 +142,7 @@ void *mem_set(void *dest, int c, size_t n) {
 #elif defined(__i386__) || defined(__x86_64__)
     void *d = dest;
     jpr_uint8 t = c;
-    __asm__ __volatile("rep stosb" : "+D"(d), "=a"(t), "+c"(n) : : "memory");
+    __asm__ __volatile("cld ; rep ; stosb" : "=D"(d), "=c"(n) : "a"(t), "0"(d),"1"(n) : "memory");
 #else
     jpr_uint8 *d = (jpr_uint8 *)dest;
     while(n--) {
