@@ -338,7 +338,11 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
 
 startvideo_cleanup:
     jpr_proc_pipe_close(&child_stdin);
-    jpr_proc_info_wait(&process,&t);
+    jpr_proc_info_term(&process);
+    if(jpr_proc_info_wait(&process,&t,5) == 2) {
+        jpr_proc_info_kill(&process);
+        jpr_proc_info_wait(&process,&t,5);
+    }
     tearDownGenerator();
 
     if(t) IupExitLoop();

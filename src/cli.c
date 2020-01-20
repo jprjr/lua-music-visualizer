@@ -401,6 +401,7 @@ int cli_start(int argc, char **argv) {
     jpr_proc_info_term(&i);
     if(jpr_proc_info_wait(&i,&exitcode,5) == 2) {
         jpr_proc_info_kill(&i);
+        jpr_proc_info_wait(&i,&exitcode,5);
     }
 
     free(decoder);
