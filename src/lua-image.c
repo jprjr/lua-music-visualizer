@@ -1245,11 +1245,11 @@ lua_image_stamp_image(lua_State *L) {
     xm -= mask_right;
     ym -= mask_bottom;
 
-    while((unsigned int)(y - 1 + ym) > height) {
+    while(y - 1 + ym > (int)height) {
         ym--;
     }
 
-    while((unsigned int)(x - 1 + xm) > width) {
+    while(x - 1 + xm > (int)width) {
         xm--;
     }
 
