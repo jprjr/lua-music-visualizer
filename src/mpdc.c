@@ -373,12 +373,14 @@ static int mpdc__process(mpdc_connection *conn, size_t *len) {
     int ok = 0;
     size_t t = 0;
     char *s = NULL;
+    int ilen = 0;
 
     *len = 0;
     do {
         if(conn->_mode == 0 || (conn->_mode ==1 && conn->_bytes == 0)) {
-            *len = mpdc__ringbuf_getline(&conn->in,(char *)conn->scratch);
-            if(*len <= 0) {
+            ilen = mpdc__ringbuf_getline(&conn->in,(char *)conn->scratch);
+            if(ilen >= 0) *len = (unsigned int)ilen;
+            if(ilen <= 0) {
                 if(conn->_mode == 1 && conn->_bytes == 0 && *len == 0) {
                     /* end of binary response */
                     conn->_mode = 0;
@@ -387,8 +389,9 @@ static int mpdc__process(mpdc_connection *conn, size_t *len) {
                 break;
             }
         } else {
-            *len = mpdc__ringbuf_getbytes(&conn->in,conn->scratch,conn->_bytes);
-            if(*len <= 0) break;
+            ilen = mpdc__ringbuf_getbytes(&conn->in,conn->scratch,conn->_bytes);
+            if(ilen >= 0) *len = (unsigned int)ilen;
+            if(ilen <= 0) break;
             conn->_bytes -= *len;
         }
         if(conn->_mode == 0) {
@@ -403,7 +406,7 @@ static int mpdc__process(mpdc_connection *conn, size_t *len) {
                 }
                 if(str_istarts((const char *)conn->scratch,"binary")) {
                     conn->_mode = 1;
-                    scan_uint((const char *)conn->scratch + t + 2, &conn->_bytes);
+                    scan_sizet((const char *)conn->scratch + t + 2, &conn->_bytes);
                 }
                 else {
                     conn->cb_level++;
@@ -426,7 +429,7 @@ static int mpdc__process(mpdc_connection *conn, size_t *len) {
             conn->cb_level--;
         }
 
-    } while(*len > -1);
+    } while(ilen > -1);
 
     if(ok == 1 && !mpdc_ringbuf_is_empty(&conn->op)) {
         conn->write_notify(conn);

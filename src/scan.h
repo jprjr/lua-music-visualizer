@@ -17,6 +17,7 @@ size_t scan_uint32(const char *s, jpr_uint32 *num);
 size_t scan_int32(const char *s, jpr_int32 *num);
 size_t scan_uint16(const char *s, jpr_uint16 *num);
 size_t scan_int16(const char *s, jpr_int16 *num);
+size_t scan_sizet(const char *s, size_t *num);
 size_t scan_uint64_base16(const char *s, jpr_uint64 *num);
 size_t scan_uint32_base16(const char *s, jpr_uint32 *num);
 

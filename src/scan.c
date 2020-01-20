@@ -105,6 +105,15 @@ size_t scan_uint(const char *str, unsigned int *num) {
     return r;
 }
 
+size_t scan_sizet(const char *str, size_t *num) {
+    size_t r = 0;
+    jpr_uint64 t;
+    r = scan_uint64(str, &t);
+	if(t > ((size_t)-1)) t = ((size_t)-1);
+    *num = (unsigned int)t;
+    return r;
+}
+
 size_t scan_int(const char *str, int *num) {
     size_t r = 0;
     jpr_int64 t;

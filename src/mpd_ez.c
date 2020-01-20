@@ -25,7 +25,7 @@ static void ez_mpdc_response_begin(mpdc_connection *conn,const char *cmd) {
 }
 
 
-static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char *key, const jpr_uint8 *value, unsigned int length) {
+static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char *key, const jpr_uint8 *value, size_t length) {
 #ifndef NDEBUG
     int lua_state;
 #endif
@@ -34,8 +34,8 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
     const char *t;
     char *c;
     const char *err_str;
-    int tmp_int;
-    int tmp_fac;
+    unsigned int tmp_uint;
+    unsigned int tmp_fac;
 
     (void)length;
     info = (conn_info *)conn->ctx;
@@ -44,34 +44,34 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
     lua_state = lua_gettop(v->L);
 #endif
 
-    tmp_int = 0;
+    tmp_uint = 0;
     tmp_fac = 0;
 
     lua_getglobal(v->L,"song"); /* push */
 
     if(str_equals(cmd,"status")) {
         if(str_equals(key,"songid")) {
-            scan_uint((char *)value,&tmp_int);
-            lua_pushinteger(v->L,tmp_int);
+            scan_uint((char *)value,&tmp_uint);
+            lua_pushinteger(v->L,tmp_uint);
             lua_setfield(v->L,-2,"songid");
         } else if(str_equals(key,"elapsed")) {
             t = (const char *)value;
-            t += scan_uint(t,&tmp_int);
-            tmp_int *= 1000;
+            t += scan_uint(t,&tmp_uint);
+            tmp_uint *= 1000;
             t++;
             scan_uint(t,&tmp_fac);
-            tmp_int += tmp_fac;
-            v->elapsed = (double)tmp_int;
+            tmp_uint += tmp_fac;
+            v->elapsed = (double)tmp_uint;
             lua_pushnumber(v->L,v->elapsed / 1000.0f);
             lua_setfield(v->L,-2,"elapsed");
         } else if(str_equals(key,"duration")) {
             t = (const char *)value;
-            t += scan_uint(t,&tmp_int);
-            tmp_int *= 1000;
+            t += scan_uint(t,&tmp_uint);
+            tmp_uint *= 1000;
             t++;
             scan_uint(t,&tmp_fac);
-            tmp_int += tmp_fac;
-            v->duration = tmp_int / 1000.0f;
+            tmp_uint += tmp_fac;
+            v->duration = tmp_uint / 1000.0f;
             lua_pushnumber(v->L,v->duration);
             lua_setfield(v->L,-2,"total");
         }
@@ -80,8 +80,8 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
                 c = str_chr((const char *)value,':');
                 if(c != NULL) {
                   t = &c[1];
-                  scan_uint(t,&tmp_int);
-                  lua_pushnumber(v->L,tmp_int);
+                  scan_uint(t,&tmp_uint);
+                  lua_pushnumber(v->L,tmp_uint);
                   lua_setfield(v->L,-2,"total");
                 }
             }
@@ -221,7 +221,7 @@ static int ez_ndelay_on(SOCKET fd)
 #endif
 }
 
-static int ez_read_func(void *ctx, jpr_uint8 *buf, unsigned int count) {
+static int ez_read_func(void *ctx, jpr_uint8 *buf, size_t count) {
     conn_info *conn = (conn_info *)ctx;
     int r;
     do {
@@ -230,7 +230,7 @@ static int ez_read_func(void *ctx, jpr_uint8 *buf, unsigned int count) {
     return r;
 }
 
-static int ez_write_func(void *ctx, const jpr_uint8 *buf, unsigned int count) {
+static int ez_write_func(void *ctx, const jpr_uint8 *buf, size_t count) {
     conn_info *conn = (conn_info *)ctx;
     int r;
     do {

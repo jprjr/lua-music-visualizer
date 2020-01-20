@@ -89,7 +89,7 @@ COPY . /src/lua-music-visualizer
 WORKDIR /src/lua-music-visualizer
 
 ENV UPX=true
-ENV OPT_CFLAGS="-g -O0 -DCHECK_LEAKS -DCHECK_PERFORMANCE"
+ENV OPT_CFLAGS="-g -O0 -DCHECK_LEAKS -DCHECK_PERFORMANCE -DJPR_NO_STDLIB"
 
 RUN \
     mkdir -p /dist/win32 && \

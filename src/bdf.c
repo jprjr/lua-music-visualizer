@@ -84,14 +84,14 @@ bdf *bdf_load(const char * RESTRICT filename) {
                 bdf_free(font);
                 return NULL;
             }
-            memset(font->glyphs,0,sizeof(jpr_uint32 *) * (font->max_glyph + 1));
+            mem_set(font->glyphs,0,sizeof(jpr_uint32 *) * (font->max_glyph + 1));
 
             font->widths = (unsigned int *)malloc(sizeof(unsigned int) * (font->max_glyph + 1));
             if(UNLIKELY(font->widths == NULL)) {
                 bdf_free(font);
                 return NULL;
             }
-            memset(font->widths,0,sizeof(unsigned int) * (font->max_glyph + 1));
+            mem_set(font->widths,0,sizeof(unsigned int) * (font->max_glyph + 1));
         }
         else if(str_starts(line,"ENCODING")) {
             l += 8;
@@ -108,7 +108,7 @@ bdf *bdf_load(const char * RESTRICT filename) {
                     return NULL;
                 }
                 font->glyphs = t;
-                memset(&(font->glyphs[old_max+1]),0,sizeof(jpr_uint32 *) * (font->max_glyph - old_max));
+                mem_set(&(font->glyphs[old_max+1]),0,sizeof(jpr_uint32 *) * (font->max_glyph - old_max));
 
                 t = (unsigned int *)realloc(font->widths,sizeof(unsigned int) * (font->max_glyph + 1));
                 if(UNLIKELY(t == NULL)) {
@@ -116,10 +116,10 @@ bdf *bdf_load(const char * RESTRICT filename) {
                     return NULL;
                 }
                 font->widths = t;
-                memset(&(font->widths[old_max+1]),0,sizeof(unsigned int) * (font->max_glyph - old_max));
+                mem_set(&(font->widths[old_max+1]),0,sizeof(unsigned int) * (font->max_glyph - old_max));
             }
             font->glyphs[cur_glyph] = (jpr_uint32 *)malloc(sizeof(jpr_uint32) * height);
-            memset(font->glyphs[cur_glyph],0,sizeof(jpr_uint32) * height);
+            mem_set(font->glyphs[cur_glyph],0,sizeof(jpr_uint32) * height);
         }
         else if(str_starts(line,"DWIDTH")) {
             l += 6;
