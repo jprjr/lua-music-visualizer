@@ -14,20 +14,20 @@ stream.stamp_string_adv = function(self,str,props,userd)
   return self.video:stamp_string_adv(str,props,userd)
 end
 
-stream.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask)
-  return self.video:stamp_string(font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask)
+stream.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask,hflip,vflip)
+  return self.video:stamp_string(font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask,hflip,vflip)
 end
 
-stream.stamp_letter = function(self,font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset)
-  return self.video:stamp_letter(font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset)
+stream.stamp_letter = function(self,font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
+  return self.video:stamp_letter(font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
 end
 
-stream.stamp_string_hsl = function(self,font,str,scale,x,y,h,s,l,max,lmask,rmask,tmask,bmask)
-  return self.video:stamp_string_hsl(font,str,scale,x,y,h,s,l,max,lmask,rmask,tmask,bmask)
+stream.stamp_string_hsl = function(self,font,str,scale,x,y,h,s,l,max,lmask,rmask,tmask,bmask,hflip,vflip)
+  return self.video:stamp_string_hsl(font,str,scale,x,y,h,s,l,max,lmask,rmask,tmask,bmask,hflip,vflip)
 end
 
-stream.stamp_letter_hsl = function(self,font,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset)
-  return self.video:stamp_letter_hsl(font,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset)
+stream.stamp_letter_hsl = function(self,font,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
+  return self.video:stamp_letter_hsl(font,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
 end
 
 stream.draw_rectangle_rgb = stream.draw_rectangle

@@ -911,7 +911,7 @@ lua_image_set(lua_State *L) {
 
 static int
 lua_image_stamp_letter(lua_State *L) {
-    /* image:stamp_letter(font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset */
+    /* image:stamp_letter(font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset,hflip,vflip */
     /* returns width of letter rendered, in pixels */
     jpr_uint8 *image;
     unsigned int codepoint;
@@ -932,6 +932,7 @@ lua_image_stamp_letter(lua_State *L) {
     unsigned int xc;
     unsigned int yc;
     unsigned int xcc;
+    unsigned int xccc;
     unsigned int ycc;
     unsigned int xi;
     unsigned int yi;
@@ -947,6 +948,9 @@ lua_image_stamp_letter(lua_State *L) {
 
     int dest_x;
     int dest_y;
+
+    int vflip;
+    int hflip;
 
     /* self = 1 */
     /* font = 2 */
@@ -976,6 +980,8 @@ lua_image_stamp_letter(lua_State *L) {
     hroffset  = (unsigned int)luaL_optinteger(L,11,0);
     ytoffset  = (unsigned int)luaL_optinteger(L,12,0);
     yboffset  = (unsigned int)luaL_optinteger(L,13,0);
+    hflip     = (lua_isboolean(L,14) ? lua_toboolean(L,14) : 0);
+    vflip     = (lua_isboolean(L,15) ? lua_toboolean(L,15) : 0);
 
     lua_getfield(L,2,"widths");
     lua_rawgeti(L,-1,codepoint);
@@ -1013,13 +1019,15 @@ lua_image_stamp_letter(lua_State *L) {
     lua_getfield(L,2,"bitmaps");
     lua_rawgeti(L,-1,codepoint);
 
-    for(yc=height;yc>=1;--yc) {
-        lua_rawgeti(L,-1,yc);
+    /*for(yc=height;yc>=1;--yc) {*/
+    for(yc=1;yc<=height;++yc) {
+        lua_rawgeti(L,-1,(vflip ? height - yc + 1 : yc));
         cur = (unsigned int)lua_tointeger(L,-1);
         lua_pop(L,1);
         if(cur == 0) continue;
         for(xc=1;xc<=width;++xc) {
-            if( cur & (w >> xc)) {
+            xccc = (hflip ? width - xc + 1 : xc);
+            if( cur & (w >> xccc)) {
                 for(yi=0;yi<scale;++yi) {
                     ycc = (yc - 1) * scale + yi;
                     if(ycc >= ytoffset && ycc <= pixel_yboffset) {
@@ -1028,7 +1036,7 @@ lua_image_stamp_letter(lua_State *L) {
                             if(xcc >= hloffset && xcc <= pixel_hroffset) {
                                 /* self:set_pixel(x+xcc,y+((yc-1) * scale) + yi, r, g, b) */
                                 /* inline this shit */
-                                dest_y = (y + ((yc - 1) * scale) + yi);
+                                dest_y = (y + ycc);
                                 dest_x = (x + xcc);
                                 if(dest_x < 1 || dest_y < 1) continue;
                                 if((unsigned int)dest_x > image_width || (unsigned int)dest_y > image_height) continue;

@@ -103,6 +103,8 @@ local string_props = {
   'rmask',
   'tmask',
   'bmask',
+  'hflip',
+  'vflip'
 }
 
 image_mt_funcs.stamp_string_adv = function(self, str, props, userd)
@@ -137,12 +139,12 @@ image_mt_funcs.stamp_string_adv = function(self, str, props, userd)
     if not p.font.widths[codepoint] then
       codepoint = 32
     end
-    p.x = p.x + self:stamp_letter(p.font,codepoint,p.scale,p.x,p.y,p.r,p.g,p.b,p.lmask,p.rmask,p.tmask,p.bmask)
+    p.x = p.x + self:stamp_letter(p.font,codepoint,p.scale,p.x,p.y,p.r,p.g,p.b,p.lmask,p.rmask,p.tmask,p.bmask,p.hflip,p.vflip)
   end
 
 end
 
-image_mt_funcs.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask)
+image_mt_funcs.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask,hflip,vflip)
   local lmask_applied = false
   if not lmask then
     lmask_applied = true
@@ -151,6 +153,8 @@ image_mt_funcs.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,r
   rmask = rmask or 0
   tmask = tmask or 0
   bmask = bmask or 0
+  hflip = hflip or false
+  vflip = vflip or false
 
   tmask = tmask * scale
   bmask = bmask * scale
@@ -171,7 +175,7 @@ image_mt_funcs.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,r
       end
       xi = xi + self:stamp_letter(font,codepoint,scale,xi,y,r,g,b,
         lmask_applied == false and lmask or 0,
-        rmask,tmask,bmask)
+        rmask,tmask,bmask,hflip,vflip)
       if lmask_applied == false then
         lmask_applied = true
         lmask = 0
@@ -180,13 +184,13 @@ image_mt_funcs.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,r
   end
 end
 
-image_mt_funcs.stamp_string_hsl = function(self,font,str,scale,x,y,h,s,l,max,lmask,rmask,tmask,bmask)
+image_mt_funcs.stamp_string_hsl = function(self,font,str,scale,x,y,h,s,l,max,lmask,rmask,tmask,bmask,hflip,vflip)
   local r, g, b = hsl_to_rgb(h,s,l)
-  return self:stamp_string(font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask)
+  return self:stamp_string(font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask,hflip,vflip)
 end
 
-image_mt_funcs.stamp_letter_hsl = function(self,font,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset)
+image_mt_funcs.stamp_letter_hsl = function(self,font,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
   local r, g, b = hsl_to_rgb(h,s,l)
-  return self:stamp_letter(font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset)
+  return self:stamp_letter(font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
 end
 
