@@ -69,7 +69,7 @@ void *mem_cpy(void *dest, const void *src, size_t n) {
     __movsb(d,src,n);
 #elif defined(__i386__) || defined(__x86_64__)
     void *d = dest;
-    __asm__ __volatile("rep movsb" : "+D"(d), "+S"(src), "+c"(n) : : "memory");
+    __asm__ __volatile("cld ; rep ; movsb" : "=D"(d), "=S"(src), "=c"(n) : "S"(src), "0"(d), "1"(n) : "memory");
 #else
     jpr_uint8 *d;
     const jpr_uint8 *s;
