@@ -938,6 +938,8 @@ lua_image_stamp_letter(lua_State *L) {
     unsigned int w;
     unsigned int cur;
     unsigned int index;
+    unsigned int scaled_width;
+    unsigned int scaled_height;
 
     unsigned int image_width;
     unsigned int image_height;
@@ -987,9 +989,21 @@ lua_image_stamp_letter(lua_State *L) {
         width = (unsigned int)lua_tointeger(L,-1);
         lua_pop(L,2);
     }
+
     lua_getfield(L,2,"height");
     height = (unsigned int)lua_tointeger(L,-1);
     lua_pop(L,1);
+
+    scaled_width = width * scale;
+    scaled_height = height * scale;
+
+    if(hroffset > scaled_width ||
+       yboffset > scaled_height ||
+       hloffset > scaled_width ||
+       ytoffset > scaled_height) {
+        lua_pushinteger(L,width * scale);
+        return 1;
+    }
 
     w = 1 << ( (width + 7) & ~0x07);
 
@@ -1038,7 +1052,7 @@ lua_image_stamp_letter(lua_State *L) {
     lua_pushinteger(L,width * scale);
     return 1;
 }
-    
+
 
 static int
 lua_image_blend(lua_State *L) {
