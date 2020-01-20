@@ -17,24 +17,24 @@ static const char* const mpdc__command[101];
 static const char mpdc__numtab[10];
 
 static int mpdc__ringbuf_putchr(mpdc_ringbuf *rb, jpr_uint8 byte);
-static int mpdc__ringbuf_putstr(mpdc_ringbuf *rb, const char *src);
+static size_t mpdc__ringbuf_putstr(mpdc_ringbuf *rb, const char *src);
 static jpr_uint8 mpdc__ringbuf_getchr(mpdc_ringbuf *rb);
 static int mpdc__ringbuf_findchr(mpdc_ringbuf *rb, char ch);
-static int mpdc__ringbuf_read(mpdc_ringbuf *rb,unsigned int count);
-static int mpdc__ringbuf_write(mpdc_ringbuf *rb, unsigned int count);
+static int mpdc__ringbuf_read(mpdc_ringbuf *rb,size_t count);
+static int mpdc__ringbuf_write(mpdc_ringbuf *rb, size_t count);
 static int mpdc__ringbuf_flushline(mpdc_ringbuf *rb, int *exp);
 static int mpdc__ringbuf_readline(mpdc_ringbuf *rb);
 static int mpdc__ringbuf_getline(mpdc_ringbuf *rb, char *dest);
-static int mpdc__ringbuf_getbytes(mpdc_ringbuf *rb, jpr_uint8 *dest, unsigned int count);
-static unsigned int mpdc__mpdc__scan_uint16(const char *str, jpr_uint16 *dest);
-static unsigned int mpdc__fmt_uint(char *dest, unsigned int n);
-static unsigned int mpdc__fmt_int(char *dest, int n);
+static size_t mpdc__ringbuf_getbytes(mpdc_ringbuf *rb, jpr_uint8 *dest, size_t count);
+static size_t mpdc__mpdc__scan_uint16(const char *str, jpr_uint16 *dest);
+static size_t mpdc__fmt_uint(char *dest, size_t n);
+static size_t mpdc__fmt_int(char *dest, int n);
 
-static int mpdc__handshake(mpdc_connection *conn, const char *buf, unsigned int r);
+static int mpdc__handshake(mpdc_connection *conn, const char *buf, size_t r);
 static int mpdc__op_queue(mpdc_connection *conn, char op);
 static jpr_uint8 mpdc__op_last(mpdc_connection *conn);
-static int mpdc__line(mpdc_connection *conn, char *line, unsigned int r);
-static int mpdc__process(mpdc_connection *conn, int *len);
+static int mpdc__line(mpdc_connection *conn, char *line, size_t r);
+static int mpdc__process(mpdc_connection *conn, size_t *len);
 
 static int mpdc__read_notify_default(mpdc_connection *conn);
 static int mpdc__write_notify_default(mpdc_connection *conn);
@@ -42,7 +42,7 @@ static int mpdc__resolve_default(mpdc_connection *, const char *hostname);
 static int mpdc__connection_default(mpdc_connection *, const char *hostname, jpr_uint16 port);
 static void mpdc__response_begin_default(mpdc_connection *, const char *cmd);
 static void mpdc__response_end_default(mpdc_connection *, const char *cmd, int ok, const char *err);
-static void mpdc__response_default(mpdc_connection *, const char *cmd, const char *key, const jpr_uint8 *value, unsigned int length);
+static void mpdc__response_default(mpdc_connection *, const char *cmd, const char *key, const jpr_uint8 *value, size_t length);
 static int mpdc__receive_block(mpdc_connection *conn);
 static int mpdc__receive_nonblock(mpdc_connection *conn);
 
@@ -77,13 +77,13 @@ static const char* const mpdc__command[101] = {
     (rb)->size = SIZE;
 
 #define mpdc__ringbuf_capacity(rb) \
-  ((unsigned int)(((rb)->size) - 1))
+  ((size_t)(((rb)->size) - 1))
 
 #define mpdc__ringbuf_bytes_free(rb) \
-    ((rb)->head >= (rb)->tail ? (unsigned int)(mpdc__ringbuf_capacity(rb) - ((rb)->head - (rb)->tail)) : (unsigned int)((rb)->tail - (rb)->head - 1))
+    ((rb)->head >= (rb)->tail ? (size_t)(mpdc__ringbuf_capacity(rb) - ((rb)->head - (rb)->tail)) : (size_t)((rb)->tail - (rb)->head - 1))
 
 #define mpdc__ringbuf_bytes_used(rb) \
-    ((unsigned int)(mpdc__ringbuf_capacity(rb) - mpdc__ringbuf_bytes_free(rb)))
+    ((size_t)(mpdc__ringbuf_capacity(rb) - mpdc__ringbuf_bytes_free(rb)))
 
 #define mpdc_ringbuf_is_full(rb) \
     (mpdc__ringbuf_bytes_free(rb) == 0)
@@ -110,14 +110,14 @@ static int mpdc__ringbuf_putchr(mpdc_ringbuf *rb, jpr_uint8 byte) {
 
 #define mpdc__ringbuf_endstr(rb) mpdc__ringbuf_putchr(rb,'\n')
 
-static unsigned int mpdc__str_chr(const char *str, char ch, unsigned int max) {
+static size_t mpdc__str_chr(const char *str, char ch, size_t max) {
     char *s = str_nchr(str,ch,max);
     if(s == NULL) return str_len(str);
     return s - str;
 }
 
-static unsigned int str_nlen_e(const char *src, unsigned int max) {
-    unsigned int len = 0;
+static size_t str_nlen_e(const char *src, size_t max) {
+    size_t len = 0;
     const char *e = src;
     while(*e) {
         if(*e == '"' || *e == '\\') {
@@ -132,7 +132,7 @@ static unsigned int str_nlen_e(const char *src, unsigned int max) {
 }
 
 /* does NOT terminate the string */
-static int mpdc__ringbuf_putstr(mpdc_ringbuf *rb, const char *src) {
+static size_t mpdc__ringbuf_putstr(mpdc_ringbuf *rb, const char *src) {
     const char *e;
     if(str_nlen_e(src,mpdc__ringbuf_capacity(rb)) > mpdc__ringbuf_bytes_free(rb)) {
         return 0;
@@ -173,7 +173,7 @@ static jpr_uint8 mpdc__op_last(mpdc_connection *conn) {
 
 static int mpdc__ringbuf_findchr(mpdc_ringbuf *rb, char ch) {
     jpr_uint8 *t;
-    unsigned int n;
+    size_t n;
     int r;
 
     n = mpdc__ringbuf_bytes_used(rb);
@@ -190,15 +190,15 @@ static int mpdc__ringbuf_findchr(mpdc_ringbuf *rb, char ch) {
     return -1;
 }
 
-static int mpdc__ringbuf_read(mpdc_ringbuf *rb,unsigned int count) {
+static int mpdc__ringbuf_read(mpdc_ringbuf *rb,size_t count) {
     const jpr_uint8 *bufend = mpdc__ringbuf_end(rb);
-    unsigned int nfree = mpdc__ringbuf_bytes_free(rb);
+    size_t nfree = mpdc__ringbuf_bytes_free(rb);
     int n = 0;
     int r = 0;
     count = MIN(count,nfree);
 
     while(count > 0) {
-        nfree = MIN((unsigned int)(bufend - rb->head), count);
+        nfree = MIN((size_t)(bufend - rb->head), count);
 
         n = rb->read(rb->read_ctx,rb->head,nfree);
         r += n;
@@ -214,12 +214,12 @@ static int mpdc__ringbuf_read(mpdc_ringbuf *rb,unsigned int count) {
 
 #define mpdc_ringbuf_fill(rb) mpdc__ringbuf_read(rb,mpdc__ringbuf_bytes_free(rb))
 
-static int mpdc__ringbuf_write(mpdc_ringbuf *rb, unsigned int count) {
+static int mpdc__ringbuf_write(mpdc_ringbuf *rb, size_t count) {
     const jpr_uint8 *bufend;
     int m;
     int n;
-    unsigned int bytes_used;
-    unsigned int d;
+    size_t bytes_used;
+    size_t d;
 
     bytes_used = mpdc__ringbuf_bytes_used(rb);
     if(count > bytes_used) return 0;
@@ -229,7 +229,7 @@ static int mpdc__ringbuf_write(mpdc_ringbuf *rb, unsigned int count) {
     n = 0;
 
     do {
-        d = MIN((unsigned int)(bufend - rb->tail),count);
+        d = MIN((size_t)(bufend - rb->tail),count);
         n = rb->write(rb->write_ctx,rb->tail,d);
         if(n > 0) {
             rb->tail += n;
@@ -287,8 +287,8 @@ static int mpdc__ringbuf_getline(mpdc_ringbuf *rb, char *dest) {
     return n;
 }
 
-static int mpdc__ringbuf_getbytes(mpdc_ringbuf *rb, jpr_uint8 *dest, unsigned int count) {
-    unsigned int n = MIN(count,mpdc__ringbuf_bytes_used(rb));
+static size_t mpdc__ringbuf_getbytes(mpdc_ringbuf *rb, jpr_uint8 *dest, size_t count) {
+    size_t n = MIN(count,mpdc__ringbuf_bytes_used(rb));
     count = n;
 
     while(count--) {
@@ -298,21 +298,14 @@ static int mpdc__ringbuf_getbytes(mpdc_ringbuf *rb, jpr_uint8 *dest, unsigned in
     return n;
 }
 
-static unsigned int mpdc__mpdc__scan_uint16(const char *str, jpr_uint16 *dest) {
-    jpr_uint64 d;
-    size_t r;
-    r = scan_uint(str,&d);
-    *dest = 0;
-    if(r == 0) return 0;
-    if(d > 0xFFFF) return 0;
-    *dest = (jpr_uint16)d;
-    return r;
+static size_t mpdc__mpdc__scan_uint16(const char *str, jpr_uint16 *dest) {
+	return scan_uint16(str,dest);
 }
 
-static unsigned int mpdc__fmt_uint(char *dest, unsigned int n) {
-    unsigned int d = n;
-    unsigned int len = 1;
-    unsigned int r = 0;
+static size_t mpdc__fmt_uint(char *dest, size_t n) {
+    size_t d = n;
+    size_t len = 1;
+    size_t r = 0;
     while( (d /= 10) > 0) {
         len++;
     }
@@ -324,9 +317,9 @@ static unsigned int mpdc__fmt_uint(char *dest, unsigned int n) {
     return r;
 }
 
-static unsigned int mpdc__fmt_int(char *dest, int n) {
-    unsigned int len = 0;
-    unsigned int p;
+static size_t mpdc__fmt_int(char *dest, int n) {
+    size_t len = 0;
+    size_t p;
     if(n < 0) {
         len++;
         *dest++ = '-';
@@ -339,9 +332,9 @@ static unsigned int mpdc__fmt_int(char *dest, int n) {
     return len;
 }
 
-static int mpdc__handshake(mpdc_connection *conn, const char *buf, unsigned int r) {
+static int mpdc__handshake(mpdc_connection *conn, const char *buf, size_t r) {
     const char *b = buf;
-    unsigned int i = 0;
+    size_t i = 0;
 
     if(!str_istarts(buf,"ok mpd")) return -1;
 
@@ -361,7 +354,7 @@ static int mpdc__handshake(mpdc_connection *conn, const char *buf, unsigned int 
 }
 
 
-static int mpdc__line(mpdc_connection *conn, char *line, unsigned int r) {
+static int mpdc__line(mpdc_connection *conn, char *line, size_t r) {
     if(str_istarts(line,"ack")) return -1;
     if(str_istarts(line,"ok")) {
         if(!handshook(conn)) return mpdc__handshake(conn,line,r);
@@ -376,9 +369,9 @@ static int mpdc__write_notify_default(mpdc_connection *conn) {
     return 1;
 }
 
-static int mpdc__process(mpdc_connection *conn, int *len) {
+static int mpdc__process(mpdc_connection *conn, size_t *len) {
     int ok = 0;
-    unsigned int t = 0;
+    size_t t = 0;
     char *s = NULL;
 
     *len = 0;
@@ -399,7 +392,7 @@ static int mpdc__process(mpdc_connection *conn, int *len) {
             conn->_bytes -= *len;
         }
         if(conn->_mode == 0) {
-            ok = mpdc__line(conn,(char *)conn->scratch,(unsigned int)*len);
+            ok = mpdc__line(conn,(char *)conn->scratch,(size_t)*len);
             if(ok == 0) {
                 t = mpdc__str_chr((const char *)conn->scratch,':',*len);
                 conn->scratch[t] = 0;
@@ -414,7 +407,7 @@ static int mpdc__process(mpdc_connection *conn, int *len) {
                 }
                 else {
                     conn->cb_level++;
-                    conn->response(conn,mpdc__command[conn->state],(const char *)conn->scratch,(const jpr_uint8 *)conn->scratch + t + 2,((unsigned int)*len) - t - 2);
+                    conn->response(conn,mpdc__command[conn->state],(const char *)conn->scratch,(const jpr_uint8 *)conn->scratch + t + 2,((size_t)*len) - t - 2);
                     conn->cb_level--;
                 }
             }
@@ -448,7 +441,7 @@ static int mpdc__read_notify_default(mpdc_connection *conn) {
 
 static int mpdc__receive_block(mpdc_connection *conn) {
     int ok = 0;
-    int len = 0;
+    size_t len = 0;
     int r = 0;
     while( ok == 0 ) {
         if(conn->_mode == 0 || (conn->_mode == 1 && conn->_bytes == 0)) {
@@ -466,7 +459,7 @@ static int mpdc__receive_block(mpdc_connection *conn) {
 static int mpdc__receive_nonblock(mpdc_connection *conn) {
     int ok = 0;
     int r = 0;
-    int len = 0;
+    size_t len = 0;
     r = mpdc_ringbuf_fill(&conn->in);
     if(r == -1) return -1;
     while(!mpdc_ringbuf_is_empty(&conn->in)) {
@@ -504,7 +497,7 @@ static void mpdc__response_end_default(mpdc_connection *conn, const char *cmd, i
     return;
 }
 
-static void mpdc__response_default(mpdc_connection *conn, const char *cmd, const char *key, const jpr_uint8 *value, unsigned int length) {
+static void mpdc__response_default(mpdc_connection *conn, const char *cmd, const char *key, const jpr_uint8 *value, size_t length) {
     (void)conn;
     (void)cmd;
     (void)key;
@@ -570,8 +563,8 @@ int mpdc_init(mpdc_connection *conn) {
 
 STATIC
 int mpdc_setup(mpdc_connection *conn, char *mpdc_host, char *mpdc_port_str, jpr_uint16 mpdc_port) {
-    unsigned int len;
-    unsigned int at;
+    size_t len;
+    size_t at;
     if(mpdc_host == NULL) {
         conn->host = (char *)mpdc__host_default;
     }
@@ -651,8 +644,8 @@ int mpdc_password(mpdc_connection *conn, const char *password) {
 }
 
 static
-unsigned int mpdc__idlesize(mpdc_connection *conn, jpr_uint16 events) {
-    unsigned int len = 0;
+size_t mpdc__idlesize(mpdc_connection *conn, jpr_uint16 events) {
+    size_t len = 0;
     jpr_uint8 cur_op = 255;
 
     cur_op = mpdc__op_last(conn);
@@ -703,7 +696,7 @@ unsigned int mpdc__idlesize(mpdc_connection *conn, jpr_uint16 events) {
 
 STATIC
 int mpdc_idle(mpdc_connection *conn, jpr_uint16 events) {
-    unsigned int idlesize;
+    size_t idlesize;
     jpr_uint8 cur_op = 255;
 
     idlesize = mpdc__idlesize(conn,events);
@@ -784,13 +777,13 @@ void mpdc_block(mpdc_connection *conn, int status) {
 
 #if __STDC_VERSION__ >= 199901L
 STATIC
-unsigned int mpdc__putsize(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt, va_list va_og) {
-    unsigned int len = 0;
+size_t mpdc__putsize(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt, va_list va_og) {
+    size_t len = 0;
     const char *f = fmt;
     va_list va;
     va_copy(va,va_og);
     char *s;
-    unsigned int u;
+    size_t u;
     int d;
     jpr_uint8 cur_op = 255;
 
@@ -826,7 +819,7 @@ unsigned int mpdc__putsize(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt
                 break;
             }
             case 'u': {
-                u = va_arg(va, unsigned int);
+                u = va_arg(va, size_t);
                 conn->scratch[mpdc__fmt_uint((char *)conn->scratch,u)] = 0;
                 len += str_nlen((const char *)conn->scratch,MPDC_BUFFER_SIZE);
                 conn->scratch[0] = 0;
@@ -850,7 +843,7 @@ unsigned int mpdc__putsize(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt
 STATIC
 int mpdc__put(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt, ...) {
     char *s;
-    unsigned int u;
+    size_t u;
     int d;
     const char *f;
     va_list va;
@@ -861,7 +854,7 @@ int mpdc__put(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt, ...) {
     cur_op = 255;
 
 #if __STDC_VERSION__ > 199901L
-    unsigned int putsize = mpdc__putsize(conn,cmd,fmt,va);
+    size_t putsize = mpdc__putsize(conn,cmd,fmt,va);
 
     if(putsize > mpdc__ringbuf_bytes_free(&conn->out)) {
         va_end(va);
@@ -910,7 +903,7 @@ int mpdc__put(mpdc_connection *conn, jpr_uint8 cmd, const char *fmt, ...) {
                 break;
             }
             case 'u': {
-                u = va_arg(va, unsigned int);
+                u = va_arg(va, size_t);
                 conn->scratch[mpdc__fmt_uint((char *)conn->scratch,u)] = 0;
                 if(!mpdc__ringbuf_putstr(&conn->out,(const char *)conn->scratch)) { va_end(va); return -1; }
                 break;

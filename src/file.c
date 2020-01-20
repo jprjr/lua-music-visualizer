@@ -76,7 +76,7 @@ static ssize_t jpr_read(int fd, void *buf, size_t n) {
 #endif
 
 attr_nonnull12
-jpr_file *file_open(const char *filename, const char *mode) {
+jpr_file *file_open(const char * RESTRICT filename, const char *mode) {
     jpr_file *f;
 
 #ifdef JPR_WINDOWS
@@ -457,7 +457,7 @@ int file_dupe(jpr_file *f, jpr_file *f2) {
 
 /* "slurps" an entire file in one go */
 attr_nonnull1
-jpr_uint8 *file_slurp(const char * RESTRICT filename, jpr_uint64 *size) {
+jpr_uint8 *file_slurp(const char * RESTRICT filename, size_t *size) {
     jpr_file *f;
     jpr_uint8 *data;
     jpr_uint8 *t;
@@ -478,7 +478,7 @@ jpr_uint8 *file_slurp(const char * RESTRICT filename, jpr_uint64 *size) {
 
     do {
         r = file_read(f,d,4096);
-        s += r;
+        s += (size_t)r;
         if(r == 4096) {
             t = (jpr_uint8 *)realloc(data,s+4096);
             if(UNLIKELY(t == NULL)) {
@@ -489,7 +489,7 @@ jpr_uint8 *file_slurp(const char * RESTRICT filename, jpr_uint64 *size) {
             data = t;
             d = &data[s];
         }
-    } while(r == 4096);
+    } while(r == 4096 && (s+4096) < ((size_t)(-1)) );
     file_close(f);
 
     *size = s;

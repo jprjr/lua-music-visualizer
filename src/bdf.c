@@ -44,9 +44,8 @@ bdf *bdf_load(const char * RESTRICT filename) {
     const char *l;
     unsigned int i = 0;
 
-    jpr_uint64 width, height, cur_width, cur_height, cur_glyph, dwidth, reading_bitmap, bitmap_line, rel_line;
-    jpr_int64 bbx, bby, cur_bbx, cur_bby;
-    jpr_uint64 old_max;
+    unsigned int width, height, cur_width, cur_height, cur_glyph, dwidth, reading_bitmap, bitmap_line, rel_line, old_max;
+    int bbx, bby, cur_bbx, cur_bby;
     void *t;
 
     text = jpr_text_open(filename);

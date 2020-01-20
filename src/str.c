@@ -6,7 +6,9 @@
 
 #ifndef JPR_NO_STDLIB
 #include <string.h>
+#ifndef JPR_WINDOWS
 #include <strings.h>
+#endif
 #include <wchar.h>
 #endif
 #include <stdlib.h>
@@ -397,7 +399,7 @@ size_t str_iends(const char *s, const char *q) {
     return str_icmp(&s[slen - qlen],q) == 0;
 #else
 #ifdef _MSC_VER
-    return _strnicmp(&s[slen - qlen],q) == 0;
+    return _stricmp(&s[slen - qlen],q) == 0;
 #else
     return strcasecmp(&s[slen - qlen],q) == 0;
 #endif

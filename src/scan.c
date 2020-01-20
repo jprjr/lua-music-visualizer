@@ -1,10 +1,11 @@
 #include "attr.h"
 #include "scan.h"
 #include "char.h"
+#include <limits.h>
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-size_t scan_uint(const char *str, jpr_uint64 *num) {
+size_t scan_uint64(const char *str, jpr_uint64 *num) {
     const char *s = str;
     *num = 0;
     while(*s) {
@@ -17,7 +18,7 @@ size_t scan_uint(const char *str, jpr_uint64 *num) {
     return s - str;
 }
 
-size_t scan_uint_base16(const char *str, jpr_uint64 *num) {
+size_t scan_uint64_base16(const char *str, jpr_uint64 *num) {
     const char *s = str;
     jpr_uint8 t;
     *num = 0;
@@ -49,7 +50,7 @@ size_t scan_uint_base16(const char *str, jpr_uint64 *num) {
     return s - str;
 }
 
-size_t scan_int(const char *str, jpr_int64 *num) {
+size_t scan_int64(const char *str, jpr_int64 *num) {
     size_t r = 0;
     jpr_int64 mult = 1;
     jpr_uint64 t;
@@ -58,7 +59,7 @@ size_t scan_int(const char *str, jpr_int64 *num) {
         mult = -1;
         r = 1;
     }
-    r += scan_uint(str + r, &t);
+    r += scan_uint64(str + r, &t);
     *num = (jpr_int64)(t * mult);
     return r;
 }
@@ -66,7 +67,7 @@ size_t scan_int(const char *str, jpr_int64 *num) {
 size_t scan_uint32(const char *str, jpr_uint32 *num) {
     size_t r = 0;
     jpr_uint64 t;
-    r = scan_uint(str, &t);
+    r = scan_uint64(str, &t);
     *num = (jpr_uint32)t;
     return r;
 }
@@ -74,15 +75,50 @@ size_t scan_uint32(const char *str, jpr_uint32 *num) {
 size_t scan_int32(const char *str, jpr_int32 *num) {
     size_t r = 0;
     jpr_int64 t;
-    r = scan_int(str, &t);
+    r = scan_int64(str, &t);
     *num = (jpr_int32)t;
+    return r;
+}
+
+size_t scan_uint16(const char *str, jpr_uint16 *num) {
+    size_t r = 0;
+    jpr_uint64 t;
+    r = scan_uint64(str, &t);
+    *num = (jpr_uint16)t;
+    return r;
+}
+
+size_t scan_int16(const char *str, jpr_int16 *num) {
+    size_t r = 0;
+    jpr_int64 t;
+    r = scan_int64(str, &t);
+    *num = (jpr_int16)t;
+    return r;
+}
+
+size_t scan_uint(const char *str, unsigned int *num) {
+    size_t r = 0;
+    jpr_uint64 t;
+    r = scan_uint64(str, &t);
+	if(t > UINT_MAX) t = UINT_MAX;
+    *num = (unsigned int)t;
+    return r;
+}
+
+size_t scan_int(const char *str, int *num) {
+    size_t r = 0;
+    jpr_int64 t;
+    r = scan_int64(str, &t);
+	if(t > INT_MAX) t = INT_MAX;
+	if(t < INT_MIN) t = INT_MIN;
+    *num = (int)t;
     return r;
 }
 
 size_t scan_uint32_base16(const char *str, jpr_uint32 *num) {
     size_t r = 0;
     jpr_uint64 t;
-    r = scan_uint_base16(str, &t);
+    r = scan_uint64_base16(str, &t);
     *num = (jpr_uint32)t;
     return r;
 }

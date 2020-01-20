@@ -12,8 +12,8 @@ typedef struct jpr_text_s jpr_text;
 struct jpr_text_s {
     jpr_uint8 *data;
     jpr_uint8 *c;
-    jpr_uint64 len;
-    jpr_uint64 pos;
+    size_t len;
+    size_t pos;
 };
 
 #ifdef __cplusplus
@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 jpr_text *jpr_text_open(const char * RESTRICT filename);
-jpr_text *jpr_text_create(const jpr_uint8 *data, jpr_uint64 len);
+jpr_text *jpr_text_create(const jpr_uint8 *data, size_t len);
 const char *jpr_text_line(jpr_text *);
 void jpr_text_close(jpr_text *);
 

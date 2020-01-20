@@ -261,17 +261,11 @@ static int setupVideoGenerator(void) {
     char *height_t = IupGetAttribute(heightText,"VALUE");
     char *bars_t = IupGetAttribute(barsText,"VALUE");
     unsigned int fps, width, height, bars;
-	jpr_uint64 fps_tmp, width_tmp, height_tmp, bars_tmp;
 
-    scan_uint(fps_t,&fps_tmp);
-    scan_uint(width_t,&width_tmp);
-    scan_uint(height_t,&height_tmp);
-    scan_uint(bars_t,&bars_tmp);
-
-	fps = (unsigned int)fps_tmp;
-	width = (unsigned int)width_tmp;
-	height = (unsigned int)height_tmp;
-	bars = (unsigned int)bars_tmp;
+    scan_uint(fps_t,&fps);
+    scan_uint(width_t,&width);
+    scan_uint(height_t,&height);
+    scan_uint(bars_t,&bars);
 
     if(width == 0 || height == 0) {
         IupMessageError(dlg,"Unable to figure out the width or height wtf?");

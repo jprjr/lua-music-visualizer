@@ -78,8 +78,8 @@ enum MPDC_EVENT {
 /* read/write are responsible for getting data in/out */
 /* required */
 /* should return -1 on error or eof, 0 if no data available, 1+ for data read/written */
-typedef int (*mpdc_write_func)(void *ctx, const jpr_uint8 *buf, unsigned int);
-typedef int (*mpdc_read_func)(void *ctx, jpr_uint8 *buf, unsigned int);
+typedef int (*mpdc_write_func)(void *ctx, const jpr_uint8 *buf, size_t);
+typedef int (*mpdc_read_func)(void *ctx, jpr_uint8 *buf, size_t);
 
 /* function called to trigger that the client is ready to read */
 /* if client is blocking, set this to NULL */
@@ -115,7 +115,7 @@ typedef void (*mpdc_response_end_func)(mpdc_connection *, const char *cmd, int o
 /* called when receiving a response from a command */
 /* key will always be null-terminated, value may not (ie,
  * in the case of the albumart command */
-typedef void (*mpdc_response_func)(mpdc_connection *,const char *cmd, const char *key, const jpr_uint8 *value, unsigned int length);
+typedef void (*mpdc_response_func)(mpdc_connection *,const char *cmd, const char *key, const jpr_uint8 *value, size_t length);
 
 /* "private" method for receiving data */
 typedef int (*_mpdc_receive_func)(mpdc_connection *);
@@ -127,7 +127,7 @@ struct mpdc_ringbuf_s {
     jpr_uint8 *buf;
     jpr_uint8 *head;
     jpr_uint8 *tail;
-    unsigned int size;
+    size_t size;
     void *read_ctx;
     void *write_ctx;
     mpdc_read_func read;
@@ -152,7 +152,7 @@ struct mpdc_connection_s {
     jpr_uint16 minor;
     jpr_uint16 patch;
     int _mode;
-    jpr_uint64 _bytes;
+    size_t _bytes;
     mpdc_write_func write;
     mpdc_read_func read;
     mpdc_resolve_func resolve;

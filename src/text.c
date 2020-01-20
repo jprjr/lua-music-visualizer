@@ -9,7 +9,7 @@
 jpr_text *jpr_text_open(const char * RESTRICT filename) {
     jpr_text *text;
     jpr_uint8 *data;
-    jpr_uint64 len;
+    size_t len;
 
     data = file_slurp(filename,&len);
     if(data == NULL) return NULL;
@@ -18,7 +18,7 @@ jpr_text *jpr_text_open(const char * RESTRICT filename) {
     return text;
 }
 
-jpr_text *jpr_text_create(const jpr_uint8 *data, jpr_uint64 len) {
+jpr_text *jpr_text_create(const jpr_uint8 *data, size_t len) {
     jpr_text *text;
     jpr_uint8 *data_copy;
 

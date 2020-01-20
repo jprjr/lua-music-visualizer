@@ -154,6 +154,11 @@ struct kiss_fft_state{
 #define  KISS_FFT_TMP_ALLOC(nbytes) alloca(nbytes)
 #define  KISS_FFT_TMP_FREE(ptr) 
 #else
+#include <stdlib.h>
+
+#ifdef CHECK_LEAKS
+#include "stb_leakcheck.h"
+#endif
 #define  KISS_FFT_TMP_ALLOC(nbytes) KISS_FFT_MALLOC(nbytes)
 #define  KISS_FFT_TMP_FREE(ptr) KISS_FFT_FREE(ptr)
 #endif

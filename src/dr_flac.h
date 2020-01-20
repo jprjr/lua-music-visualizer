@@ -4984,7 +4984,7 @@ static drflac_result drflac__decode_flac_frame(drflac* pFlac)
         }
     }
 
-    paddingSizeInBits = DRFLAC_CACHE_L1_BITS_REMAINING(&pFlac->bs) & 7;
+    paddingSizeInBits = (drflac_uint8)(DRFLAC_CACHE_L1_BITS_REMAINING(&pFlac->bs) & 7);
     if (paddingSizeInBits > 0) {
         drflac_uint8 padding = 0;
         if (!drflac__read_uint8(&pFlac->bs, paddingSizeInBits, &padding)) {
@@ -5662,8 +5662,8 @@ typedef struct
 static DRFLAC_INLINE void drflac__decode_block_header(drflac_uint32 blockHeader, drflac_uint8* isLastBlock, drflac_uint8* blockType, drflac_uint32* blockSize)
 {
     blockHeader = drflac__be2host_32(blockHeader);
-    *isLastBlock = (blockHeader & 0x80000000UL) >> 31;
-    *blockType   = (blockHeader & 0x7F000000UL) >> 24;
+    *isLastBlock = (drflac_uint8)((blockHeader & 0x80000000UL) >> 31);
+    *blockType   = (drflac_uint8)((blockHeader & 0x7F000000UL) >> 24);
     *blockSize   = (blockHeader & 0x00FFFFFFUL);
 }
 

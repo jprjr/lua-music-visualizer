@@ -3,8 +3,16 @@
 //
 //   See end of file.
 
+#ifndef STB_LEAKCHECK_IMPLEMENTATION
+#ifndef JPR_NO_STDLIB
+#error need to avoid stdlib when leak-checking
+#endif
+#endif
+
 #ifdef STB_LEAKCHECK_IMPLEMENTATION
 #undef STB_LEAKCHECK_IMPLEMENTATION // don't implement more than once
+
+
 
 // if we've already included leakcheck before, undefine the macros
 #ifdef malloc

@@ -7,24 +7,33 @@
 #include <lauxlib.h>
 
 static int luabdf_pixel(lua_State *L) {
-    lua_Integer index = lua_tointeger(L,2);
-    lua_Integer x = lua_tointeger(L,3);
-    lua_Integer y = lua_tointeger(L,4);
+    lua_Integer index;
+    lua_Integer x;
+    lua_Integer y;
     unsigned int width;
     unsigned int bits;
+
+    index = lua_tointeger(L,2);
+    x = lua_tointeger(L,3);
+    y = lua_tointeger(L,4);
+	
+	if(index < 1) {
+		return 0;
+	}
+
     lua_getfield(L,1,"widths");
-    lua_rawgeti(L,-1,index);
+    lua_rawgeti(L,-1,(int)index);
     if(lua_isnil(L,-1)) return 0;
 
-    width = lua_tointeger(L,-1);
+    width = (unsigned int)lua_tointeger(L,-1);
     lua_pop(L,2);
 
     width = (width + 7) & (~0x07);
 
     lua_getfield(L,1,"bitmaps");
-    lua_rawgeti(L,-1,index);
-    lua_rawgeti(L,-1,y);
-    bits = lua_tointeger(L,-1);
+    lua_rawgeti(L,-1,(int)index);
+    lua_rawgeti(L,-1,(int)y);
+    bits = (unsigned int)lua_tointeger(L,-1);
 
     lua_pushboolean(L,bits & (( 1 << width) >> x));
     return 1;

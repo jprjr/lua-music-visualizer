@@ -34,8 +34,8 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
     const char *t;
     char *c;
     const char *err_str;
-    jpr_uint64 tmp_int;
-    jpr_uint64 tmp_fac;
+    int tmp_int;
+    int tmp_fac;
 
     (void)length;
     info = (conn_info *)conn->ctx;

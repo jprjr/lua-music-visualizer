@@ -14,7 +14,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define _CRT_SECURE_NO_DEPRECATE
+#ifndef _CRT_SECURE_NO_DEPRECATE
+#define _CRT_SECURE_NO_DEPRECATE 1
+#endif
 
 #ifdef USE_BZ2
 #include <bzlib.h>
