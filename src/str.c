@@ -42,13 +42,21 @@ char *str_cat(char *d, const char *s);
 char *str_cpy(char *d, const char *p);
 char *str_ncpy(char *d, const char *s, size_t max);
 char *str_ncat(char *d, const char *s, size_t max);
+size_t str_ecat(char *d, const char *s, const char *e, char t);
+size_t str_necat(char *dest, const char *s, size_t max, const char *e, char t);
+char *str_nrchr(const char *s, char c, size_t n);
+size_t str_lower(char *dest, const char *src);
+size_t str_nlower(char *dest, const char *src, size_t max);
+size_t str_ends(const char *s, const char *q);
+size_t str_iends(const char *s, const char *q);
+char *str_nchr(const char *s, char c, size_t n);
 #ifdef __cplusplus
 }
 #endif
 
 void *mem_move(void *dest, const void *src, size_t n) {
-    jpr_uint8 *d = dest;
-    const jpr_uint8 *s = src;
+    jpr_uint8 *d = (jpr_uint8 *)dest;
+    const jpr_uint8 *s = (jpr_uint8 *)src;
     if(d == s) return d;
 #ifdef JPR_NO_STDLIB
     if((uintptr_t)s-(uintptr_t)d-n <= -2*n) return mem_cpy(d,s,n);
@@ -169,9 +177,9 @@ size_t wstr_len(const wchar_t *s) {
 
 size_t str_nlen(const char *s, size_t m) {
 #ifdef JPR_NO_STDLIB
-    const char *p = mem_chr((const jpr_uint8 *)s, 0, m);
+    const char *p = (const char *)mem_chr((const jpr_uint8 *)s, 0, m);
 #else
-    const char *p = memchr((const jpr_uint8 *)s, 0, m);
+    const char *p = (const char *)memchr((const jpr_uint8 *)s, 0, m);
 #endif
     return (p ? (size_t)(p-s) : m);
 }
@@ -337,9 +345,9 @@ char *str_nchr(const char *s, char c, size_t n) {
 
 char *str_chr(const char *s, char c) {
 #ifdef JPR_NO_STDLIB
-    return mem_chr((const jpr_uint8 *)s,c,str_len(s));
+    return (char *)mem_chr((const jpr_uint8 *)s,c,str_len(s));
 #else
-    return memchr((const jpr_uint8 *)s,c,str_len(s));
+    return (char *)memchr((const jpr_uint8 *)s,c,str_len(s));
 #endif
 }
 
@@ -430,10 +438,10 @@ char *str_str(const char *h, const char *n) {
 char *str_dup(const char *s) {
 #ifdef JPR_NO_STDLIB
     size_t len = str_len(s);
-    char *t = malloc(len+1);
+    char *t = (char *)malloc(len+1);
 #else
     size_t len = strlen(s);
-    char *t = malloc(len+1);
+    char *t = (char *)malloc(len+1);
 #endif
     if(t == NULL) return t;
 #ifdef JPR_NO_STDLIB

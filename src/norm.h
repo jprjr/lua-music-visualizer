@@ -1,6 +1,8 @@
 #ifndef JPR_NORM_H
 #define JPR_NORM_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
 #define JPR_WINDOWS
 

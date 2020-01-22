@@ -1,6 +1,8 @@
 #ifndef JPR_ATTR_H
 #define JPR_ATTR_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #if __STDC_VERSION__ >= 199901L
 #define RESTRICT restrict
 #define attr_inline inline

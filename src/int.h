@@ -1,6 +1,8 @@
 #ifndef JPR_INT_H
 #define JPR_INT_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600

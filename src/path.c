@@ -1,3 +1,5 @@
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include "norm.h"
 #include "path.h"
 #include "utf.h"
@@ -119,7 +121,7 @@ char *path_basename(const char *filename) {
     char *ret;
 
     if(filename == NULL || str_len(filename) == 0) {
-        ret = malloc(2);
+        ret = (char *)malloc(2);
         /* LCOV_EXCL_START */
         if(UNLIKELY(ret == NULL)) return ret;
         /* LCOV_EXCL_STOP */
@@ -131,7 +133,7 @@ char *path_basename(const char *filename) {
     sep = last_slash(filename, &len);
 
     if(filename[sep] == '\0') { /* no slashes found */
-        ret = malloc(len + 1);
+        ret = (char *)malloc(len + 1);
         /* LCOV_EXCL_START */
         if(UNLIKELY(ret == NULL)) return ret;
         /* LCOV_EXCL_STOP */
@@ -140,7 +142,7 @@ char *path_basename(const char *filename) {
     else {
         len = len - sep - 1;
         if(len == 0) len++;
-        ret = malloc(len + 1);
+        ret = (char *)malloc(len + 1);
         /* LCOV_EXCL_START */
         if(UNLIKELY(ret == NULL)) return ret;
         /* LCOV_EXCL_STOP */
@@ -171,7 +173,7 @@ char *path_dirname(const char *filename) {
     }
 
     if(filename == NULL || str_len(filename) == 0 || filename[sep] == '\0') {
-        ret = malloc(2);
+        ret = (char *)malloc(2);
         /* LCOV_EXCL_START */
         if(UNLIKELY(ret == NULL)) return ret;
         /* LCOV_EXCL_STOP */
@@ -180,7 +182,7 @@ char *path_dirname(const char *filename) {
         return ret;
     }
 
-    ret = malloc(sep + 1 + (sep == 0));
+    ret = (char *)malloc(sep + 1 + (sep == 0));
     /* LCOV_EXCL_START */
     if(UNLIKELY(ret == NULL)) return ret;
     /* LCOV_EXCL_STOP */
@@ -239,7 +241,7 @@ char *path_getcwd(void) {
 
     free(wdir);
 #else
-    dir = malloc(PATH_MAX);
+    dir = (char *)malloc(PATH_MAX);
     /* LCOV_EXCL_START */
     if(UNLIKELY(dir == NULL)) return NULL;
     if(getcwd(dir,PATH_MAX) == NULL) {
@@ -280,7 +282,7 @@ char *path_absolute(const char *f) {
 
     cwd = path_getcwd();
     t_len = str_len(cwd) + f_len + 1;
-    t = malloc(t_len+1 + (t_len == 0));
+    t = (char *)malloc(t_len+1 + (t_len == 0));
     /* LCOV_EXCL_START */
     if(UNLIKELY(t == NULL)) {
         free(cwd);

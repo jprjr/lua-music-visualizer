@@ -36,7 +36,10 @@ void *mem_move(void *dest, const void *src, size_t n);
 attr_pure void *mem_chr(const void *src, int c, size_t n);
 attr_pure int mem_cmp(const void *p1, const void *p2, size_t n);
 void *mem_set(void *s, int c, size_t n);
+
+attr_nonnull1
 char *str_dup(const char *s);
+
 attr_pure int str_cmp(const char *s1, const char *s2);
 attr_pure char *str_str(const char *h, const char *n);
 attr_pure size_t str_len(const char *s);

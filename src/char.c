@@ -63,7 +63,7 @@ MAKE_ALIAS(char_lower,tolower)
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+int isdigit(int c);
 int isupper(int c);
 int islower(int c);
 int toupper(int c);
@@ -72,7 +72,7 @@ int tolower(int c);
 }
 #endif
 
-void *isdigit = char_isdigit;
+int isdigit(int c) { return char_isdigit(c); }
 int isupper(int c) { return char_isupper(c); }
 int islower(int c) { return char_islower(c); }
 int toupper(int c) { return char_upper(c); }

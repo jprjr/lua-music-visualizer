@@ -238,7 +238,7 @@ file_open_cleanup:
     }
     else {
         if(str_chr(mode,'a') != NULL) { /* 'a' found in string */
-            file_seek(f,0,2);
+            file_seek(f,0,JPR_FILE_END);
         }
     }
 #endif
@@ -340,7 +340,7 @@ jpr_uint64 file_write(jpr_file *f, const void *buf, jpr_uint64 n) {
     r = 0;
     t = 0;
     m = 0;
-    b = buf;
+    b = (const jpr_uint8 *)buf;
     while(n > 0) {
         m = (MAX_TYPE)( n > MAX_VAL ? MAX_VAL : n );
         WRITE_IMP
@@ -380,7 +380,7 @@ jpr_uint64 file_read(jpr_file *f, void *buf, jpr_uint64 n) {
     r = 0;
     t = 0;
     m = 0;
-    b = buf;
+    b = (jpr_uint8 *)buf;
     while(n > 0) {
         m = (MAX_TYPE)( n > MAX_VAL ? MAX_VAL : n );
         READ_IMP

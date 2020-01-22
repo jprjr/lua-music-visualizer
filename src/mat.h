@@ -1,6 +1,8 @@
 #ifndef JPR_MAT_H
 #define JPR_MAT_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include "attr.h"
 
 #ifdef __cplusplus

@@ -1,5 +1,7 @@
 %include "asm.inc"
 
+; Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/
+
 global FUNC(d_round)
 global FUNC(d_sqrt)
 

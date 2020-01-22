@@ -1,6 +1,8 @@
 #ifndef JPR_TEXT_H
 #define JPR_TEXT_H
 
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include "norm.h"
 #include "attr.h"
 #include "int.h"

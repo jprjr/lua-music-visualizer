@@ -119,7 +119,7 @@ jpr_dire *dir_read(jpr_dir *dir) {
     if(entry == NULL) return entry;
     mem_set(entry,0,sizeof(jpr_dire));
 
-    entry->filename = malloc(str_len(de->d_name)+1);
+    entry->filename = (char *)malloc(str_len(de->d_name)+1);
 
     /* LCOV_EXCL_START */
     if(entry->filename == NULL) {
@@ -130,7 +130,7 @@ jpr_dire *dir_read(jpr_dir *dir) {
 
     str_cpy(entry->filename,de->d_name);
 
-    entry->path = malloc(str_len(dir->dir) + str_len(entry->filename) + 2);
+    entry->path = (char *)malloc(str_len(dir->dir) + str_len(entry->filename) + 2);
 
     /* LCOV_EXCL_START */
     if(entry->path == NULL) {
@@ -219,7 +219,7 @@ jpr_dir *dir_open(const char *filename) {
 
 #endif
     if(dir != NULL) {
-      dir->dir = malloc(str_len(filename) + 1);
+      dir->dir = (char *)malloc(str_len(filename) + 1);
       /* LCOV_EXCL_START */
       if(dir->dir == NULL) {
           dir_close(dir);

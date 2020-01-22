@@ -1,3 +1,5 @@
+/* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
+
 #include "text.h"
 #include "file.h"
 #include "str.h"
@@ -54,9 +56,9 @@ const char *jpr_text_line(jpr_text *text) {
     if(text->pos == text->len) return NULL;
     text->c = &(text->data[text->pos]);
 
-    p = mem_chr(text->c,'\n',text->len - text->pos);
+    p = (jpr_uint8 *)mem_chr(text->c,'\n',text->len - text->pos);
     if(p == NULL) {
-        p = mem_chr(text->c,'\r',text->len - text->pos);
+        p = (jpr_uint8 *)mem_chr(text->c,'\r',text->len - text->pos);
         if(p == NULL) {
             /* file has no final line ending */
             text->pos = text->len;
