@@ -26,6 +26,8 @@ lua-music-visualizer \
   --bars (number of spectrum analyzer bars to compute) \
   --samplerate (input sample rate, only for raw PCM) \
   --channels (input audio channels, only for raw PCM) \
+  -joff (disable JIT) \
+  -l<modulename> (calls require("modulename") when Lua is initialized) \
   /path/to/song.mp3/flac/wave/raw \
   /path/to/lua/script.lua \
   prog args...
@@ -583,30 +585,47 @@ Some exceptions:
 * `src/dr_flac.h` - public domain, details found in file
 * `src/dr_mp3.h` - public domain, details found in file
 * `src/dr_wav.h` - public domain, details found in file
-* `src/tinydir.h` - retains original licensing (simplified BSD), details found
 within the file.
-* `src/stb_image.h` and `src/stb_image_resize.h` - remains in the public domain
+* `src/stb_image.h` - public domain, details found in file
+* `src/stb_image_resize.h` - public domain, details found in file
+* `src/stb_leakcheck.h` - public domain, details found in file
+* `src/jpr_proc.h` - public domain, details found in file
 * `src/thread.h` - available under an MIT-style license or Public Domain, see file
 for details.
-* `src/char.c` - public domain, details found in file
-* `src/char.h` - public domain, details found in file
-* `src/fmt.c` - public domain, details found in file
-* `src/fmt.h` - public domain, details found in file
-* `src/pack.c` - public domain, details found in file
-* `src/pack.h` - public domain, details found in file
-* `src/scan.c` - public domain, details found in file
-* `src/scan.h` - public domain, details found in file
-* `src/str.c` - public domain, details found in file
-* `src/str.h` - public domain, details found in file
-* `src/unpack.c` - public domain, details found in file
-* `src/unpack.h` - public domain, details found in file
-* `src/utf.c` - public domain, details found in file
-* `src/utf.h` - public domain, details found in file
 * `src/_kiss_fft_guts.h` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
 * `src/kiss_fft.c` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
 * `src/kiss_fft.h` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
 * `src/kiss_fftr.c` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
 * `src/kiss_fftr.h` - BSD-3-Clause, see https://github.com/mborgerding/kissfft
+* `src/asm.inc` - public domain, details found in file
+* `src/attr.h` - public domain, details found in file
+* `src/char.c` - public domain, details found in file
+* `src/char.h` - public domain, details found in file
+* `src/dir.c` - public domain, details found in file
+* `src/dir.h` - public domain, details found in file
+* `src/file.c` - public domain, details found in file
+* `src/file.h` - public domain, details found in file
+* `src/fmt.c` - public domain, details found in file
+* `src/fmt.h` - public domain, details found in file
+* `src/int.h` - public domain, details found in file
+* `src/mat.h` - public domain, details found in file
+* `src/mat.s` - public domain, details found in file
+* `src/norm.h` - public domain, details found in file
+* `src/pack.c` - public domain, details found in file
+* `src/pack.h` - public domain, details found in file
+* `src/path.c` - public domain, details found in file
+* `src/path.h` - public domain, details found in file
+* `src/scan.c` - public domain, details found in file
+* `src/scan.h` - public domain, details found in file
+* `src/str.c` - public domain, details found in file
+* `src/str.h` - public domain, details found in file
+* `src/text.c` - public domain, details found in file
+* `src/text.h` - public domain, details found in file
+* `src/unpack.c` - public domain, details found in file
+* `src/unpack.h` - public domain, details found in file
+* `src/utf.c` - public domain, details found in file
+* `src/utf.h` - public domain, details found in file
+* `src/util.h` - public domain, details found in file
 
 # Known users
 
