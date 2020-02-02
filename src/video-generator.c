@@ -213,12 +213,12 @@ static int write_avi_header(video_generator *v) {
     b += format_word(b,0); /* lang */
     b += format_dword(b,0); /* frames */
     b += format_dword(b,1); /* scale */
-    b += format_dword(b,v->processor->decoder->samplerate); /* rate */
+    b += format_dword(b,v->sampler->samplerate); /* rate */
     b += format_dword(b,0); /* start */
     b += format_dword(b,0); /* length */
     b += format_dword(b,v->framebuf_audio_len);
     b += format_dword(b,0); /* quality */
-    b += format_dword(b,v->processor->decoder->channels * sizeof(jpr_int16)); /* samplesize */
+    b += format_dword(b,v->decoder->channels * sizeof(jpr_int16)); /* samplesize */
     b += format_word(b,0); /* left top right bottom */
     b += format_word(b,0);
     b += format_word(b,0);
@@ -227,10 +227,10 @@ static int write_avi_header(video_generator *v) {
     b += 4;
     b += format_dword(b,18);
     b += format_word(b,1);
-    b += format_word(b,v->processor->decoder->channels);
-    b += format_dword(b,v->processor->decoder->samplerate);
+    b += format_word(b,v->decoder->channels);
+    b += format_dword(b,v->sampler->samplerate);
     b += format_dword(b,v->framebuf_audio_len);
-    b += format_word(b,v->processor->decoder->channels * sizeof(jpr_int16));
+    b += format_word(b,v->decoder->channels * sizeof(jpr_int16));
     b += format_word(b,16);
     b += format_word(b,0);
     str_cpy((char *)b,"LIST");
@@ -272,7 +272,8 @@ void video_generator_close(video_generator *v) {
     }
     luaclose_image();
     lua_close(v->L);
-    audio_decoder_close(v->processor->decoder);
+    audio_decoder_close(v->decoder);
+    audio_resampler_close(v->sampler);
     audio_processor_close(v->processor);
     thread_queue_term(&(v->image_queue));
     free(v->framebuf);
@@ -326,7 +327,7 @@ int video_generator_loop(video_generator *v) {
         mpd_ez_loop(v);
     }
 
-    pro_offset = 8192 - v->samples_per_frame * v->processor->decoder->channels;
+    pro_offset = 8192 - v->samples_per_frame * v->decoder->channels;
 
 #ifdef CHECK_PERFORMANCE
     SAVE_COUNTER(&audio_start);
@@ -425,7 +426,7 @@ int video_generator_reload(video_generator *v) {
     return 0;
 }
 
-int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *d, int jit, const char *modulename, const char *filename, const char *luascript, jpr_proc_pipe *out) {
+int video_generator_init(video_generator *v, audio_processor *p, audio_resampler *r, audio_decoder *d, int jit, const char *modulename, const char *filename, const char *luascript, jpr_proc_pipe *out) {
     char *rpath;
     char *dir;
 	char *script_path;
@@ -446,6 +447,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         LOG_ERROR("init audio decoder failed");
         free(rpath);
         return 1;
+    }
+    if(audio_resampler_init(r)) {
+        LOG_ERROR("init audio resampler failed");
+        free(rpath);
     }
 
     mpd_ez_setup(v);
@@ -550,7 +555,26 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
         lua_close(v->L);
         return 1;
     }
-    v->samples_per_frame = d->samplerate / v->fps;
+
+    if(audio_resampler_open(r,d)) {
+        LOG_ERROR("error opening audio resampler");
+        free(rpath);
+        free(dir);
+        free(script_path);
+        lua_close(v->L);
+        return 1;
+    }
+
+    if(r->samplerate % v->fps != 0) {
+        LOG_ERROR("error: fps does not divide cleanly into samplerate");
+        free(rpath);
+        free(dir);
+		free(script_path);
+        lua_close(v->L);
+        return 1;
+    }
+
+    v->samples_per_frame = r->samplerate / v->fps;
     v->ms_per_frame = 1000.0f / ((double)v->fps);
     v->elapsed = 0;
     v->mpd_tags = 0;
@@ -593,7 +617,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     assert(lua_top == lua_gettop(v->L));
 #endif
 
-    if(audio_processor_init(p,d,v->samples_per_frame)) {
+    if(audio_processor_init(p,r,v->samples_per_frame)) {
         LOG_ERROR("init audio processor error");
         free(rpath);
         free(dir);
@@ -604,6 +628,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_decoder *
     }
 
     v->decoder = d;
+    v->sampler = r;
     v->processor = p;
 
     luaopen_image(v->L);

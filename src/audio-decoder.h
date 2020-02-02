@@ -15,6 +15,10 @@
 #define DECODE_WAV 1
 #endif
 
+#ifndef DECODE_SPC
+#define DECODE_SPC 1
+#endif
+
 #if DECODE_FLAC
 #include "dr_flac.h"
 #endif
@@ -25,6 +29,10 @@
 
 #if DECODE_WAV
 #include "dr_wav.h"
+#endif
+
+#if DECODE_SPC
+#include "jpr_spc.h"
 #endif
 
 #include "jpr_pcm.h"
@@ -46,6 +54,9 @@ union decoder_ctx_u {
 #endif
 #if DECODE_WAV
     drwav *pWav;
+#endif
+#if DECODE_SPC
+    jprspc *pSpc;
 #endif
     jprpcm *pPcm;
 };

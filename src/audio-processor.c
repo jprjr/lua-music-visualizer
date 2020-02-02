@@ -1,5 +1,5 @@
 #include "audio-processor.h"
-#include "audio-decoder.h"
+#include "audio-resampler.h"
 #include "str.h"
 #include "attr.h"
 #include <math.h>
@@ -87,7 +87,7 @@ attr_const static SCALAR_TYPE window_blackman_harris(int i, int n) {
     return (SCALAR_TYPE)(0.35875 - 0.48829*cos(a*i) + 0.14128*cos(2*a*i) - 0.01168*cos(3*a*i));
 }
 
-int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int samples_per_frame) {
+int audio_processor_init(audio_processor *p, audio_resampler *r,unsigned int samples_per_frame) {
     unsigned int i = 0;
     double octaves = ceil(my_log2(FREQ_MAX / FREQ_MIN));
     double interval = 1.0f / (octaves / p->spectrum_bars);
@@ -95,19 +95,19 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
     double upper_freq;
     double lower_freq;
 
-    if(a->samplerate == 0) return 1;
-    if(a->channels == 0) return 1;
+    if(r->samplerate == 0) return 1;
+    if(r->decoder->channels == 0) return 1;
 
     p->plan = NULL;
     p->buffer_len = 4096;
     while(p->buffer_len < samples_per_frame) {
         p->buffer_len *= 2;
     }
-    p->decoder = a;
+    p->sampler = r;
 
-    p->buffer = (jpr_int16 *)MALLOC(sizeof(jpr_int16) * p->buffer_len * a->channels);
+    p->buffer = (jpr_int16 *)MALLOC(sizeof(jpr_int16) * p->buffer_len * r->decoder->channels);
     if(UNLIKELY(p->buffer == NULL)) return 1;
-    mem_set(p->buffer,0,sizeof(jpr_int16)*(p->buffer_len * p->decoder->channels));
+    mem_set(p->buffer,0,sizeof(jpr_int16)*(p->buffer_len * p->sampler->decoder->channels));
 
     if(p->spectrum_bars > 0) {
         p->mbuffer = (SCALAR_TYPE *)MALLOC(sizeof(SCALAR_TYPE) * p->buffer_len);
@@ -126,7 +126,7 @@ int audio_processor_init(audio_processor *p, audio_decoder *a,unsigned int sampl
         mem_set(p->wbuffer,0,sizeof(SCALAR_TYPE)*p->buffer_len);
         mem_set(p->obuffer,0,sizeof(COMPLEX_TYPE) * ((p->buffer_len/2)+1) );
 
-        bin_size = (double)a->samplerate / ((double)p->buffer_len);
+        bin_size = (double)r->samplerate / ((double)p->buffer_len);
 #ifdef USE_FFTW3
         p->plan = fftw_plan_dft_r2c_1d(p->buffer_len,p->mbuffer,p->obuffer,FFTW_ESTIMATE);
 
@@ -213,7 +213,7 @@ static void audio_processor_fft(audio_processor *p) {
     SCALAR_TYPE m = 0;
 
     while(i < p->buffer_len) {
-        if(p->decoder->channels == 2) {
+        if(p->sampler->decoder->channels == 2) {
             m = (float)(p->buffer[i * 2] + p->buffer[(i*2)+1]);
             m /= 2.0f;
         } else {
@@ -286,21 +286,21 @@ jpr_uint64 audio_processor_process(audio_processor *p, jpr_uint64 framecount) {
     /* first shift everything in the buffer down */
     jpr_uint64   i = 0;
     jpr_uint64   r = 0;
-    jpr_uint64   o = (p->buffer_len * p->decoder->channels) - (framecount * p->decoder->channels);
+    jpr_uint64   o = (p->buffer_len * p->sampler->decoder->channels) - (framecount * p->sampler->decoder->channels);
 
-    while(i+framecount < (p->buffer_len * p->decoder->channels)) {
+    while(i+framecount < (p->buffer_len * p->sampler->decoder->channels)) {
         p->buffer[i] = p->buffer[framecount+i];
         i++;
     }
 
-    r = audio_decoder_decode(p->decoder,framecount,&(p->buffer[o]));
+    r = audio_resampler_decode(p->sampler,framecount,&(p->buffer[o]));
 
     if(r < framecount) {
         i = r;
         while(i<framecount) {
-            p->buffer[o+(i*p->decoder->channels)] = 0;
-            if(p->decoder->channels > 1) {
-                p->buffer[o+(i*p->decoder->channels) + 1] = 0;
+            p->buffer[o+(i*p->sampler->decoder->channels)] = 0;
+            if(p->sampler->decoder->channels > 1) {
+                p->buffer[o+(i*p->sampler->decoder->channels) + 1] = 0;
             }
             i++;
         }

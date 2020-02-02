@@ -50,6 +50,9 @@ variable.
 ## Requirements
 
 * Lua or LuaJIT
+* [snes_spc](https://github.com/jprjr/snes_spc)
+* [libid666](https://github.com/jprjr/libid666)
+* libsamplerate
 * (optional) FFTW3
 
 ## Installation

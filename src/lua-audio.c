@@ -36,10 +36,10 @@ int luaopen_audio(lua_State *L,audio_processor *a) {
     lua_pop(L,1);
 
     lua_newtable(L); /* audio */
-    lua_pushinteger(L,a->decoder->samplerate);
+    lua_pushinteger(L,a->sampler->samplerate);
     lua_setfield(L,-2,"samplerate");
 
-    lua_pushinteger(L,a->decoder->channels);
+    lua_pushinteger(L,a->sampler->decoder->channels);
     lua_setfield(L,-2,"channels");
 
     lua_pushinteger(L,a->spectrum_bars);

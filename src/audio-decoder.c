@@ -8,6 +8,8 @@
 #include "jpr_proc.h"
 #include "int.h"
 
+#include <stdio.h>
+
 #include <stdlib.h>
 
 #ifdef CHECK_LEAKS
@@ -36,6 +38,10 @@
 #include "dr_wav.h"
 #endif
 
+#if DECODE_SPC
+#include "jpr_spc.h"
+#endif
+
 #define JPR_PCM_IMPLEMENTATION
 #include "jpr_pcm.h"
 
@@ -54,6 +60,23 @@ static jpr_uint32 seek_proc(void *userdata, int offset, unsigned int origin) {
     if(r > 0xFFFFFFFF) r = 0xFFFFFFF;
     return (jpr_uint32)r;
 }
+
+#if DECODE_SPC
+static void spc_meta(void *ctx, const char *key, const char *value) {
+    audio_decoder *a = (audio_decoder *)ctx;
+
+    if(a->onmeta == NULL) return;
+    if(strcmp(key,"song") == 0) {
+        a->onmeta(a->meta_ctx,"title",value);
+    }
+    else if(strcmp(key,"game") == 0) {
+        a->onmeta(a->meta_ctx,"album",value);
+    }
+    else if(strcmp(key,"artist") == 0) {
+        a->onmeta(a->meta_ctx,key,value);
+    }
+}
+#endif
 
 #if DECODE_FLAC
 static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
@@ -261,6 +284,23 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
     }
     else
 #endif
+#if DECODE_SPC
+    if(str_ends(filename,".spc")) {
+        a->file = file_open(filename,"rb");
+        if(a->file == NULL) return 1;
+        a->ctx.pSpc = jprspc_open(read_proc,seek_proc,spc_meta,a,a->samplerate,a->channels);
+        if(a->ctx.pSpc == NULL) {
+            file_close(a->file);
+            a->file = NULL;
+            return 1;
+        }
+        a->framecount = a->ctx.pSpc->totalPCMFrameCount;
+        a->samplerate = a->ctx.pSpc->samplerate;
+        a->channels = a->ctx.pSpc->channels;
+        a->type = 4;
+    }
+    else
+#endif
         if(a->samplerate != 0 && a->channels != 0) {
         a->file = file_open(filename,"rb");
         if(a->file == NULL) return 1;
@@ -293,6 +333,9 @@ jpr_uint64 audio_decoder_decode(audio_decoder *a, jpr_uint64 framecount, jpr_int
         case 2: return drwav_read_pcm_frames_s16(a->ctx.pWav,framecount,buf);
 #endif
         case 3: return jprpcm_read_pcm_frames_s16(a->ctx.pPcm,framecount,buf);
+#if DECODE_SPC
+        case 4: return jprspc_read_pcm_frames_s16(a->ctx.pSpc,framecount,buf);
+#endif
     }
     return 0;
 }
@@ -327,6 +370,13 @@ void audio_decoder_close(audio_decoder *a) {
             a->ctx.pPcm = NULL;
             break;
         }
+#if DECODE_SPC
+        case 4: {
+            jprspc_close(a->ctx.pSpc);
+            a->ctx.pSpc = NULL;
+            break;
+        }
+#endif
     }
     file_close(a->file);
     a->file = NULL;

@@ -1,7 +1,7 @@
 #ifndef AUDIO_PROCESSOR_H
 #define AUDIO_PROCESSOR_H
 
-#include "audio-decoder.h"
+#include "audio-resampler.h"
 
 #ifdef USE_FFTW3
 #include <complex.h>
@@ -33,7 +33,7 @@ struct frange_s {
 };
 
 struct audio_processor_s {
-    audio_decoder *decoder;
+    audio_resampler *sampler;
     unsigned int spectrum_bars;
     unsigned int buffer_len; /* buffer len does NOT account for channels */
     jpr_int16 *buffer; /* stores incoming samples - buffer_len * channels */
@@ -45,7 +45,7 @@ struct audio_processor_s {
     int firstflag;
 };
 
-int audio_processor_init(audio_processor *, audio_decoder *,unsigned int samples_per_frame);
+int audio_processor_init(audio_processor *, audio_resampler *,unsigned int samples_per_frame);
 void audio_processor_close(audio_processor *);
 jpr_uint64 audio_processor_process(audio_processor *, jpr_uint64 framecount);
 

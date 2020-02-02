@@ -7,7 +7,10 @@ HOST_CC=$(CC)
 PKGCONFIG = pkg-config
 
 CFLAGS += $(shell $(PKGCONFIG) --cflags $(LUA))
-LDFLAGS += $(shell $(PKGCONFIG) --libs $(LUA)) -lm -pthread
+CFLAGS += $(shell $(PKGCONFIG) --cflags samplerate)
+LDFLAGS += $(shell $(PKGCONFIG) --libs samplerate)
+LDFLAGS += $(shell $(PKGCONFIG) --libs $(LUA))
+LDFLAGS += -lspc -lid666 -lm -pthread
 
 CLEAN += lua-music-visualizer
 

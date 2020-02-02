@@ -6,6 +6,7 @@
 #include <signal.h>
 #endif
 #include "audio-decoder.h"
+#include "audio-resampler.h"
 #include "audio-processor.h"
 #include "video-generator.h"
 #include "jpr_proc.h"
@@ -116,6 +117,7 @@ static int usage(const char *self, int e) {
     WRITE_STDERR("  --bars=bars\n");
     WRITE_STDERR("  --samplerate=samplerate (enables raw input)\n");
     WRITE_STDERR("  --channels (enables raw input)\n");
+    WRITE_STDERR("  --resample=samplerate (force output audio sample rate)\n");
     WRITE_STDERR("  --version (prints version and exits)\n");
     WRITE_STDERR("  -l<module> -- calls require(<module>)\n");
     WRITE_STDERR("  -joff -- turns off JIT\n");
@@ -157,6 +159,7 @@ int cli_start(int argc, char **argv) {
     char *c;
 
     audio_decoder *decoder;
+    audio_resampler *resampler;
     audio_processor *processor;
     video_generator *generator;
 #ifndef _WIN32
@@ -171,6 +174,7 @@ int cli_start(int argc, char **argv) {
     unsigned int fps        = 0;
     unsigned int bars       = 0;
     unsigned int samplerate = 0;
+    unsigned int resample   = 0;
     unsigned int channels   = 0;
 
     jpr_proc_pipe f;
@@ -298,6 +302,21 @@ int cli_start(int argc, char **argv) {
             argv++;
             argc--;
         }
+        else if(str_istarts(*argv,"--resample")) {
+            c = str_chr(*argv,'=');
+            if(c != NULL) {
+                s = &c[1];
+            } else {
+                argv++;
+                argc--;
+                s = *argv;
+            }
+            if(scan_uint(s,&resample) == 0) {
+                return usage(self,1);
+            }
+            argv++;
+            argc--;
+        }
         else {
             break;
         }
@@ -326,10 +345,12 @@ int cli_start(int argc, char **argv) {
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(UNLIKELY(decoder == NULL)) quit(1,NULL);
+    resampler = (audio_resampler *)malloc(sizeof(audio_resampler));
+    if(UNLIKELY(resampler == NULL)) quit(1,decoder,NULL);
     processor = (audio_processor *)malloc(sizeof(audio_processor));
-    if(UNLIKELY(processor == NULL)) quit(1,decoder,NULL);
+    if(UNLIKELY(processor == NULL)) quit(1,decoder,resampler,NULL);
     generator = (video_generator *)malloc(sizeof(video_generator));
-    if(UNLIKELY(generator == NULL)) quit(1,decoder,processor,NULL);
+    if(UNLIKELY(generator == NULL)) quit(1,decoder,resampler,processor,NULL);
 
     if(width == 0) width     =       1280;
     if(height == 0) height   =        720;
@@ -341,14 +362,15 @@ int cli_start(int argc, char **argv) {
     processor->spectrum_bars =       bars;
     decoder->samplerate      = samplerate;
     decoder->channels        =   channels;
+    resampler->samplerate    =   resample;
 
     if(jpr_proc_spawn(&i,(const char * const *)argv,&f,NULL,NULL)) {
         LOG_ERROR("error spawning process");
-        quit(1,decoder,processor,generator,NULL);
+        quit(1,decoder,resampler,processor,generator,NULL);
         return 1;
     }
 
-    if(video_generator_init(generator,processor,decoder,jit,module,songfile,scriptfile,&f)) {
+    if(video_generator_init(generator,processor,resampler,decoder,jit,module,songfile,scriptfile,&f)) {
         LOG_ERROR("error starting the video generator");
         quit(1,decoder,processor,generator,NULL);
         return 1;
@@ -392,6 +414,7 @@ int cli_start(int argc, char **argv) {
     }
 
     free(decoder);
+    free(resampler);
     free(processor);
     free(generator);
 #ifndef _WIN32

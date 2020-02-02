@@ -17,7 +17,9 @@ OBJS = \
   src/audio-processor.o \
   src/kiss_fftr.o \
   src/kiss_fft.o \
+  src/audio-resampler.o \
   src/audio-decoder.o \
+  src/jpr_spc.o \
   src/path.o \
   src/text.o \
   src/file.o \
@@ -46,8 +48,8 @@ CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res src/bin2c src/bin2c.exe
 
 BIN2CSRC = src/bin2c.c
 
-OPT_CFLAGS = -O2 -g -Wno-comment -Wno-unused-function -Wno-long-long -DNDEBUG # -DCHECK_LEAKS -DCHECK_PERFORMANCE -DJPR_NO_STDLIB
-CFLAGS = -Wall -Wextra
+OPT_CFLAGS = -O2 -g -DNDEBUG
+CFLAGS = -Wall -Wextra -Wno-unused-function -Wno-long-long
 OPT_LDFLAGS =
 LDFLAGS =
 NASM_PLAT = macho64
@@ -55,6 +57,9 @@ NASM_FLAGS =
 
 src/mat.o: src/mat.s
 	cd src && nasm -f $(NASM_PLAT) $(NASM_FLAGS) -o mat.o mat.s
+
+%.o: %.cpp $(LUALHS)
+	$(CXX) $(CXXFLAGS) $(OPT_CXXFLAGS) -o $@ -c $<
 
 %.o: %.c $(LUALHS)
 	$(CC) $(CFLAGS) $(OPT_CFLAGS) -o $@ -c $<

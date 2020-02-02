@@ -25,6 +25,7 @@
 #endif
 
 static audio_decoder *decoder = NULL;
+static audio_resampler *resampler = NULL;
 static audio_processor *processor = NULL;
 static video_generator *generator = NULL;
 
@@ -244,6 +245,9 @@ static void tearDownGenerator(void) {
         free(decoder);
         decoder = NULL;
     }
+    if(resampler != NULL) {
+        free(resampler);
+    }
     if(processor != NULL) {
         free(processor);
         processor = NULL;
@@ -287,6 +291,8 @@ static int setupVideoGenerator(void) {
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(UNLIKELY(decoder == NULL)) goto videogenerator_fail;
+    resampler = (audio_resampler *)malloc(sizeof(audio_resampler));
+    if(UNLIKELY(resampler == NULL)) goto videogenerator_fail;
     processor = (audio_processor *)malloc(sizeof(audio_processor));
     if(UNLIKELY(processor == NULL)) goto videogenerator_fail;
     generator = (video_generator *)malloc(sizeof(video_generator));
@@ -296,6 +302,7 @@ static int setupVideoGenerator(void) {
     generator->height = height;
     generator->fps = fps;
     processor->spectrum_bars = bars;
+    resampler->samplerate = 0;
 
     return 0;
 
@@ -316,7 +323,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
 
     if(jpr_proc_spawn(&process,args,&child_stdin,NULL,NULL)) goto startvideo_cleanup;
 
-    if(video_generator_init(generator,processor,decoder,1,NULL,songfile,scriptfile,&child_stdin)) {
+    if(video_generator_init(generator,processor,resampler,decoder,1,NULL,songfile,scriptfile,&child_stdin)) {
         LOG_ERROR("error starting the video generator");
         goto startvideo_cleanup;
     }
