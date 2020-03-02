@@ -1,0 +1,1 @@
+Placeholder, copy in actual COPYRIGHT file at build-time.
