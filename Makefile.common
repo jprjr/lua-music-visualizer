@@ -38,7 +38,8 @@ OBJS := \
   src/version.o \
   src/license.o \
   src/license_libsamplerate.o \
-  src/license_lua.o
+  src/license_lua.o \
+  src/fmt.o
 
 LUALHS = \
   src/bdf.lua.lh \
@@ -72,6 +73,7 @@ LDFLAGS =
 NASM_PLAT = macho64
 NASM_FLAGS =
 ENABLE_FFTW3 = 0
+ENABLE_LIBSAMPLERATE = 1
 ENABLE_PCM  = 1
 ENABLE_FLAC = 1
 ENABLE_MP3  = 1
@@ -93,6 +95,8 @@ ifeq ($(ENABLE_ALL),1)
   ENABLE_VGM = 1
 endif
 
+CFLAGS += -DENABLE_LIBSAMPLERATE=$(ENABLE_LIBSAMPLERATE)
+
 ifeq ($(ENABLE_FFTW3),1)
   CFLAGS += -DUSE_FFTW3=1
   OBJS += src/license_fftw3.o
@@ -103,33 +107,45 @@ endif
 ifeq ($(ENABLE_PCM),1)
   OBJS += src/jpr_pcm.o
   CFLAGS += -DDECODE_PCM=1
+else
+  CFLAGS += -DDECODE_PCM=0
 endif
 
 ifeq ($(ENABLE_FLAC),1)
   OBJS += src/jpr_flac.o
   CFLAGS += -DDECODE_FLAC=1
+else
+  CFLAGS += -DDECODE_FLAC=0
 endif
 
 ifeq ($(ENABLE_MP3),1)
   OBJS += src/jpr_mp3.o
   CFLAGS += -DDECODE_MP3=1
+else
+  CFLAGS += -DDECODE_MP3=0
 endif
 
 ifeq ($(ENABLE_WAV),1)
   OBJS += src/jpr_wav.o
   CFLAGS += -DDECODE_WAV=1
+else
+  CFLAGS += -DDECODE_WAV=0
 endif
 
 ifeq ($(ENABLE_SPC),1)
   OBJS += src/jpr_spc.o src/license_snes_spc.o
   CFLAGS += -DDECODE_SPC=1
   LDFLAGS += -lspc -lid666
+else
+  CFLAGS += -DDECODE_SPC=0
 endif
 
 ifeq ($(ENABLE_NEZ),1)
   OBJS += src/jpr_nez.o src/license_libnezplug.o
   CFLAGS += -DDECODE_NEZ=1
   LDFLAGS += -lnezplug
+else
+  CFLAGS += -DDECODE_NEZ=0
 endif
 
 ifeq ($(ENABLE_NSF),1)
@@ -138,6 +154,9 @@ ifeq ($(ENABLE_NSF),1)
   CXXFLAGS += -DDECODE_NSF=1
   LDFLAGS += -lnsfplay
   LINKER = $(CXX)
+else
+  CFLAGS += -DDECODE_NSF=0
+  CXXFLAGS += -DDECODE_NSF=0
 endif
 
 ifeq ($(ENABLE_VGM),1)
@@ -146,6 +165,9 @@ ifeq ($(ENABLE_VGM),1)
   CXXFLAGS += -DDECODE_VGM=1
   LDFLAGS += -lvgm-player -lvgm-emu -lvgm-utils
   LINKER = $(CXX)
+else
+  CFLAGS += -DDECODE_VGM=0
+  CXXFLAGS += -DDECODE_VGM=0
 endif
 
 src/mat.o: src/mat.s

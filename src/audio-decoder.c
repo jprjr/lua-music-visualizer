@@ -180,15 +180,13 @@ audio_info *audio_decoder_probe(audio_decoder *a, const char *filename) {
 
 }
 void audio_decoder_free_info(audio_info *info) {
-    char **l;
+    unsigned int i = 0;
     if(info == NULL) return;
     if(info->artist) free(info->artist);
     if(info->album) free(info->album);
     if(info->tracks == NULL) return;
-    l = info->tracks;
-    while(*l != NULL) {
-        free(*l);
-        l++;
+    for(i=0;i<info->total;i++) {
+        if(info->tracks[i].title != NULL) free(info->tracks[i].title);
     }
     free(info->tracks);
     free(info);

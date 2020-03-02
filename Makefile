@@ -9,8 +9,10 @@ PKGCONFIG = pkg-config
 LUA_CFLAGS = $(shell $(PKGCONFIG) --cflags $(LUA))
 LUA_LDFLAGS = $(shell $(PKGCONFIG) --libs $(LUA))
 
+ifeq ($(ENABLE_LIBSAMPLERATE),1)
 SAMPLERATE_CFLAGS  = $(shell $(PKGCONFIG) --cflags samplerate)
 SAMPLERATE_LDFLAGS = $(shell $(PKGCONFIG) --libs samplerate)
+endif
 
 ifeq ($(ENABLE_VGM),1)
 VGM_CFLAGS = $(shell $(PKGCONFIG) --cflags vgm-player)

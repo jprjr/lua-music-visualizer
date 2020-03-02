@@ -78,9 +78,7 @@ static audio_info *jprnsf_probe(audio_decoder *decoder) {
     }
 
     info = (audio_info *)malloc(sizeof(audio_info));
-    info->artist = NULL;
-    info->album = NULL;
-    info->tracks = NULL;
+    mem_set(info,0,sizeof(audio_info));
 
     if(nsf.nsfe_plst_size > 0) {
         total = nsf.nsfe_plst_size;
@@ -88,8 +86,9 @@ static audio_info *jprnsf_probe(audio_decoder *decoder) {
         total = nsf.GetSongNum();
     }
 
-    list = (char **)malloc(sizeof(char *) * total + 1);
-    if(UNLIKELY(list == NULL)) {
+    info->total = total;
+    info->tracks = (track_info *)malloc(sizeof(track_info) * total);
+    if(UNLIKELY(info->tracks == NULL)) {
         free(info);
         return NULL;
     }
@@ -100,11 +99,10 @@ static audio_info *jprnsf_probe(audio_decoder *decoder) {
         } else {
             nsfe_track = i;
         }
-        list[i] = str_dup(nsf.nsfe_entry[nsfe_track].tlbl);
+        info->tracks[i].number = i+1;
+        info->tracks[i].title = str_dup(nsf.nsfe_entry[nsfe_track].tlbl);
     }
-    list[i] = NULL;
 
-    info->tracks = list;
     if(nsf.artist[0]) {
         info->artist = str_dup(nsf.artist);
     }

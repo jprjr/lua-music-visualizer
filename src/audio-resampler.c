@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "audio-resampler.h"
 
+#if ENABLE_LIBSAMPLERATE
 static long resampler_load(void *cb_data, float **data) {
     jpr_uint64 t;
     audio_resampler *sampler;
@@ -14,11 +15,6 @@ static long resampler_load(void *cb_data, float **data) {
     return (long)t;
 }
 
-
-static jpr_uint64 resampler_passthrough(audio_resampler *sampler, jpr_uint64 framecount, jpr_int16 *buf) {
-    return audio_decoder_decode(sampler->decoder,framecount,buf);
-}
-
 static jpr_uint64 resampler_resample(audio_resampler *sampler, jpr_uint64 framecount, jpr_int16 *buf) {
     long t;
     t = src_callback_read(sampler->src,sampler->ratio,(long)framecount,sampler->out);
@@ -26,8 +22,18 @@ static jpr_uint64 resampler_resample(audio_resampler *sampler, jpr_uint64 framec
 
     return (jpr_uint64)t;
 }
+#endif
+
+
+static jpr_uint64 resampler_passthrough(audio_resampler *sampler, jpr_uint64 framecount, jpr_int16 *buf) {
+    return audio_decoder_decode(sampler->decoder,framecount,buf);
+}
 
 int audio_resampler_open(audio_resampler *sampler, audio_decoder  *decoder) {
+#if !ENABLE_LIBSAMPLERATE
+    sampler->resample = resampler_passthrough;
+    sampler->samplerate = decoder->samplerate;
+#else
     int src_error = 0;
     if(sampler->samplerate == 0 || sampler->samplerate == decoder->samplerate) {
         sampler->resample = resampler_passthrough;
@@ -56,6 +62,7 @@ int audio_resampler_open(audio_resampler *sampler, audio_decoder  *decoder) {
         sampler->resample = resampler_resample;
         sampler->ratio = ((double)sampler->samplerate) / ((double)decoder->samplerate);
     }
+#endif
     sampler->decoder = decoder;
     return 0;
 }
@@ -77,6 +84,8 @@ void audio_resampler_close(audio_resampler *sampler) {
     if(sampler->buf != NULL) free(sampler->buf);
     if(sampler->in != NULL) free(sampler->in);
     if(sampler->out != NULL) free(sampler->out);
+#if ENABLE_LIBSAMPLERATE
     if(sampler->src != NULL) src_delete(sampler->src);
+#endif
     return;
 }

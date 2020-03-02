@@ -14,10 +14,18 @@ struct audio_plugin_ctx_s {
     void *priv;
 };
 
+struct track_info_s {
+    unsigned int number;
+    char *title;
+};
+
+typedef struct track_info_s track_info;
+
 struct audio_info_s {
     char *artist;
     char *album;
-    char **tracks;
+    unsigned int total;
+    track_info* tracks;
 };
 
 typedef struct audio_info_s audio_info;

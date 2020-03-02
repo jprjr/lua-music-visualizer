@@ -85,22 +85,23 @@ static audio_info *jprspc_probe(audio_decoder *decoder) {
         free(id6);
         return NULL;
     }
+    mem_set(info,0,sizeof(audio_info));
+    info->total = 1;
 
-    info->artist = NULL;
-    info->album = NULL;
-    info->tracks = (char **)malloc(sizeof(char *) * 2);
+    info->tracks = (track_info *)malloc(sizeof(track_info) * 1);
     if(UNLIKELY(info->tracks == NULL)) {
         free(spc_data);
         free(id6);
         free(info);
         return NULL;
     }
+    mem_set(info->tracks,0,sizeof(track_info) * 1);
 
-    info->tracks[0] = str_dup(id6->song);
-    info->tracks[1] = NULL;
+    info->tracks[0].number = 1;
+    info->tracks[0].title = str_dup(id6->song);
 
     if(id6->game[0] != '\0') {
-        info->album =str_dup(id6->game);
+        info->album = str_dup(id6->game);
     }
     if(id6->artist[0] != '\0') {
         info->artist = str_dup(id6->artist);

@@ -74,10 +74,10 @@ static audio_info *jprvgm_probe(audio_decoder *decoder) {
         delete player;
         return nullptr;
     }
+    mem_set(info,0,sizeof(audio_info));
+    info->total = 1;
 
-    info->artist = nullptr;
-    info->album = nullptr;
-    info->tracks = (char **)malloc(sizeof(char *) * 2);
+    info->tracks = (track_info *)malloc(sizeof(track_info) * 1);
     if(UNLIKELY(info->tracks == nullptr)) {
         free(vgm_data);
         DataLoader_Deinit(loader);
@@ -85,12 +85,13 @@ static audio_info *jprvgm_probe(audio_decoder *decoder) {
         free(info);
         return nullptr;
     }
-    info->tracks[1] = nullptr;
-    
+    mem_set(info->tracks,0,sizeof(track_info) * 1);
+    info->tracks[0].number = 1;
+ 
 	tagList = player->GetTags();
 	for(t = tagList; *t; t += 2) {
 		if(str_equals(t[0],"TITLE"))
-            info->tracks[0] = str_dup(t[1]);
+            info->tracks[0].title = str_dup(t[1]);
 		else if(str_equals(t[0],"ARTIST"))
             info->artist = str_dup(t[1]);
 		else if(str_equals(t[0],"GAME"))

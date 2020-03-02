@@ -24,6 +24,9 @@
 #include "stb_leakcheck.h"
 #endif
 
+static char *filterString;
+static char *filterInfoString;
+
 static audio_decoder *decoder = NULL;
 static audio_resampler *resampler = NULL;
 static audio_processor *processor = NULL;
@@ -39,6 +42,7 @@ static Ihandle *startButton, *saveButton;
 static Ihandle *gridbox;
 static Ihandle *songBtn, *songText;
 static Ihandle *scriptBtn, *scriptText;
+static Ihandle *trackLabel, *trackDropdown;
 
 /* "Programs" tab */
 static Ihandle *programBox;
@@ -63,6 +67,9 @@ static Ihandle *outputBtn, *outputText;
 /* "Misc" tab */
 static Ihandle *miscBox;
 static Ihandle *cwdBtn, *cwdText;
+static audio_info *audioInfo;
+
+static char **trackList;
 
 static int printable(char *s) {
     unsigned int i = 0;
@@ -70,6 +77,85 @@ static int printable(char *s) {
         if(s[i] < 32) return 0;
         i++;
     }
+    return 1;
+}
+
+static int probeAudio(const char *filename) {
+    audio_decoder *a;
+    unsigned int i = 0;
+    unsigned int tmp_len;
+    char *tmp;
+    char **t;
+    char f[5];
+    audio_info *tmpAudioInfo;
+
+    f[0] = '\0';
+    tmp = NULL;
+
+    a = (audio_decoder *)malloc(sizeof(audio_decoder));
+    if(a == NULL) abort();
+    audio_decoder_init(a);
+    tmpAudioInfo = audio_decoder_probe(a,filename);
+    free(a);
+    if(tmpAudioInfo == NULL) {
+        return 0;
+    }
+    if(audioInfo != NULL) {
+        audio_decoder_free_info(audioInfo);
+    }
+
+    if(trackList != NULL) {
+        t = trackList;
+        while(*t != NULL) {
+            free(*t);
+            t++;
+        }
+        free(trackList);
+        trackList = NULL;
+    }
+
+    audioInfo = tmpAudioInfo;
+
+    IupSetAttribute(trackDropdown,"1",NULL);
+
+    if(audioInfo->total > 1) {
+        IupSetAttribute(trackDropdown,"ACTIVE","YES");
+    } else {
+        IupSetAttribute(trackDropdown,"ACTIVE","NO");
+    }
+
+    trackList = (char **)malloc(sizeof(char *) * (audioInfo->total + 1));
+    if(trackList == NULL) abort();
+    trackList[audioInfo->total] = NULL;
+
+    for(i=0;i<audioInfo->total;i++) {
+        f[fmt_uint(f,i+1)] = '\0';
+        if(tmp != NULL) {
+            free(tmp);
+            tmp = NULL;
+        }
+        tmp_len = str_len(f) + 3;
+        if(audioInfo->tracks[i].title != NULL && audioInfo->tracks[i].title[0] != '\0') {
+            tmp_len += str_len(audioInfo->tracks[i].title);
+        } else {
+            tmp_len += str_len("(unknown)");
+        }
+        tmp = (char *)malloc(tmp_len * sizeof(char));
+        if(tmp == NULL) abort();
+        tmp[0] = '\0';
+        str_cat(tmp,f);
+        str_cat(tmp,": ");
+        if(audioInfo->tracks[i].title != NULL && audioInfo->tracks[i].title[0] != '\0') {
+            str_cat(tmp,audioInfo->tracks[i].title);
+        } else {
+            str_cat(tmp,"(unknown)");
+        }
+        trackList[i] = str_dup(tmp);
+        if(trackList[i] == NULL) abort();
+        IupSetAttribute(trackDropdown,f,trackList[i]);
+    }
+
+    if(tmp != NULL) free(tmp);
     return 1;
 }
 
@@ -185,10 +271,14 @@ static int songBtnCb(Ihandle *self) {
     Ihandle *dlg = IupFileDlg();
     IupSetAttribute(dlg,"DIALOGTYPE","OPEN");
     IupSetAttribute(dlg,"TITLE","Choose a song");
-    IupSetAttribute(dlg,"FILTER","*.mp3;*.flac;*.wav");
-    IupSetAttribute(dlg,"FILTERINFO","MP3/FLAC/WAV");
+    IupSetAttribute(dlg,"FILTER",filterString);
+    IupSetAttribute(dlg,"FILTERINFO",filterInfoString);
     IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
     if(IupGetInt(dlg,"STATUS") == 0) {
+        if(probeAudio(IupGetAttribute(dlg,"VALUE"))) {
+            IupSetAttribute(trackDropdown,"VALUE","1");
+            IupConfigSetVariableStr(config,"global","tracknum","1");
+        }
         IupSetAttribute(songText,"VALUE",IupGetAttribute(dlg,"VALUE"));
         IupConfigSetVariableStr(config,"global","songfile",IupGetAttribute(dlg,"VALUE"));
         IupConfigSave(config);
@@ -264,12 +354,14 @@ static int setupVideoGenerator(void) {
     char *width_t = IupGetAttribute(widthText,"VALUE");
     char *height_t = IupGetAttribute(heightText,"VALUE");
     char *bars_t = IupGetAttribute(barsText,"VALUE");
-    unsigned int fps, width, height, bars;
+    char *track_t = IupGetAttribute(trackDropdown,"VALUE");
+    unsigned int fps, width, height, bars, track;
 
     scan_uint(fps_t,&fps);
     scan_uint(width_t,&width);
     scan_uint(height_t,&height);
     scan_uint(bars_t,&bars);
+    scan_uint(track_t,&track);
 
     if(width == 0 || height == 0) {
         IupMessageError(dlg,"Unable to figure out the width or height wtf?");
@@ -289,6 +381,8 @@ static int setupVideoGenerator(void) {
         if(path_setcwd(workdir) != 0) goto videogenerator_fail;
     }
 
+    if(track > 0) track--;
+
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
     if(UNLIKELY(decoder == NULL)) goto videogenerator_fail;
     resampler = (audio_resampler *)malloc(sizeof(audio_resampler));
@@ -298,11 +392,15 @@ static int setupVideoGenerator(void) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(UNLIKELY(generator == NULL)) goto videogenerator_fail;
 
+    decoder->track = 1;
+    if(audioInfo != NULL) {
+        decoder->track = audioInfo->tracks[track].number;
+    }
     generator->width = width;
     generator->height = height;
     generator->fps = fps;
     processor->spectrum_bars = bars;
-    resampler->samplerate = 0;
+    resampler->samplerate = 48000;
 
     return 0;
 
@@ -452,6 +550,11 @@ static int updateAndSaveConfig(Ihandle *self) {
         sec = "video";
         key = "fps";
         val = IupGetAttribute(self, IupGetAttribute(self,"VALUE"));
+    }
+    else if(self == trackDropdown) {
+        sec = "global";
+        key = "tracknum";
+        val = IupGetAttribute(self,"VALUE");
     }
     else if(self == widthText) {
         sec = "video";
@@ -625,10 +728,22 @@ static void createMiscBox(void) {
 }
 
 static void createBasicBox(void) {
+    const char *songFile;
+    const char *trackNumber_t;
+    unsigned int trackNumber;
     songBtn = IupButton("Song", NULL);
     songText = IupText(NULL);
     IupSetAttribute(songText, "EXPAND", "HORIZONTAL");
     IupSetCallback(songBtn,"ACTION",(Icallback) songBtnCb);
+
+    trackLabel = IupLabel("Track");
+    trackDropdown = IupList(NULL);
+    IupSetAttribute(trackDropdown,"EXPAND","HORIZONTAL");
+    IupSetAttribute(trackDropdown,"DROPDOWN","YES");
+    IupSetAttribute(trackDropdown,"ACTIVE","NO");
+    IupSetAttribute(trackDropdown,"1","(no song loaded)");
+    IupSetAttribute(trackDropdown,"VALUE","1");
+    IupSetCallback(trackDropdown,"ACTION",updateAndSaveConfig);
 
     scriptBtn = IupButton("Script", NULL);
     scriptText = IupText(NULL);
@@ -640,7 +755,7 @@ static void createBasicBox(void) {
     IupSetAttribute(songText,"DROPFILESTARGET","YES");
     IupSetAttribute(scriptText,"DROPFILESTARGET","YES");
 
-    gridbox = IupGridBox(songBtn,songText,scriptBtn,scriptText,NULL);
+    gridbox = IupGridBox(songBtn,songText,trackLabel,trackDropdown,scriptBtn,scriptText,NULL);
     IupSetAttribute(gridbox,"ORIENTATION","HORIZONTAL");
     IupSetAttribute(gridbox,"NUMDIV","2");
     IupSetAttribute(gridbox,"GAPLIN","20");
@@ -652,12 +767,117 @@ static void createBasicBox(void) {
     IupSetAttribute(songText,"VALUE",IupConfigGetVariableStrDef(config,"global","songfile",""));
     IupSetAttribute(scriptText,"VALUE",IupConfigGetVariableStrDef(config,"global","scriptfile",""));
 
+    songFile = IupConfigGetVariableStrDef(config,"global","songfile","");
+    if(songFile[0] != '\0') {
+        if(probeAudio(songFile)) {
+            IupSetAttribute(songText,"VALUE",songFile);
+            trackNumber_t = IupConfigGetVariableStrDef(config,"global","tracknum","1");
+            scan_uint(trackNumber_t,&trackNumber);
+            if(trackNumber <= audioInfo->total) {
+                IupSetAttribute(trackDropdown,"VALUE",trackNumber_t);
+            } else {
+                IupSetAttribute(trackDropdown,"VALUE","1");
+            }
+        }
+        else {
+            IupSetAttribute(songText,"VALUE","");
+            IupSetAttribute(trackDropdown,"VALUE","1");
+        }
+    }
+
+}
+
+static void append_string(char **dest, const char *src) {
+    char *new;
+    unsigned int len = 1;
+    len += str_len(src);
+    if(*dest != NULL) {
+        len += str_len(*dest);
+    }
+    new = (char *)malloc(len);
+    if(new == NULL) abort();
+    new[0] = '\0';
+    if(*dest != NULL) {
+        str_cpy(new,*dest);
+        free(*dest);
+    }
+    str_cat(new,src);
+    *dest = new;
 }
 
 int gui_start(int argc, char **argv) {
+    char **t;
+    trackList = NULL;
     IupOpen(&argc, &argv);
     IupSetGlobal("UTF8MODE","YES");
     IupSetGlobal("UTF8MODE_FILE","YES");
+
+    filterString = NULL;
+    filterInfoString = NULL;
+    audioInfo = NULL;
+
+    int total_formats = 0;
+
+#if DECODE_FLAC
+    if(filterString != NULL) append_string(&filterString,";");
+    if(filterInfoString != NULL) append_string(&filterInfoString,"/");
+    append_string(&filterString,"*.flac");
+    append_string(&filterInfoString,"FLAC");
+    total_formats++;
+#endif
+
+#if DECODE_MP3
+    if(filterString != NULL) append_string(&filterString,";");
+    if(filterInfoString != NULL) append_string(&filterInfoString,"/");
+    append_string(&filterString,"*.mp3");
+    append_string(&filterInfoString,"MP3");
+    total_formats++;
+#endif
+
+#if DECODE_WAV
+    if(filterString != NULL) append_string(&filterString,";");
+    if(filterInfoString != NULL) append_string(&filterInfoString,"/");
+    append_string(&filterString,"*.wav");
+    append_string(&filterInfoString,"WAV");
+    total_formats++;
+#endif
+
+#if DECODE_NSF
+    if(filterString != NULL) append_string(&filterString,";");
+    if(filterInfoString != NULL) append_string(&filterInfoString,"/");
+    append_string(&filterString,"*.nsf;*.nsfe");
+    append_string(&filterInfoString,"NSF");
+    total_formats++;
+#endif
+
+#if DECODE_SPC
+    if(filterString != NULL) append_string(&filterString,";");
+    if(filterInfoString != NULL) append_string(&filterInfoString,"/");
+    append_string(&filterString,"*.spc");
+    append_string(&filterInfoString,"SPC");
+    total_formats++;
+#endif
+
+#if DECODE_VGM
+    if(filterString != NULL) append_string(&filterString,";");
+    if(filterInfoString != NULL) append_string(&filterInfoString,"/");
+    append_string(&filterString,"*.vgm");
+    append_string(&filterInfoString,"VGM");
+    total_formats++;
+#endif
+
+#if DECODE_NEZ
+    if(filterString != NULL) append_string(&filterString,";");
+    if(filterInfoString != NULL) append_string(&filterString,"/");
+    append_string(&filterString,"*.gbs");
+    append_string(&filterInfoString,"GBS");
+    total_formats++;
+#endif
+
+    if(total_formats > 3) {
+        free(filterInfoString);
+        filterInfoString = str_dup("Audio Files");
+    }
 
     config = IupConfig();
     IupSetAttribute(config,"APP_NAME","lua-music-visualizer");
@@ -689,7 +909,6 @@ int gui_start(int argc, char **argv) {
 
     activateStartButton();
 
-    // dlg = IupDialog(IupTabs(gridbox,videoBox,miscBox,NULL));
     dlg = IupDialog(IupVbox(IupTabs(gridbox,programBox,videoBox,audioBox,encoderBox,miscBox,NULL),startVbox,NULL));
     IupSetAttribute(dlg,"TITLE","Lua Music Visualizer");
     IupSetAttribute(dlg,"SIZE","300x170");
@@ -697,6 +916,18 @@ int gui_start(int argc, char **argv) {
     IupMainLoop();
 
     IupClose();
+
+    free(filterString);
+    free(filterInfoString);
+
+    if(trackList != NULL) {
+        t = trackList;
+        while(*t != NULL) {
+            free(*t);
+            t++;
+        }
+        free(trackList);
+    }
 
     return 0;
 }

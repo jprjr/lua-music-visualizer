@@ -4,6 +4,8 @@
 #include "str.h"
 #include "jpr_mp3.h"
 
+#include <stdio.h>
+
 #define DR_MP3_NO_STDIO
 #define DR_MP3_IMPLEMENTATION
 #include "dr_mp3.h"
@@ -25,9 +27,10 @@ static void mp3_probe_f(void *ctx, const char *key, const char *val) {
         probe->info->album = str_dup(val);
     }
     else if(str_equals(key,"title")) {
-        probe->info->tracks[0] = str_dup(val);
+        probe->info->tracks[0].number = 1;
+        probe->info->tracks[0].title = str_dup(val);
     }
-    if(probe->onmeta != NULL) {
+    if(probe->onmeta != NULL && probe->meta_ctx != NULL) {
         probe->onmeta(probe->meta_ctx,key,val);
     }
 }
@@ -45,7 +48,7 @@ static drmp3_bool32 seek_wrapper(void *userdata, int offset, drmp3_seek_origin o
         case drmp3_seek_origin_start: w = JPR_FILE_SET; break;
         case drmp3_seek_origin_current: w = JPR_FILE_CUR; break;
     }
-    return (drwav_bool32)(a->seek(a,(jpr_int64)offset,w) != -1);
+    return (drmp3_bool32)(a->seek(a,(jpr_int64)offset,w) != -1);
 }
 
 static void jprmp3_close(audio_plugin_ctx *ctx) {
@@ -68,6 +71,8 @@ static audio_info *jprmp3_probe(audio_decoder *decoder) {
     if(UNLIKELY(info == NULL)) {
         return NULL;
     }
+    mem_set(info,0,sizeof(audio_info));
+    info->total = 1;
 
     metaprobe = (mp3_probe *)malloc(sizeof(mp3_probe));
     if(UNLIKELY(info == NULL)) {
@@ -75,17 +80,13 @@ static audio_info *jprmp3_probe(audio_decoder *decoder) {
         return NULL;
     }
 
-    info->tracks = (char **)malloc(sizeof(char *) * 2);
+    info->tracks = (track_info *)malloc(sizeof(track_info) * 1);
     if(UNLIKELY(info->tracks == NULL)) {
         free(info);
         free(metaprobe);
         return NULL;
     }
-
-    info->artist = NULL;
-    info->album  = NULL;
-    info->tracks[0] = NULL;
-    info->tracks[1] = NULL;
+    mem_set(info->tracks,0,sizeof(track_info) * 1);
 
     metaprobe->info = info;
     metaprobe->onmeta = decoder->onmeta;

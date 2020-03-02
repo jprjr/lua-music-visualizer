@@ -67,29 +67,33 @@ static audio_info *jprnez_probe(audio_decoder *decoder) {
     }
 
     info = (audio_info *)malloc(sizeof(audio_info));
-    info->artist = NULL;
-    info->album = NULL;
-    info->tracks = NULL;
+    if(UNLIKELY(info == NULL)) {
+        free(nez_data);
+        NEZDelete(player);
+        return NULL;
+    }
+    mem_set(info,0,sizeof(audio_info));
 
-
-    info->tracks = (char **)malloc(sizeof(char *) * (NEZGetSongMax(player) + 1));
+    info->total = NEZGetSongMax(player) - NEZGetSongStart(player) + 1;
+    info->tracks = (track_info *)malloc(sizeof(track_info) * info->total);
     if(UNLIKELY(info->tracks == NULL)) {
         free(nez_data);
         NEZDelete(player);
         free(info);
         return NULL;
     }
+    mem_set(info->tracks,0,sizeof(track_info) * info->total);
 
     offset = NEZGetSongStart(player);
 
     for(i=NEZGetSongStart(player);i<=NEZGetSongMax(player);i++) {
+        info->tracks[i - offset].number = i;
         if(NEZGetTrackTitle(player,i)) {
-            info->tracks[i - offset] = str_dup(NEZGetTrackTitle(player,i));
+            info->tracks[i - offset].title = str_dup(NEZGetTrackTitle(player,i));
         } else {
-            info->tracks[i - offset] = str_dup("");
+            info->tracks[i - offset].title = str_dup("");
         }
     }
-    info->tracks[i - offset] = NULL;
 
     if(NEZGetGameArtist(player)) {
         info->artist = str_dup(NEZGetGameArtist(player));

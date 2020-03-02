@@ -13,6 +13,7 @@
 #include "scan.h"
 #include "version.h"
 #include "int.h"
+#include "fmt.h"
 #ifndef _WIN32
 #include "thread.h"
 #endif
@@ -169,7 +170,7 @@ static int about(void) {
     const char * const *line;
     f = file_open("-","wb");
     if(UNLIKELY(f == NULL)) {
-        WRITE_STDERR("probe: unable to open stdout\n");
+        WRITE_STDERR("about: unable to open stdout\n");
         return 1;
     }
 
@@ -305,10 +306,11 @@ static int about(void) {
 }
 
 static int probe(const char *filename) {
-    char **l;
     audio_info *info;
     jpr_file *f;
     audio_decoder *decoder;
+    unsigned int i;
+    char tracknum[4];
 
     f = file_open("-","w");
     if(UNLIKELY(f == NULL)) {
@@ -337,15 +339,13 @@ static int probe(const char *filename) {
         file_write(f,"\n",1);
     }
 
-    if(info->tracks) {
-        l = info->tracks;
-        while(*l != NULL) {
-            if((*l)[0]) {
-                file_write(f,*l,str_len(*l));
-                file_write(f,"\n",1);
-            }
-            l++;
+    for(i=0;i<info->total;i++) {
+        fmt_uint(tracknum,i+1);
+        writetext(f,tracknum);
+        if(info->tracks[i].title[0]) {
+            writetext(f,": ");
         }
+        writetextln(f,info->tracks[i].title);
     }
 
     audio_decoder_free_info(info);
