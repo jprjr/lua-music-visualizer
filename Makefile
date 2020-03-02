@@ -17,16 +17,22 @@ VGM_CFLAGS = $(shell $(PKGCONFIG) --cflags vgm-player)
 VGM_LDFLAGS = $(shell $(PKGCONFIG) --libs vgm-player)
 endif
 
+ifeq ($(ENABLE_FFTW3),1)
+FFTW_CFLAGS = $(shell $(PKGCONFIG) --cflags fftw3)
+FFTW_LDFLAGS = $(shell $(PKGCONFIG) --libs fftw3)
+endif
+
 CFLAGS += $(LUA_CFLAGS)
 CFLAGS += $(SAMPLERATE_CFLAGS)
 CFLAGS += $(VGM_CFLAGS)
+CFLAGS += $(FFTW_CFLAGS)
 
 LDFLAGS += $(LUA_LDFLAGS)
 LDFLAGS += $(SAMPLERATE_LDFLAGS)
 LDFLAGS += $(VGM_LDFLAGS)
+LDFLAGS += $(FFTW_LDFLAGS)
 
 LDFLAGS += -lm -pthread
-
 
 lua-music-visualizer: $(OBJS)
 	$(LINKER) -o $@ $^ $(LDFLAGS_LOCAL) $(LDFLAGS) $(LIBS)

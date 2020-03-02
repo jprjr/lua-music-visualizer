@@ -55,8 +55,7 @@ RUN mkdir -p /src && \
     cp lua*.h /usr/x86_64-w64-mingw32/include && \
     cp libluajit.a /usr/x86_64-w64-mingw32/lib && \
     make clean && \
-    cd / && \
-    rm -rf /src/LuaJIT-${LUAJIT_VER}
+    cd /
 
 RUN rm -f /usr/bin/i686-w64-mingw32-pkg-config && \
     rm -f /usr/bin/x86_64-w64-mingw32-pkg-config && \
@@ -114,8 +113,7 @@ RUN cd /src && \
     make && \
     make install && \
     find /usr/x86_64-w64-mingw32/lib -name '*.la' -print -delete && \
-    cd / && \
-    rm -rf /src/libsamplerate-${LIBSAMPLERATE_VER}
+    cd /
 
 RUN cd /src && \
     git clone https://github.com/jprjr/snes_spc.git && \
@@ -178,6 +176,13 @@ WORKDIR /src/lua-music-visualizer
 ENV OPT_CFLAGS="-O3 -DNDEBUG"
 
 RUN \
+    cp /src/LuaJIT-${LUAJIT_VER}/COPYRIGHT /src/lua-music-visualizer/LICENSES/lua.txt && \
+    cp /src/libsamplerate-${LIBSAMPLERATE_VER}/COPYING /src/lua-music-visualizer/LICENSES/libsamplerate.txt && \
+    cp /src/nsfplay/readme.txt /src/lua-music-visualizer/LICENSES/nsfplay.txt && \
+    cp /src/libnezplug/LICENSE /src/lua-music-visualizer/LICENSES/libnezplug.txt && \
+    echo "Full copyright applies" > /src/lua-music-visualizer/LICENSES/libvgm.txt && \
+    rm -rf /src/LuaJIT-${LUAJIT_VER} && \
+    rm -rf /src/libsamplerate-${LIBSAMPLERATE_VER} && \
     mkdir -p /dist/win32 && \
     mkdir -p /dist/win64 && \
     make -f Makefile.windows.docker LDFLAGS_LOCAL="-static-libstdc++ -static-libgcc" LIBS="-lz" ENABLE_VGM=1 ENABLE_SPC=1 ENABLE_NEZ=1 ENABLE_NSF=1 TARGET=i686-w64-mingw32 clean && \

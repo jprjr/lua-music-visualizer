@@ -43,5 +43,7 @@ void video_generator_close(video_generator *);
 int video_generator_loop(video_generator *);
 int video_generator_reload(video_generator *);
 
+int video_generator_using_luajit(void);
+
 
 #endif

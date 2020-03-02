@@ -17,6 +17,7 @@ There's a CLI interface as well as a GUI interface.
 
 ```bash
 lua-music-visualizer \
+  --about (shows licensing info and quits) \
   --width=1280 (video width) \
   --height=720 (video height) \
   --fps=30 (video fps) \

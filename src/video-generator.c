@@ -866,3 +866,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     return 0;
 }
 
+int video_generator_using_luajit(void) {
+#ifdef LUA_JITLIBNAME
+    return 1;
+#else
+    return 0;
+#endif
+}

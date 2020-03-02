@@ -55,8 +55,7 @@ RUN mkdir -p /src && \
     cp lua*.h /usr/x86_64-w64-mingw32/include && \
     cp libluajit.a /usr/x86_64-w64-mingw32/lib && \
     make clean && \
-    cd / && \
-    rm -rf /src/LuaJIT-${LUAJIT_VER}
+    cd /
 
 RUN rm -f /usr/bin/i686-w64-mingw32-pkg-config && \
     rm -f /usr/bin/x86_64-w64-mingw32-pkg-config && \
@@ -94,8 +93,7 @@ RUN cd /src && \
     make && \
     make install && \
     find /usr/x86_64-w64-mingw32/lib -name '*.la' -print -delete && \
-    cd / && \
-    rm -rf /src/libsamplerate-${LIBSAMPLERATE_VER}
+    cd /
 
 
 COPY . /src/lua-music-visualizer
@@ -104,6 +102,10 @@ WORKDIR /src/lua-music-visualizer
 ENV OPT_CFLAGS="-O3 -DNDEBUG"
 
 RUN \
+    cp /src/LuaJIT-${LUAJIT_VER}/COPYRIGHT /src/lua-music-visualizer/LICENSES/lua.txt && \
+    cp /src/libsamplerate-${LIBSAMPLERATE_VER}/COPYING /src/lua-music-visualizer/LICENSES/libsamplerate.txt && \
+    rm -rf /src/LuaJIT-${LUAJIT_VER} && \
+    rm -rf /src/libsamplerate-${LIBSAMPLERATE_VER} && \
     mkdir -p /dist/win32 && \
     mkdir -p /dist/win64 && \
     make -f Makefile.windows.docker LDFLAGS_LOCAL="-static-libgcc" TARGET=i686-w64-mingw32 clean && \

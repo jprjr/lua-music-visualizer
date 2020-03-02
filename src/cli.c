@@ -24,6 +24,23 @@
 #include "stb_leakcheck.h"
 #endif
 
+#include "license.h"
+#include "license_lua.h"
+#include "license_libsamplerate.h"
+#ifdef USE_FFTW3
+#include "license_fftw3.h"
+#else
+#include "license_kissfft.h"
+#endif
+
+#if DECODE_SPC
+#include "license_snes_spc.h"
+#endif
+
+#if DECODE_NSF
+#include "license_nsfplay.h"
+#endif
+
 #ifndef _WIN32
 static int signal_thread_proc(void *userdata) {
     sigset_t sigset;
@@ -125,6 +142,168 @@ static int usage(const char *self, int e) {
     return e;
 }
 
+static const char *separator =
+    "----------"
+    "----------"
+    "----------"
+    "----------"
+    "----------"
+    "----------"
+    "----------"
+    "--";
+
+static void writetext(jpr_file *f,const char *l) {
+    file_write(f,l,str_len(l));
+}
+static void writetextln(jpr_file *f,const char *l) {
+    writetext(f,l);
+#ifdef JPR_WINDOWS
+    writetext(f,"\r\n");
+#else
+    writetext(f,"\n");
+#endif
+}
+
+static int about(void) {
+    jpr_file *f;
+    const char * const *line;
+    f = file_open("-","wb");
+    if(UNLIKELY(f == NULL)) {
+        WRITE_STDERR("probe: unable to open stdout\n");
+        return 1;
+    }
+
+    writetext(f,"lua-music-visualizer ");
+    writetext(f,lua_music_vis_version);
+    writetextln(f," (MIT)");
+
+    writetextln(f,"Third-party libraries:");
+
+    writetextln(f,"libsamplerate (MIT)");
+
+    if(video_generator_using_luajit()) {
+        writetextln(f,"LuaJIT (MIT)");
+    } else {
+        writetextln(f,"Lua (MIT)");
+    }
+
+#ifdef USE_FFTW3
+    writetextln(f,"FFTW3 (GPL2)");
+#else
+    writetextln(f,"KISSFFT (BSD-3-Clause)");
+#endif
+
+#if DECODE_SPC
+    writetextln(f,"SNES_SPC (LGPL-2)");
+#endif
+
+#if DECODE_NSF
+    writetextln(f,"NSFPlay (NSFPlay License)");
+#endif
+
+#if DECODE_VGM
+    writetextln(f,"libvgm (unknown)");
+#endif
+
+    writetextln(f,"");
+    writetextln(f,separator);
+    writetextln(f,"");
+
+    writetextln(f,"[Begin lua-music-visualizer license]");
+    line = license;
+    while(*line != NULL) {
+        writetextln(f,*line);
+        line++;
+    }
+    writetextln(f,"[End lua-music-visualizer license]");
+
+    writetextln(f,"");
+    writetextln(f,separator);
+    writetextln(f,"");
+
+    writetextln(f,"[Begin libsamplerate license]");
+    line = license_libsamplerate;
+    while(*line != NULL) {
+        writetextln(f,*line);
+        line++;
+    }
+    writetextln(f,"[End libsamplerate license]");
+
+    writetextln(f,"");
+    writetextln(f,separator);
+    writetextln(f,"");
+
+    if(video_generator_using_luajit()) {
+        writetextln(f,"[Begin LuaJIT license]");
+    } else {
+        writetextln(f,"[Begin Lua license]");
+    }
+    line = license_lua;
+    while(*line != NULL) {
+        writetextln(f,*line);
+        line++;
+    }
+    if(video_generator_using_luajit()) {
+        writetextln(f,"[End LuaJIT License]");
+    } else {
+        writetextln(f,"[End Lua License]");
+    }
+
+    writetextln(f,"");
+    writetextln(f,separator);
+    writetextln(f,"");
+
+#ifdef USE_FFTW3
+    writetextln(f,"[Begin FFTW3 license]");
+#else
+    writetextln(f,"[Begin KISSFFT license]");
+#endif
+
+    line = license_fft;
+    while(*line != NULL) {
+        writetextln(f,*line);
+        line++;
+    }
+
+#ifdef USE_FFTW3
+    writetextln(f,"[End FFTW3 license]");
+#else
+    writetextln(f,"[End KISSFFT license]");
+#endif
+
+#if DECODE_SPC
+    writetextln(f,"");
+    writetextln(f,separator);
+    writetextln(f,"");
+    writetextln(f,"[Begin SNES_SPC license]");
+
+    line = license_snes_spc;
+    while(*line != NULL) {
+        writetextln(f,*line);
+        line++;
+    }
+    writetextln(f,"[End SNES_SPC license]");
+#endif
+
+#if DECODE_NSF
+    writetextln(f,"");
+    writetextln(f,separator);
+    writetextln(f,"");
+
+    writetextln(f,"[Begin NSFPlay license]");
+
+    line = license_nsfplay;
+    while(*line != NULL) {
+        writetextln(f,*line);
+        line++;
+    }
+    writetextln(f,"[End NSFPlay license]");
+#endif
+
+    file_close(f);
+    return 0;
+}
+
 static int probe(const char *filename) {
     char **l;
     audio_info *info;
@@ -192,7 +371,7 @@ static int version(void) {
     jpr_file *f;
     f = file_open("-","w");
     if(UNLIKELY(f == NULL)) return 1;
-    file_write(f,lua_music_vis_version,lua_music_vis_version_len);
+    writetextln(f,lua_music_vis_version);
     file_close(f);
     return 0;
 }
@@ -265,6 +444,9 @@ int cli_start(int argc, char **argv) {
         }
         else if(str_iequals(*argv,"--plugins")) {
             return plugins();
+        }
+        else if(str_iequals(*argv,"--about")) {
+            return about();
         }
         else if(str_iequals(*argv,"--help")) {
             return usage(self,0);

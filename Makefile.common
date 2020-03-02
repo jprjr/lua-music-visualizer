@@ -35,7 +35,10 @@ OBJS := \
   src/scan.o \
   src/mat.o \
   src/stb_leakcheck.o \
-  src/version.o
+  src/version.o \
+  src/license.o \
+  src/license_libsamplerate.o \
+  src/license_lua.o
 
 LUALHS = \
   src/bdf.lua.lh \
@@ -45,9 +48,21 @@ LUALHS = \
 
 LINKER := $(CC)
 
-CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res src/bin2c src/bin2c.exe src/jpr_spc.o src/jpr_nez.o src/jpr_nsf.o src/jpr_vgm.o src/jpr_flac.o src/jpr_wav.o src/jpr_mp3.o src/jpr_pcm.o src/bin2c.o
+CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res src/bin2c src/bin2c.exe
+CLEAN += src/jpr_spc.o src/jpr_nez.o src/jpr_nsf.o src/jpr_vgm.o src/jpr_flac.o
+CLEAN += src/jpr_wav.o src/jpr_mp3.o src/jpr_pcm.o
+CLEAN += src/bin2c.o src/text2c src/text2c.exe src/text2c src/text2c.o
+CLEAN += src/license.c src/license.h src/license.o
+CLEAN += src/license_snes_spc.c src/license_snes_spc.h src/license_snes_spc.o
+CLEAN += src/license_kissfft.c src/license_kissfft.h src/license_kissfft.o
+CLEAN += src/license_fftw3.c src/license_fftw3.h src/license_fftw3.o
+CLEAN += src/license_lua.c src/license_lua.h src/license_lua.o
+CLEAN += src/license_libsamplerate.c src/license_libsamplerate.h src/license_libsamplerate.o
+CLEAN += src/license_libnezplug.c src/license_libnezplug.h src/license_libnezplug.o
+CLEAN += src/license_libvgm.c src/license_libvgm.h src/license_libvgm.o
 
 BIN2CSRC = src/bin2c.c
+TEXT2CSRC = src/text2c.c src/text.c src/file.c src/str.c src/char.c
 
 OPT_CFLAGS = -O2 -g -DNDEBUG
 OPT_CXXFLAGS = -O2 -g -DNDEBUG
@@ -56,6 +71,7 @@ CXXFLAGS = -Wall -Wextra -Wno-unused-function -Wno-long-long
 LDFLAGS =
 NASM_PLAT = macho64
 NASM_FLAGS =
+ENABLE_FFTW3 = 0
 ENABLE_PCM  = 1
 ENABLE_FLAC = 1
 ENABLE_MP3  = 1
@@ -75,6 +91,13 @@ ifeq ($(ENABLE_ALL),1)
   ENABLE_NEZ = 1
   ENABLE_NSF = 1
   ENABLE_VGM = 1
+endif
+
+ifeq ($(ENABLE_FFTW3),1)
+  CFLAGS += -DUSE_FFTW3=1
+  OBJS += src/license_fftw3.o
+else
+  OBJS += src/license_kissfft.o
 endif
 
 ifeq ($(ENABLE_PCM),1)
@@ -98,19 +121,19 @@ ifeq ($(ENABLE_WAV),1)
 endif
 
 ifeq ($(ENABLE_SPC),1)
-  OBJS += src/jpr_spc.o
+  OBJS += src/jpr_spc.o src/license_snes_spc.o
   CFLAGS += -DDECODE_SPC=1
   LDFLAGS += -lspc -lid666
 endif
 
 ifeq ($(ENABLE_NEZ),1)
-  OBJS += src/jpr_nez.o
+  OBJS += src/jpr_nez.o src/license_libnezplug.o
   CFLAGS += -DDECODE_NEZ=1
   LDFLAGS += -lnezplug
 endif
 
 ifeq ($(ENABLE_NSF),1)
-  OBJS += src/jpr_nsf.o
+  OBJS += src/jpr_nsf.o src/license_nsfplay.o
   CFLAGS += -DDECODE_NSF=1
   CXXFLAGS += -DDECODE_NSF=1
   LDFLAGS += -lnsfplay
@@ -118,7 +141,7 @@ ifeq ($(ENABLE_NSF),1)
 endif
 
 ifeq ($(ENABLE_VGM),1)
-  OBJS += src/jpr_vgm.o
+  OBJS += src/jpr_vgm.o src/license_libvgm.o
   CFLAGS += -DDECODE_VGM=1
   CXXFLAGS += -DDECODE_VGM=1
   LDFLAGS += -lvgm-player -lvgm-emu -lvgm-utils
@@ -131,14 +154,44 @@ src/mat.o: src/mat.s
 %.o: %.cpp $(LUALHS)
 	$(CXX) $(CXXFLAGS_LOCAL) $(CXXFLAGS) $(OPT_CXXFLAGS) -o $@ -c $<
 
-%.o: %.c $(LUALHS)
+%.o: %.c $(LUALHS) src/license.c src/license_snes_spc.c src/license_fftw3.c src/license_kissfft.c src/license_nsfplay.c src/license_libsamplerate.c src/license_lua.c src/license_libnezplug.c src/license_libvgm.c
 	$(CC) $(CFLAGS_LOCAL) $(CFLAGS) $(OPT_CFLAGS) -o $@ -c $<
 
 src/%.lh: lua/% src/bin2c
 	./src/bin2c $< $@ $(patsubst %.lua,%_lua,$(notdir $<))
 
+src/license.c: LICENSE src/text2c
+	./src/text2c LICENSE src/license.c src/license.h license
+
+src/license_snes_spc.c: LICENSES/snes_spc.txt src/text2c
+	./src/text2c LICENSES/snes_spc.txt src/license_snes_spc.c src/license_snes_spc.h license_snes_spc
+
+src/license_nsfplay.c: LICENSES/nsfplay.txt src/text2c
+	./src/text2c LICENSES/nsfplay.txt src/license_nsfplay.c src/license_nsfplay.h license_nsfplay
+
+src/license_fftw3.c: LICENSES/fftw3.txt src/text2c
+	./src/text2c LICENSES/fftw3.txt src/license_fftw3.c src/license_fftw3.h license_fft
+
+src/license_kissfft.c: LICENSES/kissfft.txt src/text2c
+	./src/text2c LICENSES/kissfft.txt src/license_kissfft.c src/license_kissfft.h license_fft
+
+src/license_lua.c: LICENSES/lua.txt src/text2c
+	./src/text2c LICENSES/lua.txt src/license_lua.c src/license_lua.h license_lua
+
+src/license_libsamplerate.c: LICENSES/libsamplerate.txt src/text2c
+	./src/text2c LICENSES/libsamplerate.txt src/license_libsamplerate.c src/license_libsamplerate.h license_libsamplerate
+
+src/license_libnezplug.c: LICENSES/libnezplug.txt src/text2c
+	./src/text2c LICENSES/libnezplug.txt src/license_libnezplug.c src/license_libnezplug.h license_libnezplug
+
+src/license_libvgm.c: LICENSES/libvgm.txt src/text2c
+	./src/text2c LICENSES/libvgm.txt src/license_libvgm.c src/license_libvgm.h license_libvgm
+
 src/bin2c: src/bin2c.c
 	$(HOST_CC) -o src/bin2c src/bin2c.c
+
+src/text2c: $(TEXT2CSRC)
+	$(HOST_CC) -o src/text2c $(TEXT2CSRC)
 
 clean:
 	rm -f $(CLEAN)
