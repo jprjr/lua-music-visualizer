@@ -869,8 +869,12 @@ int gui_start(int argc, char **argv) {
 #if DECODE_NEZ
     if(filterString != NULL) append_string(&filterString,";");
     if(filterInfoString != NULL) append_string(&filterString,"/");
-    append_string(&filterString,"*.gbs");
-    append_string(&filterInfoString,"GBS");
+#if DECODE_NSF
+    append_string(&filterString,"*.hes;*.kss;*.gbr;*.gbs;*.at;*.sgc;*.nsd");
+#else
+    append_string(&filterString,"*.nsf;*.nsfe;*.hes;*.kss;*.gbr;*.gbs;*.at;*.sgc;*.nsd");
+#endif
+    append_string(&filterInfoString,"NSF/NSFE/HES/KSS/GBR/GBS/AY/SGC/NSD");
     total_formats++;
 #endif
 
