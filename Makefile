@@ -6,23 +6,38 @@ LUA = luajit
 HOST_CC=$(CC)
 PKGCONFIG = pkg-config
 
-CFLAGS += $(shell $(PKGCONFIG) --cflags $(LUA))
-CFLAGS += $(shell $(PKGCONFIG) --cflags samplerate)
-LDFLAGS += $(shell $(PKGCONFIG) --libs samplerate)
-LDFLAGS += $(shell $(PKGCONFIG) --libs $(LUA))
-LDFLAGS += -lspc -lid666 -lm -pthread
+LUA_CFLAGS = $(shell $(PKGCONFIG) --cflags $(LUA))
+LUA_LDFLAGS = $(shell $(PKGCONFIG) --libs $(LUA))
 
-CLEAN += lua-music-visualizer
+SAMPLERATE_CFLAGS  = $(shell $(PKGCONFIG) --cflags samplerate)
+SAMPLERATE_LDFLAGS = $(shell $(PKGCONFIG) --libs samplerate)
+
+ifeq ($(ENABLE_VGM),1)
+VGM_CFLAGS = $(shell $(PKGCONFIG) --cflags vgm-player)
+VGM_LDFLAGS = $(shell $(PKGCONFIG) --libs vgm-player)
+endif
+
+CFLAGS += $(LUA_CFLAGS)
+CFLAGS += $(SAMPLERATE_CFLAGS)
+CFLAGS += $(VGM_CFLAGS)
+
+LDFLAGS += $(LUA_LDFLAGS)
+LDFLAGS += $(SAMPLERATE_LDFLAGS)
+LDFLAGS += $(VGM_LDFLAGS)
+
+LDFLAGS += -lm -pthread
+
 
 lua-music-visualizer: $(OBJS)
-	$(CC) -o $@ $^ $(LDFLAGS) $(OPT_LDFLAGS)
+	$(LINKER) -o $@ $^ $(LDFLAGS_LOCAL) $(LDFLAGS) $(LIBS)
 
 release:
 	docker build -t lua-music-vis .
 	mkdir -p output
 	docker run --rm -ti -v $(shell pwd)/output:/output lua-music-vis
 
-debug:
-	docker build -t lua-music-vis-debug -f Dockerfile.debug .
+everything:
+	docker build -t lua-music-vis-max -f Dockerfile.everything .
 	mkdir -p output
-	docker run --rm -ti -v $(shell pwd)/output:/output lua-music-vis-debug
+	docker run --rm -ti -v $(shell pwd)/output:/output lua-music-vis-max
+

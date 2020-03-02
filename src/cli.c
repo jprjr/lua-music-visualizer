@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 #include "attr.h"
@@ -119,9 +118,74 @@ static int usage(const char *self, int e) {
     WRITE_STDERR("  --channels (enables raw input)\n");
     WRITE_STDERR("  --resample=samplerate (force output audio sample rate)\n");
     WRITE_STDERR("  --version (prints version and exits)\n");
+    WRITE_STDERR("  --plugins (prints enabled plugins and exits)\n");
+    WRITE_STDERR("  --probe (lists file info)\n");
     WRITE_STDERR("  -l<module> -- calls require(<module>)\n");
     WRITE_STDERR("  -joff -- turns off JIT\n");
     return e;
+}
+
+static int probe(const char *filename) {
+    char **l;
+    audio_info *info;
+    jpr_file *f;
+    audio_decoder *decoder;
+
+    f = file_open("-","w");
+    if(UNLIKELY(f == NULL)) {
+        WRITE_STDERR("probe: unable to open stdout\n");
+        return 1;
+    }
+
+    decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
+    if(UNLIKELY(decoder == NULL)) return 1;
+
+    audio_decoder_init(decoder);
+
+    info = audio_decoder_probe(decoder,filename);
+    if(info == NULL) {
+        return 1;
+    }
+
+    if(info->artist) {
+        file_write(f,"Artist: ",8);
+        file_write(f,info->artist,str_len(info->artist));
+        file_write(f,"\n",1);
+    }
+    if(info->album) {
+        file_write(f,"Album: ",8);
+        file_write(f,info->album,str_len(info->album));
+        file_write(f,"\n",1);
+    }
+
+    if(info->tracks) {
+        l = info->tracks;
+        while(*l != NULL) {
+            if((*l)[0]) {
+                file_write(f,*l,str_len(*l));
+                file_write(f,"\n",1);
+            }
+            l++;
+        }
+    }
+
+    audio_decoder_free_info(info);
+    return 0;
+}
+
+static int plugins(void) {
+    jpr_file *f;
+    const audio_plugin* const* plugin;
+    plugin = plugin_list;
+    f = file_open("-","w");
+    if(UNLIKELY(f == NULL)) return 1;
+    while(*plugin != NULL) {
+        file_write(f,(*plugin)->name,str_len((*plugin)->name));
+        file_write(f,"\n",1);
+        plugin++;
+    }
+    file_close(f);
+    return 0;
 }
 
 static int version(void) {
@@ -157,6 +221,7 @@ int cli_start(int argc, char **argv) {
     const char *module;
     int jit;
     char *c;
+    char *sf;
 
     audio_decoder *decoder;
     audio_resampler *resampler;
@@ -176,6 +241,8 @@ int cli_start(int argc, char **argv) {
     unsigned int samplerate = 0;
     unsigned int resample   = 0;
     unsigned int channels   = 0;
+    unsigned int tracknum   = 1;
+    int do_probe = 0;
 
     jpr_proc_pipe f;
     jpr_proc_info i;
@@ -196,11 +263,19 @@ int cli_start(int argc, char **argv) {
         else if(str_iequals(*argv,"--version")) {
             return version();
         }
+        else if(str_iequals(*argv,"--plugins")) {
+            return plugins();
+        }
         else if(str_iequals(*argv,"--help")) {
             return usage(self,0);
         }
         else if(str_iequals(*argv,"-h")) {
             return usage(self,0);
+        }
+        else if(str_iequals(*argv,"--probe")) {
+            do_probe = 1;
+            argv++;
+            argc--;
         }
         else if(str_iequals(*argv,"-joff")) {
             jit = 0;
@@ -322,6 +397,10 @@ int cli_start(int argc, char **argv) {
         }
     }
 
+    if(do_probe && argc > 0) {
+        return probe(*argv);
+    }
+
     if(argc < 3) {
         return usage(self,1);
     }
@@ -352,6 +431,15 @@ int cli_start(int argc, char **argv) {
     generator = (video_generator *)malloc(sizeof(video_generator));
     if(UNLIKELY(generator == NULL)) quit(1,decoder,resampler,processor,NULL);
 
+    sf = str_dup(songfile);
+    c = str_chr(sf,'#');
+    if(c != NULL) {
+        *c = '\0';
+        if(!scan_uint(&c[1],&tracknum)) {
+            tracknum = 1;
+        }
+    }
+
     if(width == 0) width     =       1280;
     if(height == 0) height   =        720;
     if(fps == 0) fps         =         30;
@@ -362,6 +450,7 @@ int cli_start(int argc, char **argv) {
     processor->spectrum_bars =       bars;
     decoder->samplerate      = samplerate;
     decoder->channels        =   channels;
+    decoder->track           =   tracknum;
     resampler->samplerate    =   resample;
 
     if(jpr_proc_spawn(&i,(const char * const *)argv,&f,NULL,NULL)) {
@@ -370,11 +459,13 @@ int cli_start(int argc, char **argv) {
         return 1;
     }
 
-    if(video_generator_init(generator,processor,resampler,decoder,jit,module,songfile,scriptfile,&f)) {
+    if(video_generator_init(generator,processor,resampler,decoder,jit,module,sf,scriptfile,&f)) {
         LOG_ERROR("error starting the video generator");
         quit(1,decoder,processor,generator,NULL);
         return 1;
     }
+
+    free(sf);
 
     while(video_generator_loop(generator) == 0) {
 #ifndef _WIN32

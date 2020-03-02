@@ -2,6 +2,7 @@ TARGET = i686-w64-mingw32
 HOST_CC := $(CC)
 UPX=upx
 CC = $(TARGET_CC)
+CXX = $(TARGET_CXX)
 include src/iup/Makefile
 
 all: lua-music-visualizer.exe
@@ -15,7 +16,7 @@ LDFLAGS += -mconsole -municode -lkernel32 -luser32 -lgdi32 -lcomdlg32 -lcomctl32
 NASM_PLAT = win32
 
 lua-music-visualizer.exe: $(OBJS) $(LIBIUP) $(LIBLUA) src/lua-music-visualizer.res
-	$(TARGET_CC) -o $@ $^ $(LDFLAGS) $(OPT_LDFLAGS)
+	$(LINKER) -o $@ $^ $(LDFLAGS_LOCAL) $(LDFLAGS) $(LIBS)
 
 %.o: %.c $(LUALHS) $(LUA)/.extracted
 

@@ -2,7 +2,7 @@
 .SUFFIXES:
 .PRECIOUS: src/%.lh
 
-OBJS = \
+OBJS := \
   src/main.o \
   src/cli.o \
   src/gui.o \
@@ -19,7 +19,6 @@ OBJS = \
   src/kiss_fft.o \
   src/audio-resampler.o \
   src/audio-decoder.o \
-  src/jpr_spc.o \
   src/path.o \
   src/text.o \
   src/file.o \
@@ -44,25 +43,96 @@ LUALHS = \
   src/image.lua.lh \
   src/stream.lua.lh
 
-CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res src/bin2c src/bin2c.exe
+LINKER := $(CC)
+
+CLEAN = $(OBJS) $(LUALHS) *.exe src/*.res src/bin2c src/bin2c.exe src/jpr_spc.o src/jpr_nez.o src/jpr_nsf.o src/jpr_vgm.o src/jpr_flac.o src/jpr_wav.o src/jpr_mp3.o src/jpr_pcm.o src/bin2c.o
 
 BIN2CSRC = src/bin2c.c
 
 OPT_CFLAGS = -O2 -g -DNDEBUG
+OPT_CXXFLAGS = -O2 -g -DNDEBUG
 CFLAGS = -Wall -Wextra -Wno-unused-function -Wno-long-long
-OPT_LDFLAGS =
+CXXFLAGS = -Wall -Wextra -Wno-unused-function -Wno-long-long
 LDFLAGS =
 NASM_PLAT = macho64
 NASM_FLAGS =
+ENABLE_PCM  = 1
+ENABLE_FLAC = 1
+ENABLE_MP3  = 1
+ENABLE_WAV  = 1
+ENABLE_SPC  = 0
+ENABLE_NEZ  = 0
+ENABLE_NSF  = 0
+ENABLE_VGM  = 0
+ENABLE_ALL  = 0
+
+ifeq ($(ENABLE_ALL),1)
+  ENABLE_PCM  = 1
+  ENABLE_FLAC = 1
+  ENABLE_MP3  = 1
+  ENABLE_WAV  = 1
+  ENABLE_SPC = 1
+  ENABLE_NEZ = 1
+  ENABLE_NSF = 1
+  ENABLE_VGM = 1
+endif
+
+ifeq ($(ENABLE_PCM),1)
+  OBJS += src/jpr_pcm.o
+  CFLAGS += -DDECODE_PCM=1
+endif
+
+ifeq ($(ENABLE_FLAC),1)
+  OBJS += src/jpr_flac.o
+  CFLAGS += -DDECODE_FLAC=1
+endif
+
+ifeq ($(ENABLE_MP3),1)
+  OBJS += src/jpr_mp3.o
+  CFLAGS += -DDECODE_MP3=1
+endif
+
+ifeq ($(ENABLE_WAV),1)
+  OBJS += src/jpr_wav.o
+  CFLAGS += -DDECODE_WAV=1
+endif
+
+ifeq ($(ENABLE_SPC),1)
+  OBJS += src/jpr_spc.o
+  CFLAGS += -DDECODE_SPC=1
+  LDFLAGS += -lspc -lid666
+endif
+
+ifeq ($(ENABLE_NEZ),1)
+  OBJS += src/jpr_nez.o
+  CFLAGS += -DDECODE_NEZ=1
+  LDFLAGS += -lnezplug
+endif
+
+ifeq ($(ENABLE_NSF),1)
+  OBJS += src/jpr_nsf.o
+  CFLAGS += -DDECODE_NSF=1
+  CXXFLAGS += -DDECODE_NSF=1
+  LDFLAGS += -lnsfplay
+  LINKER = $(CXX)
+endif
+
+ifeq ($(ENABLE_VGM),1)
+  OBJS += src/jpr_vgm.o
+  CFLAGS += -DDECODE_VGM=1
+  CXXFLAGS += -DDECODE_VGM=1
+  LDFLAGS += -lvgm-player -lvgm-emu -lvgm-utils
+  LINKER = $(CXX)
+endif
 
 src/mat.o: src/mat.s
 	cd src && nasm -f $(NASM_PLAT) $(NASM_FLAGS) -o mat.o mat.s
 
 %.o: %.cpp $(LUALHS)
-	$(CXX) $(CXXFLAGS) $(OPT_CXXFLAGS) -o $@ -c $<
+	$(CXX) $(CXXFLAGS_LOCAL) $(CXXFLAGS) $(OPT_CXXFLAGS) -o $@ -c $<
 
 %.o: %.c $(LUALHS)
-	$(CC) $(CFLAGS) $(OPT_CFLAGS) -o $@ -c $<
+	$(CC) $(CFLAGS_LOCAL) $(CFLAGS) $(OPT_CFLAGS) -o $@ -c $<
 
 src/%.lh: lua/% src/bin2c
 	./src/bin2c $< $@ $(patsubst %.lua,%_lua,$(notdir $<))

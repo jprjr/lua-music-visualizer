@@ -19,8 +19,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <stdio.h>
-
 static int jpr_coe(int fd) {
     int flags = fcntl(fd, F_GETFD, 0) ;
     if (flags < 0) return -1 ;
@@ -455,10 +453,9 @@ int file_dupe(jpr_file *f, jpr_file *f2) {
 #endif
 }
 
-/* "slurps" an entire file in one go */
+/* "slurps" an open file in one go */
 attr_nonnull1
-jpr_uint8 *file_slurp(const char * RESTRICT filename, size_t *size) {
-    jpr_file *f;
+jpr_uint8 *file_slurp_fh(jpr_file *f, size_t *size) {
     jpr_uint8 *data;
     jpr_uint8 *t;
     jpr_uint8 *d;
@@ -466,12 +463,10 @@ jpr_uint8 *file_slurp(const char * RESTRICT filename, size_t *size) {
     size_t s;
 
     *size = 0;
-    f = file_open(filename,"rb");
-    if(f == NULL) return NULL;
+
     s = 0;
     data = (jpr_uint8 *)malloc(4096);
     if(UNLIKELY(data == NULL)) {
-        file_close(f);
         return NULL;
     }
     d = &data[s];
@@ -483,16 +478,29 @@ jpr_uint8 *file_slurp(const char * RESTRICT filename, size_t *size) {
             t = (jpr_uint8 *)realloc(data,s+4096);
             if(UNLIKELY(t == NULL)) {
                 free(data);
-                file_close(f);
                 return NULL;
             }
             data = t;
             d = &data[s];
         }
     } while(r == 4096 && (s+4096) < ((size_t)(-1)) );
+    *size = s;
+
+    return data;
+}
+
+/* "slurps" an entire file in one go */
+attr_nonnull1
+jpr_uint8 *file_slurp(const char * RESTRICT filename, size_t *size) {
+    jpr_file *f;
+    jpr_uint8 *data;
+
+    f = file_open(filename,"rb");
+    if(f == NULL) return NULL;
+
+    data = file_slurp_fh(f,size);
     file_close(f);
 
-    *size = s;
     return data;
 
 }

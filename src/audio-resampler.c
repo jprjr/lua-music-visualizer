@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "audio-resampler.h"
 
 static long resampler_load(void *cb_data, float **data) {

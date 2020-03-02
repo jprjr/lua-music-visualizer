@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-void process_id3(audio_decoder *a, jpr_file *f);
+void process_id3(audio_decoder *a);
 
 #ifdef __cplusplus
 }

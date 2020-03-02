@@ -68,6 +68,9 @@ int file_uncoe(jpr_file *f); /* unset close-on-exec flag */
 attr_nonnull12
 int file_dupe(jpr_file *f,jpr_file *f2); /* duplicates f into f2 */
 
+attr_nonnull1
+jpr_uint8 *file_slurp_fh(jpr_file *f, size_t *size);
+
 /* "slurps" an entire file in one go */
 attr_nonnull1
 jpr_uint8 *file_slurp(const char * RESTRICT filename, size_t *size);

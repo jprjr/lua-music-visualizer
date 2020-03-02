@@ -45,8 +45,7 @@ static size_t utf8_len_or_copy(jpr_uint8 *dest, const jpr_uint8 *src, size_t max
     return len;
 }
 
-void process_id3(audio_decoder *a, jpr_file *f) {
-    /* assumption: the file has already read the 'ID3' bytes */
+void process_id3(audio_decoder *a) {
     /* does not close out the file, that's the responsibility of the
      * calling function */
     char buffer[10];
@@ -57,12 +56,22 @@ void process_id3(audio_decoder *a, jpr_file *f) {
     size_t header_size = 0;
     size_t frame_size = 0;
     size_t dec_len = 0;
+    jpr_uint32 pos = 0;
     jpr_uint8 id3_ver = 0;
 
     buffer[0] = 0;
 
-    if(file_read(f,buffer,10) != 10) return;
-    if(str_ncmp(buffer,"ID3",3) != 0) return;
+    pos = a->tell(a);
+
+    if(a->read(a,buffer,10) != 10) {
+        a->seek(a,pos,0);
+        return;
+    }
+    if(str_ncmp(buffer,"ID3",3) != 0) {
+        a->seek(a,pos,0);
+        return;
+    }
+
     id3_ver = (jpr_uint8)buffer[3];
     id3_size =
       (((size_t)buffer[6]) << 21) +
@@ -74,23 +83,32 @@ void process_id3(audio_decoder *a, jpr_file *f) {
         case 2: header_size = 6; break;
         case 3: header_size = 10; break;
         case 4: header_size = 10; break;
-        default: return;
+        default: {
+          a->seek(a,pos,0);
+          return;
+        }
     }
 
-
     if(buffer[5] & 0x20) {
-        if(file_read(f,buffer,6) != 6) return;
+        if(a->read(a,buffer,6) != 6) {
+            a->seek(a,pos,0);
+            return;
+        }
         frame_size =
           (((size_t)buffer[0]) << 21) +
           (((size_t)buffer[1]) << 14) +
           (((size_t)buffer[2]) << 7 ) +
           (((size_t)buffer[3]));
         frame_size -= 6;
-        file_seek(f,frame_size,JPR_FILE_CUR);
+        while(frame_size > 0x7FFFFFFF) {
+            a->seek(a,0x7FFFFFFF,JPR_FILE_CUR);
+            frame_size -= 0x7FFFFFFF;
+        }
+        a->seek(a,frame_size,JPR_FILE_CUR);
     }
 
     while(id3_size > 0) {
-        if(file_read(f,buffer,header_size) != header_size) goto id3_done;
+        if(a->read(a,buffer,header_size) != header_size) goto id3_done;
         if(mem_cmp((const jpr_uint8 *)buffer,allzero,header_size) == 0) goto id3_done;
 
         id3_size -= header_size;
@@ -105,7 +123,7 @@ void process_id3(audio_decoder *a, jpr_file *f) {
 
         if(str_alloc_resize(&buffer2,frame_size)) goto id3_done;
 
-        if(file_read(f,buffer2.s,frame_size) != frame_size) goto id3_done;
+        if(a->read(a,buffer2.s,frame_size) != frame_size) goto id3_done;
 
         if(buffer[0] != 'T') {
             continue;
@@ -154,6 +172,7 @@ void process_id3(audio_decoder *a, jpr_file *f) {
     if(buffer2.s != NULL) free(buffer2.s);
     if(buffer3.s != NULL) free(buffer3.s);
 
+    a->seek(a,pos,0);
     return;
 }
 
