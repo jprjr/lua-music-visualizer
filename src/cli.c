@@ -42,6 +42,10 @@
 #include "license_nsfplay.h"
 #endif
 
+#if DECODE_VGM
+#include "license_libvgm.h"
+#endif
+
 #ifndef _WIN32
 static int signal_thread_proc(void *userdata) {
     sigset_t sigset;
@@ -299,6 +303,21 @@ static int about(void) {
         line++;
     }
     writetextln(f,"[End NSFPlay license]");
+#endif
+
+#if DECODE_VGM
+    writetextln(f,"");
+    writetextln(f,separator);
+    writetextln(f,"");
+
+    writetextln(f,"[Begin libvgm license]");
+
+    line = license_libvgm;
+    while(*line != NULL) {
+        writetextln(f,*line);
+        line++;
+    }
+    writetextln(f,"[End libvgm license]");
 #endif
 
     file_close(f);
