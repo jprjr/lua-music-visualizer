@@ -65,7 +65,6 @@ static audio_info *jprnsf_probe(audio_decoder *decoder) {
     int nsfe_track;
     jpr_uint8 *nsf_data;
     size_t nsf_data_len;
-    char **list;
     audio_info *info;
     xgm::NSF nsf;
 
