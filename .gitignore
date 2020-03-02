@@ -1,4 +1,5 @@
 src/bin2c
+src/text2c
 *.o
 *.a
 *.exe
