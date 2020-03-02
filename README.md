@@ -76,6 +76,7 @@ Hopefully you can just run `make`. Look at the Makefile if that doesn't work.
 Different decoders can be enabled/disabled with your `make` command. The available
 parameters (and their default state) are:
 
+* `ENABLE_LIBSAMPLERATE=1`
 * `ENABLE_PCM=1`
 * `ENABLE_WAV=1`
 * `ENABLE_MP3=1`
@@ -85,6 +86,26 @@ parameters (and their default state) are:
 * `ENABLE_NSF=0` (requires `nsfplay`, see above for URL)
 * `ENABLE_VGM=0` (requires `libvgm`, see above for URL)
 * `ENABLE_ALL=0` (enables all decoders)
+
+I've also included Docker files for cross-compiling to Windows, Linux, and OSX.
+
+The OSX cross-compiler requires a copy of the macOS SDK. Long-story short, you'll
+have to build your own local copy of my [macOS cross-compiler image](https://github.com/jprjr/docker-osxcross)
+before using the Docker images.
+
+I've added easy targets to the Makefile for using Docker:
+
+* `make release` makes the standard release binaries.
+    * Decodes raw PCM, WAV, FLAC, MP3
+    * Uses libsamplerate
+    * Uses LuaJIT
+    * Uses KISSFFT
+* `make everything` makes binaries with all decoders, which may not be redistributable.
+    * Same as above, also decodes SPC, NSF/NSFe, VGM, HES, KSS, GBS, GBR, AY, SGC, NSD
+    * Uses snes_spc
+    * Uses NSFPlay
+    * Uses libvgm
+    * uses libnezplug
 
 ## What happens
 
