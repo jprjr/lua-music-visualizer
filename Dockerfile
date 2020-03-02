@@ -160,14 +160,12 @@ RUN cd /src && \
     CC=o64-clang \
     ./configure \
       --prefix=/opt/libsamplerate \
-      --enable-shared \
+      --disable-shared \
       --enable-static \
       --host=${CROSS_TRIPLE} && \
     make && \
     make install &&\
-    ${CROSS_TRIPLE}-ranlib /opt/libsamplerate/lib/libsamplerate.a && \
-    rm -f /opt/libsamplerate/lib/libsamplerate.la && \
-    rm -f /opt/libsamplerate/lib/libsamplerate.so
+    ${CROSS_TRIPLE}-ranlib /opt/libsamplerate/lib/libsamplerate.a
 
 WORKDIR /src/lua-music-visualizer
 
