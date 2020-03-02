@@ -11,23 +11,22 @@ whether it's `ffmpeg`, `ffplay`. You can save videos locally using `ffmpeg` to e
 or just use `cat` and redirect your standard output to a file if you want to save
 the raw RGB video (warning: this will be a large file).
 
-Also unlike `mpd-visualizer`, there's no live-reloading concept, you have to restart
-the program.
-
 There's a CLI interface as well as a GUI interface.
 
 # Usage
 
 ```bash
 lua-music-visualizer \
-  --width (video width) \
-  --height (video height) \
-  --fps (video fps) \
-  --bars (number of spectrum analyzer bars to compute) \
-  --samplerate (input sample rate, only for raw PCM) \
-  --channels (input audio channels, only for raw PCM) \
+  --width=1280 (video width) \
+  --height=720 (video height) \
+  --fps=30 (video fps) \
+  --bars=24 (number of spectrum analyzer bars to compute) \
+  --samplerate=48000 (input sample rate, only for raw PCM) \
+  --channels=2 (input audio channels, only for raw PCM) \
+  --resample=48000 (desired output sample rate, off by default) \
   -joff (disable JIT) \
   -l<modulename> (calls require("modulename") when Lua is initialized) \
+  --probe (probes music file for meta info, ignores remaining paramters) \
   /path/to/song.mp3/flac/wave/raw \
   /path/to/lua/script.lua \
   prog args...
@@ -50,14 +49,41 @@ variable.
 ## Requirements
 
 * Lua or LuaJIT
-* [snes_spc](https://github.com/jprjr/snes_spc)
-* [libid666](https://github.com/jprjr/libid666)
 * libsamplerate
 * (optional) FFTW3
+* (optional) [snes_spc](https://github.com/jprjr/snes_spc)
+* (optional) [libid666](https://github.com/jprjr/libid666)
+* (optional) [nsfplay](https://github.com/bbbradsmith/nsfplay)
+* (optional) [libvgm](https://github.com/ValleyBell/libvgm)
+* (optional) [libnezplug](https://github.com/jprjr/libnezplug)
+
+Note that the optional libraries have different licensing, compiling against them
+may make the resulting binary non-redistributable.
+
+* FFTW3: GPL 2, resulting binary is non-redistributable?
+  * TODO: Am I in violation of the GPL by optionally using FFTW3 in my non-GPL app?
+* snes_spc: LGPL 2.1, no effect on redistribution/licensing.
+* libid666: MIT, no effect on redistribution/licensing.
+* libnezplug: public domain, no effect no redistribution.
+* nsfplay: custom license, unsure of effect on redistribution/licensing.
+* libvgm: unknown license, unsure of effect on redistribution/licensing.
 
 ## Installation
 
 Hopefully you can just run `make`. Look at the Makefile if that doesn't work.
+
+Different decoders can be enabled/disabled with your `make` command. The available
+parameters (and their default state) are:
+
+* `ENABLE_PCM=1`
+* `ENABLE_WAV=1`
+* `ENABLE_MP3=1`
+* `ENABLE_FLAC=1`
+* `ENABLE_SPC=0` (requires `snes_spc` and `libid666`, see above for URLs)
+* `ENABLE_NEZ=0` (requires `libnezplug`, see above for URL)
+* `ENABLE_NSF=0` (requires `nsfplay`, see above for URL)
+* `ENABLE_VGM=0` (requires `libvgm`, see above for URL)
+* `ENABLE_ALL=0` (enables all decoders)
 
 ## What happens
 
@@ -130,7 +156,8 @@ when quitting.
 `onreload` is used to signal a reload. The program does
 *not* reload your main script, it just calls your own
 `onreload` function, which you could use to perform your
-own reloading procedures.
+own reloading procedures. On UNIX/Linux, the reload is
+triggered by sending a `USR1` signal to the process.
 
 For reference, here's all the function signatures you can expose:
 
