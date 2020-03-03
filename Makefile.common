@@ -15,8 +15,6 @@ OBJS := \
   src/lua-file.o \
   src/lua-audio.o \
   src/audio-processor.o \
-  src/kiss_fftr.o \
-  src/kiss_fft.o \
   src/audio-resampler.o \
   src/audio-decoder.o \
   src/path.o \
@@ -102,6 +100,7 @@ ifeq ($(ENABLE_FFTW3),1)
   OBJS += src/license_fftw3.o
 else
   OBJS += src/license_kissfft.o
+  OBJS += src/kiss_fftr.o src/kiss_fft.o
 endif
 
 ifeq ($(ENABLE_PCM),1)
