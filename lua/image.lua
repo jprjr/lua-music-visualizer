@@ -83,11 +83,17 @@ image_mt_funcs.set_pixel_hsl = function(self,x,y,h,s,l,a)
   return self:set_pixel(x,y,r,g,b,a)
 end
 
+image_mt_funcs.draw_line_hsl = function(self,x1,y1,x2,y2,h,s,l,a)
+  local r, g, b = hsl_to_rgb(h,s,l)
+  return self:draw_line(x1,y1,x2,y2,r,g,b,a)
+end
+
 image_mt_funcs.draw_rectangle_hsl = function(self,x1,y1,x2,y2,h,s,l,a)
   local r, g, b = hsl_to_rgb(h,s,l)
   return self:draw_rectangle(x1,y1,x2,y2,r,g,b,a)
 end
 
+image_mt_funcs.draw_line_rgb = image_mt_funcs.draw_line
 image_mt_funcs.draw_rectangle_rgb = image_mt_funcs.draw_rectangle
 
 local string_props = {

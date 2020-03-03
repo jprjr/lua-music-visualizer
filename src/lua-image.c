@@ -620,6 +620,222 @@ lua_image_get_pixel(lua_State *L) {
     return 4;
 }
 
+static void
+local_draw_line_ver(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x, int y1, int y2, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    int s_x;
+    int s_y1;
+    int s_y2;
+    int sy;
+    int max_byte;
+    unsigned int alpha;
+    unsigned int alpha_inv;
+
+    if(y1 <= y2) {
+        sy = 1;
+    }
+    else {
+        sy = -1;
+    }
+
+    max_byte = width * height * channels;
+
+    s_x = x * channels;
+    s_y1  = y1 * channels * width;
+    s_y2  = y2 * channels * width;
+
+    alpha = 1 + (unsigned int)a;
+    alpha_inv = 256 - (unsigned int)a;
+    sy *= width * channels;
+
+    while(1) {
+        if(s_x > 0 && s_y1 > 0 && (s_y1 + s_x < max_byte)) {
+            image[s_y1+s_x+0] = ((image[s_y1+s_x+0] * alpha_inv) + (b * alpha)) >> 8;
+            image[s_y1+s_x+1] = ((image[s_y1+s_x+1] * alpha_inv) + (g * alpha)) >> 8;
+            image[s_y1+s_x+2] = ((image[s_y1+s_x+2] * alpha_inv) + (r * alpha)) >> 8;
+        }
+        if(s_y1 == s_y2) break;
+        s_y1 += sy;
+    }
+
+}
+
+static void
+local_draw_line_hor(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x1, int x2, int y, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    int s_x1;
+    int s_x2;
+    int sx;
+    int s_y;
+    int max_byte;
+    unsigned int alpha;
+    unsigned int alpha_inv;
+
+    if(x1 <= x2) {
+        sx = 1;
+    }
+    else {
+        sx = -1;
+    }
+
+    max_byte = width * height * channels;
+
+    s_x1 = x1 * channels;
+    s_x2 = x2 * channels;
+    s_y  = y * channels * width;
+
+    alpha = 1 + (unsigned int)a;
+    alpha_inv = 256 - (unsigned int)a;
+    sx *= channels;
+
+    while(1) {
+        if(s_y > 0 && s_x1 > 0 && (s_y + s_x1 < max_byte)) {
+            image[s_y+s_x1+0] = ((image[s_y+s_x1+0] * alpha_inv) + (b * alpha)) >> 8;
+            image[s_y+s_x1+1] = ((image[s_y+s_x1+1] * alpha_inv) + (g * alpha)) >> 8;
+            image[s_y+s_x1+2] = ((image[s_y+s_x1+2] * alpha_inv) + (r * alpha)) >> 8;
+        }
+        if(s_x1 == s_x2) break;
+        s_x1 += sx;
+    }
+
+}
+
+static void
+local_draw_line(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x1, int y1, int x2, int y2, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    int s_x1;
+    int s_x2;
+    int s_y1;
+    int s_y2;
+    int sx;
+    int sy;
+    int dx;
+    int dy;
+    int err;
+    int e2;
+    int max_byte;
+
+    unsigned int alpha;
+    unsigned int alpha_inv;
+
+    if(x1 <= x2) {
+        sx = 1;
+    }
+    else {
+        sx = -1;
+    }
+
+    if(y1 <= y2) {
+        sy = 1;
+    }
+    else {
+        sy = -1;
+    }
+
+    max_byte = width * height * channels;
+
+    dx = labs(x2 - x1);
+    dy = -1 * labs(y2 - y1);
+    err = dx + dy;
+
+    s_x1 = x1 * channels;
+    s_x2 = x2 * channels;
+    s_y1 = y1 * channels * width;
+    s_y2 = y2 * channels * width;
+
+    alpha = 1 + (unsigned int)a;
+    alpha_inv = 256 - (unsigned int)a;
+    sx *= channels;
+    sy *= channels * width;
+
+    while(1) {
+        if(s_y1 > 0 && s_x1 > 0 && (s_y1 + s_x1 < max_byte)) {
+            image[s_y1+s_x1+0] = ((image[s_y1+s_x1+0] * alpha_inv) + (b * alpha)) >> 8;
+            image[s_y1+s_x1+1] = ((image[s_y1+s_x1+1] * alpha_inv) + (g * alpha)) >> 8;
+            image[s_y1+s_x1+2] = ((image[s_y1+s_x1+2] * alpha_inv) + (r * alpha)) >> 8;
+        }
+        if(s_x1 == s_x2 || s_y1 == s_y2) break;
+        e2 = 2 * err;
+        if(e2 >= dy) {
+            err += dy;
+            s_x1 += sx;
+        }
+        if(e2 <= dx) {
+            err += dx;
+            s_y1 += sy;
+        }
+    }
+    if(s_x1 != s_x2) {
+        local_draw_line_hor(image,width,height,channels,s_x1 / channels, s_x2 / channels, s_y1 / (width * channels), r, g, b, a);
+    }
+    else if(s_y1 != s_y2) {
+        local_draw_line_ver(image,width,height,channels,s_x1 / channels, s_y1 / (width *channels), s_y2 / (width * channels), r, g, b, a);
+    }
+}
+
+static int
+lua_image_draw_line(lua_State *L) {
+    jpr_uint8 *image = NULL;
+    unsigned int width = 0;
+    unsigned int height = 0;
+    unsigned int channels = 0;
+    lua_Integer x1;
+    lua_Integer y1;
+    lua_Integer x2;
+    lua_Integer y2;
+    lua_Integer r;
+    lua_Integer g;
+    lua_Integer b;
+    lua_Integer a;
+
+    if(!lua_istable(L,1)) {
+        lua_pushnil(L);
+        lua_pushliteral(L,"Missing argument self");
+        return 2;
+    }
+
+    x1 = luaL_checkinteger(L,2);
+    y1 = luaL_checkinteger(L,3);
+    x2 = luaL_checkinteger(L,4);
+    y2 = luaL_checkinteger(L,5);
+    r  = luaL_checkinteger(L,6);
+    g  = luaL_checkinteger(L,7);
+    b  = luaL_checkinteger(L,8);
+    a  = luaL_optinteger(L,9,255);
+
+    if(a == 0) {
+        lua_pushboolean(L,1);
+        return 1;
+    }
+
+    lua_getfield(L,1,"image");
+    image = lua_touserdata(L,-1);
+
+    lua_getfield(L,1,"width");
+    width = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"height");
+    height = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"channels");
+    channels = (unsigned int)lua_tointeger(L,-1);
+
+    lua_pop(L,4);
+
+    if(r > 255 || b > 255 || g > 255 || a > 255 ||
+       r < 0   || b < 0   || g < 0 || a < 0 ) {
+        lua_pushboolean(L,0);
+        return 1;
+    }
+
+    x1--;
+    x2--;
+    y1 = height - y1;
+    y2 = height - y2;
+
+    local_draw_line(image,width,height,channels,x1,y1,x2,y2,(jpr_uint8)r,(jpr_uint8)g,(jpr_uint8)b,(jpr_uint8)a);
+
+    lua_pushboolean(L,1);
+    return 1;
+}
+
 static int
 lua_image_draw_rectangle(lua_State *L) {
     jpr_uint8 *image = NULL;
@@ -785,6 +1001,7 @@ lua_image_draw_rectangle(lua_State *L) {
     lua_pushboolean(L,1);
     return 1;
 }
+
 
 static int lua_image_set_pixel(lua_State *L) {
     jpr_uint8 *image = NULL;
@@ -1526,6 +1743,7 @@ static const struct luaL_Reg lua_image_image_methods[] = {
     { "set_pixel", lua_image_set_pixel },
     { "get_pixel", lua_image_get_pixel },
     { "draw_rectangle", lua_image_draw_rectangle },
+    { "draw_line", lua_image_draw_line },
     { "set", lua_image_set },
     { "blend", lua_image_blend },
     { "stamp_image", lua_image_stamp_image },
@@ -1617,4 +1835,5 @@ int luaclose_image() {
     luaimage_stop_threads();
     return 0;
 }
+
 

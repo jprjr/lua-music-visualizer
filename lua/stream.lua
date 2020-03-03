@@ -2,6 +2,14 @@ stream.get_pixel = function(self,x,y)
   return self.video:get_pixel(x,y)
 end
 
+stream.draw_line = function(self,x1,y1,x2,y2,r,g,b,a)
+  return self.video:draw_line(x1,y1,x2,y2,r,g,b,a)
+end
+
+stream.draw_line_hsl = function(self,x1,y1,x2,y2,h,s,l,a)
+  return self.video:draw_line_hsl(x1,y1,x2,y2,h,s,l,a)
+end
+
 stream.draw_rectangle = function(self,x1,y1,x2,y2,r,g,b,a)
   return self.video:draw_rectangle(x1,y1,x2,y2,r,g,b,a)
 end
@@ -30,6 +38,7 @@ stream.stamp_letter_hsl = function(self,font,codepoint,scale,x,y,h,s,l,hloffset,
   return self.video:stamp_letter_hsl(font,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
 end
 
+stream.draw_line_rgb = stream.draw_line
 stream.draw_rectangle_rgb = stream.draw_rectangle
 stream.stamp_string_rgb = stream.stamp_string
 stream.stamp_letter_rgb = stream.stamp_letter
