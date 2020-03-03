@@ -180,6 +180,7 @@ RUN \
     cp /src/libsamplerate-${LIBSAMPLERATE_VER}/COPYING /src/lua-music-visualizer/LICENSES/libsamplerate.txt && \
     cp /src/nsfplay/readme.txt /src/lua-music-visualizer/LICENSES/nsfplay.txt && \
     cp /src/libnezplug/LICENSE /src/lua-music-visualizer/LICENSES/libnezplug.txt && \
+    cp /src/snes_spc/license.txt /src/lua-music-visualizer/LICENSES/snes_spc.txt && \
     echo "Full copyright applies" > /src/lua-music-visualizer/LICENSES/libvgm.txt && \
     rm -rf /src/LuaJIT-${LUAJIT_VER} && \
     rm -rf /src/libsamplerate-${LIBSAMPLERATE_VER} && \
