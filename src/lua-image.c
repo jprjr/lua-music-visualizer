@@ -621,7 +621,7 @@ lua_image_get_pixel(lua_State *L) {
 }
 
 static void
-local_draw_line_ver(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x, int y1, int y2, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+local_draw_line_ver(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x, int y1, int y2, jpr_uint8 r, jpr_uint8 g, jpr_uint8 b, jpr_uint8 a) {
     int s_x;
     int s_y1;
     int s_y2;
@@ -660,7 +660,7 @@ local_draw_line_ver(jpr_uint8 *image, unsigned int width, unsigned int height, u
 }
 
 static void
-local_draw_line_hor(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x1, int x2, int y, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+local_draw_line_hor(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x1, int x2, int y, jpr_uint8 r, jpr_uint8 g, jpr_uint8 b, jpr_uint8 a) {
     int s_x1;
     int s_x2;
     int sx;
@@ -699,7 +699,7 @@ local_draw_line_hor(jpr_uint8 *image, unsigned int width, unsigned int height, u
 }
 
 static void
-local_draw_line(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x1, int y1, int x2, int y2, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+local_draw_line(jpr_uint8 *image, unsigned int width, unsigned int height, unsigned int channels, int x1, int y1, int x2, int y2, jpr_uint8 r, jpr_uint8 g, jpr_uint8 b, jpr_uint8 a) {
     int s_x1;
     int s_x2;
     int s_y1;
