@@ -312,16 +312,16 @@ COPY --from=osx-builder /dist/* /dist/osx/
 RUN cd dist && \
     cd win32 && \
     upx *.exe && \
-    zip ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-win32.zip *.exe && \
+    zip ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-win32-max.zip *.exe && \
     cd ../win64 && \
     upx *.exe && \
-    zip ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-win64.zip *.exe && \
+    zip ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-win64-max.zip *.exe && \
     cd ../osx && \
     true lua-music-visualizer && \
-    tar cvzf ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-osx.tar.gz * && \
+    tar cvzf ../lua-music-visualizer-$(../linux/lua-music-visualizer --version)-osx-max.tar.gz * && \
     cd ../linux && \
     true lua-music-visualizer && \
-    tar cvzf ../lua-music-visualizer-$(./lua-music-visualizer --version)-linux.tar.gz * && \
+    tar cvzf ../lua-music-visualizer-$(./lua-music-visualizer --version)-linux-max.tar.gz * && \
     cd .. && \
     rm -rf win32 win64 linux osx
 
