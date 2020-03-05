@@ -301,12 +301,18 @@ An image instance has the following methods and properties
 * `img.framecount` - only available after calling `img:load`, total number of frames in the `frames` array
 * `img.delays` - only available after calling `img:load` - an array of frame delays (only applicable to gifs)
 * `img.rotated` - only available after calling `img:rotate()`, a frame that's been resized and rotated
+* `img.tiles` - only available after calling `img:tile()`, a 2d array of tiles (x, then y)
 * `img:load(async)` - loads an image into memory
   * If `async` is true, image is loaded in the background and available on some future iteration of `onframe`
   * else, image is loaded immediately
 * `img:unload()` - unloads an image from memory
 * `img:rotate(frameno,degrees)` - rotates a frame (by number) clockwise into a new frame, saved as `rotation`
   * the rotated frame has two extra fields, `width_offset` and `height_offset`
+* `img:tile(frameno,width,height)` - copies a frame into `width` x `height` tiles, saved as `tiled`
+  * the array is a 2d array, arranged as rows, then columns.
+  * `tiled[1][1]` is the top-left tile
+  * `tiled[1][x]` is the (xth) column of the first row
+  * `tiled[x][1]` is the top-most tile of the `xth` row
 
 If `img:load()` fails, either asynchronously or synchronously, then the `state` key will be set to `error`
 

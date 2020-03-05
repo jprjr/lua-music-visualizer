@@ -1557,6 +1557,165 @@ lua_image_from_ref(lua_State *L) {
 }
 
 static int
+lua_frame_tile_int(lua_State *L) {
+    /* input: an image frame
+     * returns a new 2d array, "tiled"
+     */
+    jpr_uint8 *original;
+    jpr_uint8 *chunk;
+    unsigned int width;
+    unsigned int height;
+    unsigned int channels;
+    unsigned int x;
+    unsigned int y;
+    unsigned int framecount;
+
+    unsigned int x_tiles;
+    unsigned int y_tiles;
+    unsigned int x_ind;
+    unsigned int y_ind;
+    unsigned int y_cpy_ind;
+    unsigned int tile_x;
+    unsigned int tile_y;
+    unsigned int y_ind_inv;
+    unsigned int y_cpy_ind_inv;
+
+    lua_getfield(L,1,"width"); /* push */
+    width = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"height"); /* push */
+    height = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"channels"); /* push */
+    channels = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"framecount"); /* push */
+    framecount = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"image"); /* push */
+    original = lua_touserdata(L,-1);
+
+    lua_pop(L,5);
+
+    x = luaL_checkinteger(L,2);
+    y = luaL_checkinteger(L,3);
+
+    x_tiles = width / x;
+    if(width % x != 0) {
+        x_tiles++;
+    }
+
+    y_tiles = height / y;
+    if(height % y != 0) {
+        y_tiles++;
+    }
+
+    lua_newtable(L); /* "tiled" array */
+
+    x_ind = 0;
+    while(x_ind < x_tiles) {
+        lua_newtable(L); /* tiled[x_ind] */
+        tile_x = x;
+        if(x_ind == x_tiles - 1 && width % x != 0) {
+            tile_x = width % x;
+        }
+
+        y_ind = 0;
+        while(y_ind < y_tiles) {
+            lua_newtable(L); /* tiled[x_ind][y_ind] */
+            tile_y = y;
+
+            if(y_ind == y_tiles - 1 && height % y != 0) {
+                tile_y = height % y;
+            }
+
+            lua_pushinteger(L,tile_x);
+            lua_setfield(L,-2,"width");
+
+            lua_pushinteger(L,tile_y);
+            lua_setfield(L,-2,"height");
+
+            lua_pushinteger(L,channels);
+            lua_setfield(L,-2,"channels");
+
+            lua_pushinteger(L,tile_x * tile_y * channels);
+            lua_setfield(L,-2,"image_len");
+
+            lua_pushinteger(L,IMAGE_FIXED);
+            lua_setfield(L,-2,"image_state");
+
+            lua_pushliteral(L,"fixed");
+            lua_setfield(L,-2,"state");
+
+            chunk = lua_newuserdata(L,tile_x * tile_y * channels);
+            lua_setfield(L,-2,"image");
+
+            luaL_getmetatable(L,"image");
+            lua_setmetatable(L,-2);
+
+            y_cpy_ind = 0;
+            while(y_cpy_ind < tile_y) {
+                y_ind_inv = height - (
+                  (y_ind * y) + y_cpy_ind ) - 1;
+                y_cpy_ind_inv = tile_y - y_cpy_ind - 1;
+                memcpy(
+                  &chunk[
+                    (y_cpy_ind_inv * tile_x) * channels
+                  ],
+                  &original[
+                    ((y_ind_inv * width) +
+                    (x_ind * x)) * channels
+                  ],
+                  tile_x * channels);
+                y_cpy_ind++;
+            }
+            lua_rawseti(L,-2,++y_ind);
+        }
+        lua_rawseti(L,-2,++x_ind);
+    }
+
+    return 1;
+}
+
+static int
+lua_frame_tile(lua_State *L) {
+    lua_frame_tile_int(L);
+    lua_setfield(L,1,"tiled");
+    return 0;
+}
+
+static int
+lua_image_tile(lua_State *L) {
+    lua_Integer frameno;
+    lua_Integer x;
+    lua_Integer y;
+
+    if(!lua_istable(L,1)) {
+        lua_pushnil(L);
+        lua_pushliteral(L,"Missing argument self");
+        return 2;
+    }
+
+    frameno = luaL_checkinteger(L,2);
+    x = luaL_checkinteger(L,3);
+    y = luaL_checkinteger(L,4);
+
+    lua_getfield(L,1,"frames"); /* push */
+    lua_rawgeti(L,-1,(int)frameno); /* push */
+
+    lua_pushcfunction(L,lua_frame_tile_int);
+    lua_pushvalue(L,-2);
+    lua_pushinteger(L,x);
+    lua_pushinteger(L,y);
+    lua_pcall(L,3,1,0);
+
+    lua_setfield(L,1,"tiled");
+    lua_pop(L,2);
+    return 0;
+}
+
+
+static int
 lua_image_rotate(lua_State *L) {
     jpr_uint8 *original;
     jpr_uint8 *rotated;
@@ -1748,6 +1907,7 @@ static const struct luaL_Reg lua_image_image_methods[] = {
     { "blend", lua_image_blend },
     { "stamp_image", lua_image_stamp_image },
     { "stamp_letter", lua_image_stamp_letter },
+    { "tile", lua_frame_tile },
     { NULL, NULL },
 };
 
@@ -1756,6 +1916,7 @@ static const struct luaL_Reg lua_image_instance_methods[] = {
     { "load", lua_image_load },
     { "get_ref", lua_image_get_ref },
     { "rotate", lua_image_rotate },
+    { "tile", lua_image_tile },
     { NULL, NULL },
 };
 
