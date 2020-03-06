@@ -684,6 +684,7 @@ for details.
 * `src/utf.c` - public domain, details found in file
 * `src/utf.h` - public domain, details found in file
 * `src/util.h` - public domain, details found in file
+* `src/HandmadeMath.h` - public domain, see https://github.com/HandmadeMath/Handmade-Math/blob/master/LICENSE
 
 # Known users
 

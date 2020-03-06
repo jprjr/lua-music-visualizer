@@ -16,6 +16,9 @@
 #include "stb_leakcheck.h"
 #endif
 
+#define HANDMADE_MATH_IMPLEMENTATION
+#include "HandmadeMath.h"
+
 #define MY_PI 3.14159265358979323846
 #define rad(degrees) ( ((double)degrees) * MY_PI / 180.0)
 
@@ -46,6 +49,56 @@ static thread_queue_t thread_queue;
 static image_q image_queue[100];
 
 static thread_queue_t *ret_queue;
+
+/* Handmade math uses floats everywhere, define a custom integer
+ * vector */
+typedef union jpr_vec2i {
+    struct {
+        int X, Y;
+    };
+    struct {
+        int U, V;
+    };
+    struct {
+        int Left, Right;
+    };
+    struct {
+        int Width, Height;
+    };
+    int Elements[2];
+} jpr_vec2i;
+
+typedef union jpr_vec2ui {
+    struct {
+        unsigned int X, Y;
+    };
+    struct {
+        unsigned int U, V;
+    };
+    struct {
+        unsigned int Left, Right;
+    };
+    struct {
+        unsigned int Width, Height;
+    };
+    unsigned int Elements[2];
+} jpr_vec2ui;
+
+HMM_INLINE jpr_vec2i JPR_Vec2i(int X, int Y) {
+    jpr_vec2i r;
+    r.X = X;
+    r.Y = Y;
+
+    return (r);
+}
+
+HMM_INLINE jpr_vec2ui JPR_Vec2ui(unsigned int X, unsigned int Y) {
+    jpr_vec2ui r;
+    r.X = X;
+    r.Y = Y;
+
+    return (r);
+}
 
 void
 wake_queue(void) {
@@ -1556,6 +1609,131 @@ lua_image_from_ref(lua_State *L) {
     return 1;
 }
 
+hmm_vec3 barycentric(jpr_vec2i *pts, jpr_vec2i P) {
+    hmm_vec3 u = HMM_Cross(HMM_Vec3( pts[2].X - pts[0].X, pts[1].X - pts[0].X, pts[0].X - P.X  ), HMM_Vec3(pts[2].Y - pts[0].Y, pts[1].Y - pts[0].Y, pts[0].Y - P.Y));
+    if(fabsf(u.Z) < 1) return HMM_Vec3(-1, 1, 1);
+    return HMM_Vec3(1.f - (u.X + u.Y)/u.Z, u.Y/u.Z, u.X/u.Z);
+}
+
+static void
+draw_triangle(jpr_uint8 *image, unsigned int *dimensions, jpr_vec2i *pts, jpr_uint8 *color) {
+    /* assumptions:
+     *   pts Y-axis has already been inverted */
+    unsigned int width;
+    unsigned int height;
+    unsigned int channels;
+    unsigned int byte;
+    unsigned int offset;
+    unsigned int max;
+    unsigned int i;
+    unsigned int alpha;
+    unsigned int alpha_inv;
+
+    jpr_vec2i bbox_min;
+    jpr_vec2i bbox_max;
+    jpr_vec2i clamp;
+    jpr_vec2i P;
+    hmm_vec3 bc_screen;
+
+    width = dimensions[0];
+    height = dimensions[1];
+    channels = dimensions[2];
+
+    max = width * height * channels;
+
+    bbox_min.X = width - 1;
+    bbox_min.Y = height - 1;
+    bbox_max.X = 0;
+    bbox_max.Y = 0;
+    clamp.X = width - 1;
+    clamp.Y = height - 1;
+
+    alpha = 1 + (unsigned int)color[3];
+    alpha_inv = 256 - (unsigned int)color[3];
+
+    for(i=0;i<3;i++) {
+        bbox_min.X = HMM_MAX(0, HMM_MIN((int)bbox_min.X,pts[i].X));
+        bbox_min.Y = HMM_MAX(0, HMM_MIN((int)bbox_min.Y,pts[i].Y));
+        bbox_max.X = HMM_MIN(clamp.X, HMM_MAX((int)bbox_max.X,pts[i].X));
+        bbox_max.Y = HMM_MIN(clamp.Y, HMM_MAX((int)bbox_max.Y,pts[i].Y));
+    }
+
+    for(P.Y = bbox_min.Y; P.Y <= bbox_max.Y; P.Y++) {
+        offset = P.Y * width;
+        for(P.X = bbox_min.X; P.X <= bbox_max.X; P.X++) {
+            bc_screen = barycentric(pts,P);
+            if(bc_screen.X < 0 || bc_screen.Y < 0 || bc_screen.Z < 0) continue;
+            byte = (offset + P.X) * channels;
+            image[byte + 0] = ((image[byte + 0] * alpha_inv) + (color[0] * alpha)) >> 8;
+            image[byte + 1] = ((image[byte + 1] * alpha_inv) + (color[1] * alpha)) >> 8;
+            image[byte + 2] = ((image[byte + 2] * alpha_inv) + (color[2] * alpha)) >> 8;
+        }
+    }
+}
+
+
+static int
+lua_frame_triangle_int(lua_State *L) {
+    jpr_uint8 *image;
+    jpr_uint8 color[4];
+    unsigned int dimensions[3];
+    jpr_vec2i pts[3]; /* 3 points of a triangle */
+    unsigned int a;
+
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
+
+    a  = luaL_optinteger(L,9,255);
+    if(a == 0) return 0;
+    color[0] = lua_tointeger(L,5); /* b */
+    color[1] = lua_tointeger(L,4); /* g */
+    color[2] = lua_tointeger(L,3); /* r */
+    color[3] = a;
+
+    lua_getfield(L,1,"width"); /* push */
+    dimensions[0] = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"height"); /* push */
+    dimensions[1] = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"channels"); /* push */
+    dimensions[2] = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"image"); /* push */
+    image = lua_touserdata(L,-1);
+
+    lua_pop(L,4);
+
+    lua_rawgeti(L,2,1);
+    lua_rawgeti(L,-1,1);
+    pts[0].X = lua_tointeger(L,-1) - 1;
+    lua_rawgeti(L,-2,2);
+    pts[0].Y = dimensions[1] - lua_tointeger(L,-1);
+
+    lua_rawgeti(L,2,2);
+    lua_rawgeti(L,-1,1);
+    pts[1].X = lua_tointeger(L,-1) - 1;
+    lua_rawgeti(L,-2,2);
+    pts[1].Y = dimensions[1] - lua_tointeger(L,-1);
+
+    lua_rawgeti(L,2,3);
+    lua_rawgeti(L,-1,1);
+    pts[2].X = lua_tointeger(L,-1) - 1;
+    lua_rawgeti(L,-2,2);
+    pts[2].Y = dimensions[1] - lua_tointeger(L,-1);
+
+    lua_pop(L,9);
+
+    draw_triangle(image, dimensions, pts, color);
+
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(L));
+#endif
+
+    return 0;
+}
+
 static int
 lua_frame_tile_int(lua_State *L) {
     /* input: an image frame
@@ -1568,7 +1746,6 @@ lua_frame_tile_int(lua_State *L) {
     unsigned int channels;
     unsigned int x;
     unsigned int y;
-    unsigned int framecount;
 
     unsigned int x_tiles;
     unsigned int y_tiles;
@@ -1589,13 +1766,10 @@ lua_frame_tile_int(lua_State *L) {
     lua_getfield(L,1,"channels"); /* push */
     channels = (unsigned int)lua_tointeger(L,-1);
 
-    lua_getfield(L,1,"framecount"); /* push */
-    framecount = (unsigned int)lua_tointeger(L,-1);
-
     lua_getfield(L,1,"image"); /* push */
     original = lua_touserdata(L,-1);
 
-    lua_pop(L,5);
+    lua_pop(L,4);
 
     x = luaL_checkinteger(L,2);
     y = luaL_checkinteger(L,3);
@@ -1908,6 +2082,7 @@ static const struct luaL_Reg lua_image_image_methods[] = {
     { "stamp_image", lua_image_stamp_image },
     { "stamp_letter", lua_image_stamp_letter },
     { "tile", lua_frame_tile },
+    { "draw_triangle", lua_frame_triangle_int },
     { NULL, NULL },
 };
 
