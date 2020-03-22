@@ -12,6 +12,7 @@
 #include "jpr_proc.h"
 #include "stream.lua.lh"
 #include "lua-audio.h"
+#include "lua-datetime.h"
 #if USE_OLD_FONT
 #include "font.lua.lh"
 #else
@@ -630,6 +631,8 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     v->decoder = d;
     v->sampler = r;
     v->processor = p;
+
+    luaopen_datetime(v->L);
 
     luaopen_image(v->L);
 #ifndef NDEBUG

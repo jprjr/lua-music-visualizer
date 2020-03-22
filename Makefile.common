@@ -14,6 +14,7 @@ OBJS := \
   src/lua-image.o \
   src/lua-file.o \
   src/lua-audio.o \
+  src/lua-datetime.o \
   src/audio-processor.o \
   src/audio-resampler.o \
   src/audio-decoder.o \
@@ -37,7 +38,9 @@ OBJS := \
   src/license.o \
   src/license_libsamplerate.o \
   src/license_lua.o \
-  src/fmt.o
+  src/fmt.o \
+  src/hrtime.o \
+  src/datetime.o
 
 LUALHS = \
   src/bdf.lua.lh \
