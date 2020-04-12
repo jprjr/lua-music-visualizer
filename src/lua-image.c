@@ -890,6 +890,154 @@ lua_image_draw_line(lua_State *L) {
 }
 
 static int
+lua_image_set_alpha(lua_State *L) {
+    jpr_uint8 *image = NULL;
+    unsigned int width = 0;
+    unsigned int height = 0;
+    unsigned int channels = 0;
+
+    unsigned int xstart = 0;
+    unsigned int xend = 0;
+    unsigned int ystart = 0;
+    unsigned int yend = 0;
+    unsigned int ytmp = 0;
+
+    unsigned int byte;
+    unsigned int offset;
+    unsigned int counter;
+
+    lua_Integer x1;
+    lua_Integer y1;
+    lua_Integer x2;
+    lua_Integer y2;
+    lua_Integer a;
+
+    if(!lua_istable(L,1)) {
+        lua_pushnil(L);
+        lua_pushliteral(L,"Missing argument self");
+        return 2;
+    }
+
+    x1 = luaL_checkinteger(L,2);
+    y1 = luaL_checkinteger(L,3);
+    x2 = luaL_checkinteger(L,4);
+    y2 = luaL_checkinteger(L,5);
+    a  = luaL_checkinteger(L,6);
+
+    lua_getfield(L,1,"image");
+    image = lua_touserdata(L,-1);
+
+    lua_getfield(L,1,"width");
+    width = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"height");
+    height = (unsigned int)lua_tointeger(L,-1);
+
+    lua_getfield(L,1,"channels");
+    channels = (unsigned int)lua_tointeger(L,-1);
+
+    lua_pop(L,4);
+
+    if(channels != 4 || a > 255 ||  a < 0 ) {
+        lua_pushboolean(L,0);
+        return 1;
+    }
+
+    x1 = ( x1 < 0 ) ? 0 : x1;
+    y1 = ( y1 < 0 ) ? 0 : y1;
+    x2 = ( x2 < 0 ) ? 0 : x2;
+    y2 = ( y2 < 0 ) ? 0 : y2;
+
+    if(x1 <= x2) {
+        xstart = (unsigned int)x1;
+        xend = (unsigned int)x2;
+    }
+    else {
+        xstart = (unsigned int)x2;
+        xend = (unsigned int)x1;
+    }
+
+    if(y1 <= y2) {
+        ystart = (unsigned int)y1;
+        yend = (unsigned int)y2;
+    }
+    else {
+        ystart = (unsigned int)y2;
+        yend = (unsigned int)y1;
+    }
+
+    if(xend < 1) {
+        lua_pushboolean(L,0);
+        lua_pushstring(L,"xend < 1");
+        return 2;
+    }
+
+    if(yend < 1) {
+        lua_pushboolean(L,0);
+        lua_pushstring(L,"yend < 1");
+        return 2;
+    }
+
+    if(xstart > width) {
+        lua_pushboolean(L,0);
+        lua_pushstring(L,"xstart > width");
+        return 2;
+    }
+
+    if(ystart > height) {
+        lua_pushboolean(L,0);
+        lua_pushstring(L,"ystart > height");
+        return 2;
+    }
+
+    if(xstart < 1) {
+        xstart = 1;
+    }
+
+    if(ystart < 1) {
+        ystart = 1;
+    }
+
+    if(xend > width) {
+        xend = width;
+    }
+
+    if(yend > height) {
+        yend = height;
+    }
+    xstart--;
+    ystart--;
+
+    /* invert the ys */
+    ytmp = ystart;
+    ystart = yend;
+    yend = ytmp;
+
+    ystart = height - ystart;
+    yend   = height - yend;
+
+    xstart *= channels;
+    xend *= channels;
+    offset = xend - xstart;
+    width *= channels;
+    ystart *= width;
+    yend *= width;
+
+    while(ystart < yend) {
+        byte = ystart + xstart;
+        counter = 0;
+        while(counter < offset) {
+            image[byte+counter+3] = a;
+            counter += channels;
+        }
+        ystart += width;
+    }
+
+    lua_pushboolean(L,1);
+    return 1;
+}
+
+static int
 lua_image_draw_rectangle(lua_State *L) {
     jpr_uint8 *image = NULL;
     unsigned int width = 0;
@@ -2076,6 +2224,7 @@ static const struct luaL_Reg lua_image_image_methods[] = {
     { "set_pixel", lua_image_set_pixel },
     { "get_pixel", lua_image_get_pixel },
     { "draw_rectangle", lua_image_draw_rectangle },
+    { "set_alpha", lua_image_set_alpha },
     { "draw_line", lua_image_draw_line },
     { "set", lua_image_set },
     { "blend", lua_image_blend },
