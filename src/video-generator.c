@@ -57,16 +57,6 @@ static attr_inline double ts_to_sec(struct timespec *ts) {
 #define fprintf(...)
 #endif
 
-#if 0
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <shlwapi.h>
-#include <io.h>
-#include <fcntl.h>
-#endif
-#endif
-
 #ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
 #endif
@@ -82,6 +72,9 @@ static attr_inline double ts_to_sec(struct timespec *ts) {
 #ifndef PATH_MAX
 #define PATH_MAX 2048
 #endif
+
+/* global lua_State variable for systemtap */
+lua_State *globalL = NULL;
 
 static int
 lua_send_message_offline(lua_State *L) {
@@ -430,7 +423,7 @@ int video_generator_reload(video_generator *v) {
 int video_generator_init(video_generator *v, audio_processor *p, audio_resampler *r, audio_decoder *d, int jit, const char *modulename, const char *filename, const char *luascript, jpr_proc_pipe *out) {
     char *rpath;
     char *dir;
-	char *script_path;
+    char *script_path;
     const char *err_str;
     int lua_top;
 
@@ -468,6 +461,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         free(rpath);
         return 1;
     }
+    globalL = v->L;
 
     luaL_openlibs(v->L);
 #ifdef LUA_JITLIBNAME
@@ -478,24 +472,26 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     (void)jit;
 #endif
 
-	script_path = path_absolute(luascript);
-	if(UNLIKELY(script_path == NULL)) {
-	    WRITE_STDERR("error finding the full path for ");
+    script_path = path_absolute(luascript);
+    if(UNLIKELY(script_path == NULL)) {
+        WRITE_STDERR("error finding the full path for ");
         LOG_ERROR(luascript);
         free(rpath);
         lua_close(v->L);
-		return 1;
-	}
+        globalL = NULL;
+        return 1;
+     }
 
     dir = path_dirname(script_path);
-	if(UNLIKELY(dir == NULL)) {
-		WRITE_STDERR("error finding dirname for ");
-		LOG_ERROR(luascript);
+    if(UNLIKELY(dir == NULL)) {
+        WRITE_STDERR("error finding dirname for ");
+        LOG_ERROR(luascript);
         free(rpath);
-		free(script_path);
+        free(script_path);
         lua_close(v->L);
-		return 1;
-	}
+        globalL = NULL;
+        return 1;
+    }
 
     str_cpy(rpath,"package.path = '");
     str_ecat(rpath,dir,"\\",'\\');
@@ -506,14 +502,15 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     str_cat(rpath,"/?.lua;' .. package.path");
 #endif
 
-	if(luaL_loadbuffer(v->L,rpath,str_len(rpath),"package_path") || lua_pcall(v->L,0,LUA_MULTRET,0)) {
+    if(luaL_loadbuffer(v->L,rpath,str_len(rpath),"package_path") || lua_pcall(v->L,0,LUA_MULTRET,0)) {
         err_str = lua_tostring(v->L,-1);
         WRITE_STDERR("error setting lua package path: ");
         LOG_ERROR(err_str);
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -522,14 +519,15 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         str_cpy(rpath,"require('");
         str_cat(rpath,modulename);
         str_cat(rpath,"')");
-	    if(luaL_loadbuffer(v->L,rpath,str_len(rpath),"require_module") || lua_pcall(v->L,0,LUA_MULTRET,0)) {
+        if(luaL_loadbuffer(v->L,rpath,str_len(rpath),"require_module") || lua_pcall(v->L,0,LUA_MULTRET,0)) {
             err_str = lua_tostring(v->L,-1);
             WRITE_STDERR("error loading lua module");
             LOG_ERROR(err_str);
             free(rpath);
             free(dir);
-		    free(script_path);
+            free(script_path);
             lua_close(v->L);
+            globalL = NULL;
             return 1;
         }
         lua_settop(v->L,lua_top);
@@ -552,8 +550,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR("error opening audio decoder");
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -563,6 +562,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         free(dir);
         free(script_path);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -570,8 +570,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR("error: fps does not divide cleanly into samplerate");
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -590,8 +591,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR("out of memory");
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -622,9 +624,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR("init audio processor error");
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -659,6 +662,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -671,6 +675,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -679,9 +684,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     if(UNLIKELY(luaopen_bdf(v->L) == 0)) {
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -705,9 +711,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR(err_str);
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
     /* top of the stack has an image table */
@@ -747,9 +754,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR(err_str);
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -759,9 +767,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR(err_str);
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -775,9 +784,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR(err_str);
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -787,9 +797,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         LOG_ERROR(err_str);
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
@@ -822,6 +833,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
                 free(script_path);
                 free(v->framebuf);
                 lua_close(v->L);
+                globalL = NULL;
                 return 1;
             }
         } else {
@@ -843,9 +855,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     if(write_avi_header(v)) {
         free(rpath);
         free(dir);
-		free(script_path);
+        free(script_path);
         free(v->framebuf);
         lua_close(v->L);
+        globalL = NULL;
         return 1;
     }
 
