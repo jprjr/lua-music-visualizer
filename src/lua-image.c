@@ -1683,7 +1683,7 @@ lua_image_stamp_image(lua_State *L) {
     x_mult = 1;
 
     if(hflip) {
-        x_transform += src_width;
+        x_transform = src_width;
         x_mult = -1;
     }
 
@@ -1712,7 +1712,7 @@ lua_image_stamp_image(lua_State *L) {
                 continue;
             }
 
-            b = image_two[byte];
+            b = image_two[byte + 0];
             g = image_two[byte + 1];
             r = image_two[byte + 2];
 
@@ -1723,7 +1723,7 @@ lua_image_stamp_image(lua_State *L) {
             byte = (dyt * width * channels) + (dxt * channels);
 
             if(a == 255) {
-                image_one[byte] = b;
+                image_one[byte+0] = b;
                 image_one[byte+1] = g;
                 image_one[byte+2] = r;
                 continue;
@@ -1731,7 +1731,7 @@ lua_image_stamp_image(lua_State *L) {
             alpha = 1 + a;
             alpha_inv = 256 - a;
 
-            image_one[byte]   = ((image_one[byte]   * alpha_inv) + (b * alpha)) >> 8;
+            image_one[byte+0] = ((image_one[byte+0] * alpha_inv) + (b * alpha)) >> 8;
             image_one[byte+1] = ((image_one[byte+1] * alpha_inv) + (g * alpha)) >> 8;
             image_one[byte+2] = ((image_one[byte+2] * alpha_inv) + (r * alpha)) >> 8;
         }
