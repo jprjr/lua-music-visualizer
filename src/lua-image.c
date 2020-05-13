@@ -1431,8 +1431,8 @@ lua_image_stamp_letter(lua_State *L) {
 
     w = 1 << ( (width + 7) & ~0x07);
 
-    pixel_hroffset = (width * scale) - hroffset - 1;
-    pixel_yboffset = (height * scale) - yboffset - 1;
+    pixel_hroffset = scaled_width  - hroffset;
+    pixel_yboffset = scaled_height - yboffset;
 
     lua_getfield(L,2,"bitmaps");
     lua_rawgeti(L,-1,codepoint);
@@ -1448,10 +1448,10 @@ lua_image_stamp_letter(lua_State *L) {
             if( cur & (w >> xccc)) {
                 for(yi=0;yi<scale;++yi) {
                     ycc = (yc - 1) * scale + yi;
-                    if(ycc >= ytoffset && ycc <= pixel_yboffset) {
+                    if(ycc >= ytoffset && ycc < pixel_yboffset) {
                         for(xi=0;xi<scale;xi++) {
                             xcc = (xc - 1) * scale + xi;
-                            if(xcc >= hloffset && xcc <= pixel_hroffset) {
+                            if(xcc >= hloffset && xcc < pixel_hroffset) {
                                 /* self:set_pixel(x+xcc,y+((yc-1) * scale) + yi, r, g, b) */
                                 /* inline this shit */
                                 dest_y = (y + ycc);
