@@ -321,7 +321,7 @@ int video_generator_loop(video_generator *v) {
         mpd_ez_loop(v);
     }
 
-    pro_offset = 8192 - v->samples_per_frame * v->decoder->channels;
+    pro_offset = (v->processor->buffer_len * sizeof(jpr_int16)) - (v->samples_per_frame * v->decoder->channels);
 
 #ifdef CHECK_PERFORMANCE
     SAVE_COUNTER(&audio_start);
