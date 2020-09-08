@@ -687,4 +687,4 @@ for details.
 
 # Known users
 
-* [Game That Tune's 24/7 VGM Stream](https://youtube.com/gamethattune)
+* [Game That Tune's 24/7 VGM Stream](https://twitch.tv/gttradio)
