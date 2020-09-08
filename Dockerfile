@@ -5,7 +5,7 @@ ENV LIBSAMPLERATE_VER=0.1.9
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y gcc-multilib upx \
-    mingw-w64 nasm curl make patch build-essential git pkg-config
+    mingw-w64 curl make patch build-essential git pkg-config
 
 RUN mkdir -p /src && \
     cd /src && \
@@ -109,11 +109,11 @@ RUN \
     mkdir -p /dist/win32 && \
     mkdir -p /dist/win64 && \
     make -f Makefile.windows.docker LDFLAGS_LOCAL="-static-libgcc" TARGET=i686-w64-mingw32 clean && \
-    make -f Makefile.windows.docker LDFLAGS_LOCAL="-static-libgcc" TARGET=i686-w64-mingw32 NASM_PLAT=win32 OPT_CFLAGS="$OPT_CFLAGS" -j4 && \
+    make -f Makefile.windows.docker LDFLAGS_LOCAL="-static-libgcc" TARGET=i686-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" -j4 && \
     i686-w64-mingw32-strip lua-music-visualizer.exe && \
     cp lua-music-visualizer.exe /dist/win32/ && \
     make -f Makefile.windows.docker LDFLAGS_LOCAL="-static-libgcc" TARGET=i686-w64-mingw32 clean && \
-    make -f Makefile.windows.docker LDFLAGS_LOCAL="-static-libgcc" TARGET=x86_64-w64-mingw32 NASM_PLAT=win64 OPT_CFLAGS="$OPT_CFLAGS" -j4 && \
+    make -f Makefile.windows.docker LDFLAGS_LOCAL="-static-libgcc" TARGET=x86_64-w64-mingw32 OPT_CFLAGS="$OPT_CFLAGS" -j4 && \
     x86_64-w64-mingw32-strip lua-music-visualizer.exe && \
     cp lua-music-visualizer.exe /dist/win64/ && \
     make -f Makefile.windows.docker ENABLE_SPC=1 ENABLE_NEZ=1 TARGET=x86_64-w64-mingw32 clean
@@ -123,7 +123,7 @@ FROM alpine:3.10 as linux-builder
 ENV UPX_BIN=upx
 ENV OPT_CFLAGS="-O3 -DNDEBUG"
 
-RUN apk add zlib-dev nasm file pkgconfig make gcc g++ musl-dev luajit-dev libsamplerate-dev linux-headers && \
+RUN apk add zlib-dev file pkgconfig make gcc g++ musl-dev luajit-dev libsamplerate-dev linux-headers && \
     mkdir -p /src
 
 COPY --from=0 /src /src
@@ -131,20 +131,19 @@ COPY --from=0 /src /src
 WORKDIR /src/lua-music-visualizer
 
 RUN make clean && \
-    make NASM_PLAT=elf64 CC="gcc -static -fPIE" PKGCONFIG="pkg-config --static" OPT_CFLAGS="$OPT_CFLAGS" && \
+    make CC="gcc -static -fPIE" PKGCONFIG="pkg-config --static" OPT_CFLAGS="$OPT_CFLAGS" && \
     strip lua-music-visualizer && \
     mkdir -p /dist && \
     cp lua-music-visualizer /dist
 
 FROM jprjr/osxcross:10.10 as osx-builder
 
-RUN apk update && apk add nasm
-
 ENV OPT_CFLAGS="-O3 -DNDEBUG"
 
 ENV CROSS_TRIPLE=x86_64-apple-darwin14
 ENV LUAJIT_VER=2.1.0-beta3
 ENV LIBSAMPLERATE_VER=0.1.9
+ENV MACOSX_DEPLOYMENT_TARGET 10.10
 
 COPY --from=0 /src /src
 

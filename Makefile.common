@@ -32,7 +32,6 @@ OBJS := \
   src/pack.o \
   src/char.o \
   src/scan.o \
-  src/mat.o \
   src/stb_leakcheck.o \
   src/version.o \
   src/license.o \
@@ -171,9 +170,6 @@ else
   CFLAGS += -DDECODE_VGM=0
   CXXFLAGS += -DDECODE_VGM=0
 endif
-
-src/mat.o: src/mat.s
-	cd src && nasm -f $(NASM_PLAT) $(NASM_FLAGS) -o mat.o mat.s
 
 %.o: %.cpp $(LUALHS)
 	$(CXX) $(CXXFLAGS_LOCAL) $(CXXFLAGS) $(OPT_CXXFLAGS) -o $@ -c $<

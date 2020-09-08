@@ -6,7 +6,6 @@
 #include "str.h"
 #include "util.h"
 #include "int.h"
-#include "mat.h"
 #include <lauxlib.h>
 
 #include <assert.h>
@@ -21,10 +20,6 @@
 
 #define MY_PI 3.14159265358979323846
 #define rad(degrees) ( ((double)degrees) * MY_PI / 180.0)
-
-#if defined(_MSC_VER) && _MSC_VER <= 1400
-#define round(x) d_round(x)
-#endif
 
 #if !defined(luaL_newlibtable) \
   && (!defined LUA_VERSION_NUM || LUA_VERSION_NUM==501)
