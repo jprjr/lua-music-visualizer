@@ -667,7 +667,6 @@ for details.
 * `src/fmt.h` - public domain, details found in file
 * `src/int.h` - public domain, details found in file
 * `src/mat.h` - public domain, details found in file
-* `src/mat.s` - public domain, details found in file
 * `src/norm.h` - public domain, details found in file
 * `src/pack.c` - public domain, details found in file
 * `src/pack.h` - public domain, details found in file
