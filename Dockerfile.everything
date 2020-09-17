@@ -146,8 +146,7 @@ RUN cd /src && \
     rm -f /usr/x86_64-w64-mingw32/lib/libnezplug.dll
 
 RUN cd /src && \
-    git clone https://github.com/bbbradsmith/nsfplay.git && \
-    sed -i 's/atoi/::atoi/' nsfplay/vcm/vcm_ui.h && \
+    git clone -b Makefile-simplification https://github.com/jprjr/nsfplay.git && \
     cd nsfplay/contrib && \
     make AR=i686-w64-mingw32-ar CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ PREFIX=/usr/i686-w64-mingw32 DYNLIB_EXT=.dll release && \
     make AR=i686-w64-mingw32-ar CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ PREFIX=/usr/i686-w64-mingw32 DYNLIB_EXT=.dll install && \
@@ -249,6 +248,7 @@ ENV OPT_CFLAGS="-O3 -DNDEBUG"
 ENV CROSS_TRIPLE=x86_64-apple-darwin14
 ENV LUAJIT_VER=2.1.0-beta3
 ENV LIBSAMPLERATE_VER=0.1.9
+ENV MACOSX_DEPLOYMENT_TARGET 10.10
 
 COPY --from=0 /src /src
 
@@ -283,11 +283,12 @@ RUN cd /src/libnezplug && \
     make CC=o64-clang AR=${CROSS_TRIPLE}-ar libnezplug.a && \
     ${CROSS_TRIPLE}-ranlib libnezplug.a
 
-RUN cd /src/nsfplay/contrib && \
+RUN sed -i 's/atoi/::atoi/'    /src/nsfplay/vcm/vcm_ui.h && \
+    sed -i '3i#include <cstdlib>' /src/nsfplay/vcm/vcm_ui.h && \
+    cd /src/nsfplay/contrib && \
+    make PREFIX=/opt/nsfplay CXX=o64-clang++ CC=o64-clang AR=${CROSS_TRIPLE}-ar DYNLIB_EXT=.dylib release && \
     make PREFIX=/opt/nsfplay CXX=o64-clang++ CC=o64-clang AR=${CROSS_TRIPLE}-ar DYNLIB_EXT=.dylib install && \
-    make CXX=o64-clang++ CC=o64-clang AR=${CROSS_TRIPLE}-ar DYNLIB_EXT=.dylib release && \
-    rm -f /opt/nsfplay/lib/libnsfplay.dylib && \
-    mv libnsfplay.a /opt/nsfplay/lib/libnsfplay.a
+    rm -f /opt/nsfplay/lib/libnsfplay.dylib
 
 RUN mkdir -p /src/libvgm-build-osx && \
     cd /src/libvgm-build-osx && \
