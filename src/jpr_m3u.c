@@ -73,21 +73,27 @@ static void jprm3u_close(audio_plugin_ctx *ctx) {
     jprm3u_free(ctx);
 }
 
-static audio_decoder *
-jprm3u_nextinput(m3u_private *priv, jpr_text *m3u_lines, meta_proc onmeta, meta_proc_double onmeta_double, change_proc onchange, void *meta_ctx) {
+static int
+jprm3u_nextinput(m3u_private *priv) {
     const char *line = NULL;
     char *tmp = NULL;
     char *c   = NULL;
     char *subfile = NULL;
     unsigned int tracknum = 0;
-    audio_decoder *decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
 
-    while((line = jpr_text_line(m3u_lines)) != NULL) {
+    if(priv->decoder != NULL) {
+        audio_decoder_close(priv->decoder);
+        free(priv->decoder);
+    }
+    priv->decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
+
+    while((line = jpr_text_line(priv->m3u_lines)) != NULL) {
         if(str_len(line) == 0) continue;
         tmp = str_dup(line);
         if(tmp == NULL) {
-            free(decoder);
-            return NULL;
+            free(priv->decoder);
+            priv->decoder = NULL;
+            return 1;
         }
 
         c = str_chr(tmp,'#');
@@ -102,8 +108,9 @@ jprm3u_nextinput(m3u_private *priv, jpr_text *m3u_lines, meta_proc onmeta, meta_
             subfile = realloc(subfile,strlen(priv->dir) + strlen(tmp) + 2);
             if(subfile == NULL) {
                 free(tmp);
-                free(decoder);
-                return NULL;
+                free(priv->decoder);
+                priv->decoder = NULL;
+                return 1;
             }
             str_cpy(subfile,priv->dir);
 #ifdef JPR_WINDOWS
@@ -112,28 +119,27 @@ jprm3u_nextinput(m3u_private *priv, jpr_text *m3u_lines, meta_proc onmeta, meta_
             str_cat(subfile,"/");
 #endif
             str_cat(subfile,tmp);
-            audio_decoder_init(decoder);
-            decoder->onmeta          = onmeta;
-            decoder->onmeta_double   = onmeta_double;
-            decoder->onchange        = onchange;
-            decoder->meta_ctx = meta_ctx;
-            if(audio_decoder_open(decoder,subfile) == 0) {
-                if(decoder->meta_ctx != NULL) {
-                    decoder->onmeta(decoder->meta_ctx,"file",subfile);
-                    decoder->onmeta_double(decoder->meta_ctx,"elapsed",0.0f);
-                    decoder->onmeta_double(decoder->meta_ctx,"total",((double)decoder->framecount) / ((double)decoder->samplerate));
-                    decoder->onchange(decoder->meta_ctx,"player");
-                }
+            audio_decoder_init(priv->decoder);
+            priv->decoder->onmeta          = jprm3u_onmeta;
+            priv->decoder->onmeta_double   = jprm3u_onmeta_double;
+            priv->decoder->onchange        = jprm3u_onchange;
+            priv->decoder->meta_ctx        = priv->parent;
+            if(audio_decoder_open(priv->decoder,subfile) == 0) {
+                priv->decoder->onmeta(priv->decoder->meta_ctx,"file",subfile);
+                priv->decoder->onmeta_double(priv->decoder->meta_ctx,"elapsed",0.0f);
+                priv->decoder->onmeta_double(priv->decoder->meta_ctx,"total",((double)priv->decoder->framecount) / ((double)priv->decoder->samplerate));
+                priv->decoder->onchange(priv->decoder->meta_ctx,"player");
                 free(subfile);
                 free(tmp);
-                return decoder;
+                return 0;
             }
         }
         free(tmp);
     }
     free(subfile);
-    free(decoder);
-    return NULL;
+    free(priv->decoder);
+    priv->decoder = NULL;
+    return 1;
 }
 
 static jpr_uint64 jprm3u_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jpr_int16 *buf) {
@@ -150,11 +156,8 @@ static jpr_uint64 jprm3u_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jp
         if(t != framecount) {
             audio_resampler_close(priv->resampler);
             audio_resampler_init(priv->resampler);
-            audio_decoder_close(priv->decoder);
-            free(priv->decoder);
 
-            priv->decoder = jprm3u_nextinput(priv,priv->m3u_lines,jprm3u_onmeta,jprm3u_onmeta_double,jprm3u_onchange,priv->parent);
-            if(priv->decoder == NULL) return r;
+            if(jprm3u_nextinput(priv)) return r;
             audio_resampler_open(priv->resampler,priv->decoder);
         }
         framecount -= t;
@@ -167,7 +170,6 @@ static audio_plugin_ctx *jprm3u_open(audio_decoder *decoder, const char *filenam
     m3u_private *priv;
     jpr_uint8 *m3u_data;
     size_t m3u_data_len;
-    jpr_text *m3u_lines;
     char *tmp;
     char *subfile;
     audio_decoder *tmpDecoder;
@@ -175,16 +177,12 @@ static audio_plugin_ctx *jprm3u_open(audio_decoder *decoder, const char *filenam
     ctx = NULL;
     priv = NULL;
     m3u_data = NULL;
-    m3u_lines = NULL;
     tmpDecoder = NULL;
     tmp = NULL;
     subfile = NULL;
 
     m3u_data = decoder->slurp(decoder,&m3u_data_len);
     if(m3u_data_len == 0) goto m3u_error;
-
-    m3u_lines = jpr_text_create(m3u_data, m3u_data_len);
-    if(m3u_lines == NULL) goto m3u_error;
 
     ctx = (audio_plugin_ctx *)malloc(sizeof(audio_plugin_ctx));
     if(UNLIKELY(ctx == NULL)) goto m3u_error;
@@ -215,12 +213,8 @@ static audio_plugin_ctx *jprm3u_open(audio_decoder *decoder, const char *filenam
     if(priv->resampler == NULL) goto m3u_error;
     priv->resampler->samplerate = 48000;
 
-    while((tmpDecoder = jprm3u_nextinput(priv,m3u_lines,NULL,NULL,NULL,NULL)) != NULL) {
-        audio_decoder_close(tmpDecoder);
-        free(tmpDecoder);
-    }
+    if(jprm3u_nextinput(priv)) goto m3u_error;
 
-    priv->decoder = jprm3u_nextinput(priv,priv->m3u_lines,jprm3u_onmeta,jprm3u_onmeta_double,jprm3u_onchange,priv->parent);
     decoder->framecount = priv->decoder->framecount;
     decoder->framecount *= ((48000.0f / ((double)priv->decoder->samplerate)));
     audio_resampler_open(priv->resampler,priv->decoder);
@@ -234,7 +228,6 @@ m3u_error:
 m3u_finish:
     if(subfile != NULL) free(subfile);
     if(m3u_data != NULL) free(m3u_data);
-    if(m3u_lines != NULL) jpr_text_close(m3u_lines);
     if(tmp != NULL) free(tmp);
     if(tmpDecoder != NULL) free(tmpDecoder);
 
