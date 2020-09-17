@@ -50,7 +50,7 @@ RUN mkdir -p /src && \
     cp lua*.h /usr/i686-w64-mingw32/include && \
     cp libluajit.a /usr/i686-w64-mingw32/lib && \
     make clean && \
-    make -j$(nproc) TARGET_SYS=Windows HOST_CC="gcc" CROSS="x86_64-w64-mingw32-" libluajit.a && \
+    make -j$(nproc) XCFLAGS='-DLUAJIT_ENABLE_GC64' TARGET_SYS=Windows HOST_CC="gcc" CROSS="x86_64-w64-mingw32-" libluajit.a && \
     cp lauxlib.h /usr/x86_64-w64-mingw32/include && \
     cp lua*.h /usr/x86_64-w64-mingw32/include && \
     cp libluajit.a /usr/x86_64-w64-mingw32/lib && \
@@ -121,12 +121,19 @@ RUN \
 FROM alpine:3.10 as linux-builder
 
 ENV UPX_BIN=upx
+ENV LUAJIT_VER=2.1.0-beta3
 ENV OPT_CFLAGS="-O3 -DNDEBUG"
 
-RUN apk add zlib-dev file pkgconfig make gcc g++ musl-dev luajit-dev libsamplerate-dev linux-headers && \
+RUN apk add zlib-dev file pkgconfig make gcc g++ musl-dev libsamplerate-dev linux-headers && \
     mkdir -p /src
 
 COPY --from=0 /src /src
+
+RUN cd /src && \
+    tar xf LuaJIT-${LUAJIT_VER}.tar.gz && \
+    cd LuaJIT-${LUAJIT_VER} && \
+    make -C src XCFLAGS='-DLUAJIT_ENABLE_GC64' && \
+    make install
 
 WORKDIR /src/lua-music-visualizer
 
@@ -150,7 +157,7 @@ COPY --from=0 /src /src
 RUN cd /src && \
     tar xf LuaJIT-${LUAJIT_VER}.tar.gz && \
     cd LuaJIT-${LUAJIT_VER}/src && \
-    make TARGET_SYS=Darwin HOST_SYS=Linux HOST_CC="gcc" CC=o64-clang libluajit.a && \
+    make XCFLAGS='-DLUAJIT_ENABLE_GC64' TARGET_SYS=Darwin HOST_SYS=Linux HOST_CC="gcc" CC=o64-clang libluajit.a && \
     ${CROSS_TRIPLE}-ranlib libluajit.a
 
 RUN cd /src && \
