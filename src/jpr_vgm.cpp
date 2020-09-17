@@ -48,11 +48,11 @@ static audio_info *jprvgm_probe(audio_decoder *decoder) {
         return nullptr;
     }
 
-    if(!VGMPlayer::IsMyFile(loader)) {
+    if(!VGMPlayer::PlayerCanLoadFile(loader)) {
         player = new VGMPlayer();
-    } else if(!S98Player::IsMyFile(loader)) {
+    } else if(!S98Player::PlayerCanLoadFile(loader)) {
         player = new S98Player();
-    } else if(!DROPlayer::IsMyFile(loader)) {
+    } else if(!DROPlayer::PlayerCanLoadFile(loader)) {
         player = new DROPlayer();
     } else {
         free(vgm_data);
@@ -176,11 +176,13 @@ static void fade_samples(jpr_uint64 frames_rem, jpr_uint64 frames_fade, jpr_uint
     return;
 }
 
-audio_plugin_ctx *jprvgm_open(audio_decoder *decoder) {
+audio_plugin_ctx *jprvgm_open(audio_decoder *decoder, const char *filename) {
     audio_plugin_ctx *ctx;
     vgm_private *priv;
     jpr_uint8 *vgm_data;
     size_t vgm_data_len;
+
+    (void)filename;
 
     ctx = nullptr;
     priv = nullptr;
@@ -225,11 +227,11 @@ audio_plugin_ctx *jprvgm_open(audio_decoder *decoder) {
         goto jprvgm_error;
     }
 
-    if(!VGMPlayer::IsMyFile(priv->loader)) {
+    if(!VGMPlayer::PlayerCanLoadFile(priv->loader)) {
         priv->player = new VGMPlayer();
-    } else if(!S98Player::IsMyFile(priv->loader)) {
+    } else if(!S98Player::PlayerCanLoadFile(priv->loader)) {
         priv->player = new S98Player();
-    } else if(!DROPlayer::IsMyFile(priv->loader)) {
+    } else if(!DROPlayer::PlayerCanLoadFile(priv->loader)) {
         priv->player = new DROPlayer();
     } else {
         goto jprvgm_error;
