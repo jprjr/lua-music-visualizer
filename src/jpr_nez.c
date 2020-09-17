@@ -122,12 +122,13 @@ static void jprnez_free(audio_plugin_ctx *ctx) {
 }
 
 
-static audio_plugin_ctx *jprnez_open(audio_decoder *decoder) {
+static audio_plugin_ctx *jprnez_open(audio_decoder *decoder, const char *filename) {
     audio_plugin_ctx *ctx;
     nezplug_private *priv;
     jpr_uint8 *nez_data;
     size_t nez_data_len;
 
+    (void)filename;
     ctx = NULL;
     priv = NULL;
     nez_data = NULL;

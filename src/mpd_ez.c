@@ -33,7 +33,6 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
     video_generator *v;
     const char *t;
     char *c;
-    const char *err_str;
     unsigned int tmp_uint;
     unsigned int tmp_fac;
 
@@ -110,21 +109,7 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
             lua_pushstring(v->L,(const char *)value); /* push */
             lua_setfield(v->L,-2,"message"); /* pop */
         }
-        lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
-        lua_getfield(v->L,-1,"onchange");
-        if(lua_isfunction(v->L,-1)) {
-            lua_pushvalue(v->L,-2);
-            lua_pushstring(v->L,"message");
-            if(lua_pcall(v->L,2,0,0)) {
-              err_str = lua_tostring(v->L,-1);
-              WRITE_STDERR("error: ");
-              LOG_ERROR(err_str);
-            }
-
-        } else {
-            lua_pop(v->L,1);
-        }
-        lua_pop(v->L,1);
+        v->decoder->onchange(v->decoder->meta_ctx,"message");
     }
 
     lua_pop(v->L,1);
@@ -146,7 +131,6 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
 }
 
 static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok, const char *err) {
-    const char *err_str = NULL;
     conn_info *info = (conn_info *)conn->ctx;
     video_generator *v = info->v;
 #ifndef NDEBUG
@@ -187,22 +171,7 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok,
     }
 
     if(str_equals(cmd,"status") || str_equals(cmd,"currentsong")) {
-      lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
-      lua_getfield(v->L,-1,"onchange");
-      if(lua_isfunction(v->L,-1)) {
-          lua_pushvalue(v->L,-2);
-          lua_pushstring(v->L,"player");
-          if(lua_pcall(v->L,2,0,0)) {
-              err_str = lua_tostring(v->L,-1);
-              WRITE_STDERR("error: ");
-              LOG_ERROR(err_str);
-          }
-
-      } else {
-          lua_pop(v->L,1);
-      }
-      lua_pop(v->L,1);
-
+      v->decoder->onchange(v->decoder->meta_ctx,"player");
     }
 #ifndef NDEBUG
     assert(lua_state == lua_gettop(v->L));

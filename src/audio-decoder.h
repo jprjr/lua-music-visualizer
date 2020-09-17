@@ -35,7 +35,7 @@ typedef jpr_int64 (*seek_cb)(audio_decoder *decoder, jpr_int64 offset, enum JPR_
 typedef jpr_int64 (*tell_cb)(audio_decoder *decoder);
 typedef jpr_uint8 *(*slurp_cb)(audio_decoder *decoder, size_t *size);
 
-typedef audio_plugin_ctx *(*plugin_open_func)(audio_decoder *decoder);
+typedef audio_plugin_ctx *(*plugin_open_func)(audio_decoder *decoder, const char *filename);
 typedef jpr_uint64 (*plugin_decode_func)(audio_plugin_ctx *ctx, jpr_uint64 framecount, jpr_int16 *buf);
 typedef void (*plugin_close_func)(audio_plugin_ctx *ctx);
 typedef audio_info * (*plugin_probe_func)(audio_decoder *decoder);
@@ -121,6 +121,8 @@ extern const audio_plugin* const plugin_list[];
 
 
 typedef void(*meta_proc)(void *, const char *key, const char *val);
+typedef void(*change_proc)(void *, const char *type);
+typedef void(*meta_proc_double)(void *, const char *key, double val);
 
 struct audio_decoder_s {
     const audio_plugin *plugin;
@@ -131,6 +133,8 @@ struct audio_decoder_s {
     unsigned int track;
     jpr_uint32 framecount;
     meta_proc onmeta;
+    meta_proc_double onmeta_double;
+    change_proc onchange;
     jpr_file *file;
     read_cb read;
     seek_cb seek;

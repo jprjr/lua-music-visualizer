@@ -114,12 +114,14 @@ static audio_info *jprspc_probe(audio_decoder *decoder) {
 }
 
 
-static audio_plugin_ctx *jprspc_open(audio_decoder *decoder) {
+static audio_plugin_ctx *jprspc_open(audio_decoder *decoder, const char *filename) {
 
     audio_plugin_ctx *jspc;
     spc_private *priv;
     jpr_uint8 *spc_data;
     size_t spc_data_len;
+
+    (void)filename;
 
     jspc = NULL;
     priv = NULL;

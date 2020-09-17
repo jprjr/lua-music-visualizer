@@ -2,10 +2,12 @@
 #include "attr.h"
 #include <stdlib.h>
 
-static audio_plugin_ctx *jprpcm_open(audio_decoder *decoder) {
+static audio_plugin_ctx *jprpcm_open(audio_decoder *decoder, const char *filename) {
     audio_plugin_ctx *ctx;
     jpr_uint32 bytes;
     jpr_uint64 framecount;
+
+    (void)filename;
 
     if(decoder->samplerate == 0 || decoder->channels == 0) return NULL;
 

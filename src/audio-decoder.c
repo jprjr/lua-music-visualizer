@@ -14,8 +14,7 @@
 #include "stb_leakcheck.h"
 #endif
 
-#define AUDIO_MAX(a,b) ( a > b ? a : b)
-#define AUDIO_MIN(a,b) ( a < b ? a : b)
+#include "jpr_m3u.h"
 
 #if DECODE_PCM
 #include "jpr_pcm.h"
@@ -50,6 +49,7 @@
 #endif
 
 const audio_plugin* const plugin_list[] = {
+    &jprm3u_plugin,
 #if DECODE_FLAC
     &jprflac_plugin,
 #endif
@@ -118,7 +118,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
         ext = (*plugin)->extensions;
         while(*ext != NULL) {
             if(str_iends(filename,*ext)) {
-                a->plugin_ctx = (*plugin)->open(a);
+                a->plugin_ctx = (*plugin)->open(a,filename);
                 if(a->plugin_ctx != NULL) {
                     a->plugin = *plugin;
                     return 0;

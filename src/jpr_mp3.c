@@ -66,6 +66,7 @@ static jpr_uint64 jprmp3_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jp
 static audio_info *jprmp3_probe(audio_decoder *decoder) {
     audio_info *info;
     mp3_probe *metaprobe;
+    drmp3 *pMp3 = NULL;
 
     info = (audio_info *)malloc(sizeof(audio_info));
     if(UNLIKELY(info == NULL)) {
@@ -79,6 +80,14 @@ static audio_info *jprmp3_probe(audio_decoder *decoder) {
         free(info);
         return NULL;
     }
+
+    pMp3 = (drmp3 *)malloc(sizeof(drmp3));
+    if(UNLIKELY(pMp3 == NULL)) {
+        free(metaprobe);
+        free(info);
+        return NULL;
+    }
+    mem_set(pMp3,0,sizeof(drmp3));
 
     info->tracks = (track_info *)malloc(sizeof(track_info) * 1);
     if(UNLIKELY(info->tracks == NULL)) {
@@ -97,16 +106,30 @@ static audio_info *jprmp3_probe(audio_decoder *decoder) {
 
     process_id3(decoder);
 
+    if(!drmp3_init(pMp3,read_wrapper,seek_wrapper,decoder,NULL,NULL)) {
+        free(info);
+        free(metaprobe);
+        free(pMp3);
+        return NULL;
+    }
+
+    decoder->framecount = drmp3_get_pcm_frame_count(pMp3);
+    decoder->samplerate = pMp3->sampleRate;
+    decoder->channels = pMp3->channels;
+
     decoder->onmeta = metaprobe->onmeta;
     decoder->meta_ctx = metaprobe->meta_ctx;
 
     free(metaprobe);
+    drmp3_uninit(pMp3);
+    free(pMp3);
     return info;
 }
 
-static audio_plugin_ctx *jprmp3_open(audio_decoder *decoder) {
+static audio_plugin_ctx *jprmp3_open(audio_decoder *decoder, const char *filename) {
     audio_plugin_ctx *ctx = NULL;
     drmp3 *pMp3 = NULL;
+    (void)filename;
 
     ctx = (audio_plugin_ctx *)malloc(sizeof(audio_plugin_ctx));
     if(UNLIKELY(ctx == NULL)) {

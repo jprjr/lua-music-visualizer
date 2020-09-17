@@ -39,7 +39,8 @@ OBJS := \
   src/license_lua.o \
   src/fmt.o \
   src/hrtime.o \
-  src/datetime.o
+  src/datetime.o \
+  src/jpr_m3u.o
 
 LUALHS = \
   src/bdf.lua.lh \

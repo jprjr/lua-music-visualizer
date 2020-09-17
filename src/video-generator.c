@@ -107,12 +107,49 @@ lua_send_message(lua_State *L) {
   return 1;
 }
 
+static void onchange(void *ctx, const char *type) {
+    const char *err_str;
+    video_generator *v = ctx;
+    lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
+    if(lua_isnil(v->L,-1)) {
+        lua_pop(v->L,1);
+        return;
+    }
+
+    lua_getfield(v->L,-1,"onchange");
+    if(lua_isfunction(v->L,-1)) {
+        lua_pushvalue(v->L,-2);
+        lua_pushstring(v->L,type);
+        if(lua_pcall(v->L,2,0,0)) {
+            err_str = lua_tostring(v->L,-1);
+            WRITE_STDERR("error: ");
+            LOG_ERROR(err_str);
+        }
+    } else {
+        lua_pop(v->L,1);
+    }
+    lua_pop(v->L,1);
+}
+
 static void onmeta(void *ctx, const char *key, const char *value) {
     video_generator *v = ctx;
     lua_getglobal(v->L,"song");
     lua_pushstring(v->L,value);
     lua_setfield(v->L,-2,key);
     lua_pop(v->L,1);
+}
+
+static void onmeta_double(void *ctx, const char *key, double value) {
+    video_generator *v = ctx;
+    lua_getglobal(v->L,"song");
+    lua_pushnumber(v->L,value);
+    lua_setfield(v->L,-2,key);
+    lua_pop(v->L,1);
+    if(str_icmp(key,"total") == 0) {
+        v->duration = value;
+    } else if(str_icmp(key,"elapsed") == 0) {
+        v->elapsed = value;
+    }
 }
 
 static int write_avi_header(video_generator *v) {
@@ -449,7 +486,9 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
 
     mpd_ez_setup(v);
 
-    d->onmeta = onmeta;
+    d->onmeta        = onmeta;
+    d->onmeta_double = onmeta_double;
+    d->onchange      = onchange;
     d->meta_ctx = (void *)v;
     v->lua_ref = -1;
 

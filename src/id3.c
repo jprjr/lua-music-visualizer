@@ -59,6 +59,8 @@ void process_id3(audio_decoder *a) {
     jpr_uint32 pos = 0;
     jpr_uint8 id3_ver = 0;
 
+    if(a->onmeta == NULL) return;
+
     buffer[0] = 0;
 
     pos = a->tell(a);

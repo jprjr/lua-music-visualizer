@@ -106,6 +106,11 @@ static audio_info *jprflac_probe(audio_decoder *decoder) {
     decoder->meta_ctx = metaprobe;
 
     pFlac = drflac_open_with_metadata(read_wrapper,seek_wrapper,flac_meta,decoder,NULL);
+
+    decoder->framecount = pFlac->totalPCMFrameCount;
+    decoder->samplerate = pFlac->sampleRate;
+    decoder->channels   = pFlac->channels;
+
     if(pFlac != NULL) {
         drflac_close(pFlac);
     }
@@ -126,9 +131,10 @@ static jpr_uint64 jprflac_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, j
     return (jpr_uint64)drflac_read_pcm_frames_s16((drflac *)ctx->priv,(drflac_uint64)framecount,(drflac_int16 *)buf);
 }
 
-static audio_plugin_ctx *jprflac_open(audio_decoder *decoder) {
+static audio_plugin_ctx *jprflac_open(audio_decoder *decoder, const char *filename) {
     audio_plugin_ctx *ctx = NULL;
     drflac *pFlac = NULL;
+    (void)filename;
     ctx = (audio_plugin_ctx *)malloc(sizeof(audio_plugin_ctx));
     if(UNLIKELY(ctx == NULL)) {
         goto jprflac_error;

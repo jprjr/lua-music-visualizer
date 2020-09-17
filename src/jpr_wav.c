@@ -176,9 +176,12 @@ static jpr_uint64 jprwav_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jp
     return (jpr_uint64)drwav_read_pcm_frames_s16((drwav *)ctx->priv,(drwav_uint64)framecount,(drwav_int16*)buf);
 }
 
-static audio_plugin_ctx *jprwav_open(audio_decoder *decoder) {
+static audio_plugin_ctx *jprwav_open(audio_decoder *decoder, const char *filename) {
     audio_plugin_ctx *ctx = NULL;
     drwav *pWav = NULL;
+
+    (void)filename;
+
     ctx = (audio_plugin_ctx *)malloc(sizeof(audio_plugin_ctx));
     if(UNLIKELY(ctx == NULL)) {
         goto jprwav_error;
