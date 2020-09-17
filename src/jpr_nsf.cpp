@@ -113,13 +113,15 @@ static audio_info *jprnsf_probe(audio_decoder *decoder) {
     return info;
 }
 
-static audio_plugin_ctx *jprnsf_open(audio_decoder *decoder) {
+static audio_plugin_ctx *jprnsf_open(audio_decoder *decoder, const char *filename) {
     audio_plugin_ctx *ctx;
     nsfplay_private *priv;
     jpr_uint8 *nsf_data;
     size_t nsf_data_len;
     unsigned int track;
     jpr_uint8 nsfe_track;
+
+    (void)filename;
 
     ctx = nullptr;
     priv = nullptr;
@@ -169,12 +171,12 @@ static audio_plugin_ctx *jprnsf_open(audio_decoder *decoder) {
     (*(priv->config))["MASTER_VOLUME"] = 192;
     (*(priv->config))["RATE"] = 48000;
     (*(priv->config))["NCH"] = 2;
+    (*(priv->config))["PLAY_ADVANCE"] = 1;
 
     priv->player->SetConfig(priv->config);
     priv->player->Load(priv->nsf);
     priv->player->SetChannels(2);
     priv->player->SetPlayFreq(48000);
-    priv->player->SetInfinite(true);
     priv->player->Reset();
 
     priv->frames_rem = priv->nsf->GetLength();
