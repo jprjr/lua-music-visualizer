@@ -217,6 +217,7 @@ static audio_plugin_ctx *jprm3u_open(audio_decoder *decoder, const char *filenam
 
     while((tmpDecoder = jprm3u_nextinput(priv,m3u_lines,NULL,NULL,NULL,NULL)) != NULL) {
         audio_decoder_close(tmpDecoder);
+        free(tmpDecoder);
     }
 
     priv->decoder = jprm3u_nextinput(priv,priv->m3u_lines,jprm3u_onmeta,jprm3u_onmeta_double,jprm3u_onchange,priv->parent);
