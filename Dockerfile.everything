@@ -146,7 +146,8 @@ RUN cd /src && \
     rm -f /usr/x86_64-w64-mingw32/lib/libnezplug.dll
 
 RUN cd /src && \
-    git clone -b osxcross-fix https://github.com/jprjr/nsfplay.git && \
+    git clone https://github.com/bbbradsmith/nsfplay.git && \
+    sed -i 's/atoi/::atoi/' nsfplay/vcm/vcm_ui.h && \
     cd nsfplay/contrib && \
     make AR=i686-w64-mingw32-ar CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ PREFIX=/usr/i686-w64-mingw32 DYNLIB_EXT=.dll release && \
     make AR=i686-w64-mingw32-ar CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ PREFIX=/usr/i686-w64-mingw32 DYNLIB_EXT=.dll install && \
@@ -158,7 +159,8 @@ RUN cd /src && \
     rm -f /usr/x86_64-w64-mingw32/lib/libnsfplay.dll
 
 RUN cd /src && \
-    git clone -b cross-compile https://github.com/jprjr/libvgm.git && \
+    git clone https://github.com/ValleyBell/libvgm.git && \
+    sed -i 's/Windows.h/windows.h/' libvgm/utils/*.c && \
     mkdir -p libvgm-build-32 libvgm-build-64 && \
     cd libvgm-build-32 && \
     cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=off -DBUILD_PLAYER=off -DBUILD_LIBAUDIO=off -DBUILD_SHARED=off -DUSE_SANITIZERS=off -DCMAKE_TOOLCHAIN_FILE=/opt/i686-w64-mingw32.cmake -DCMAKE_INSTALL_PREFIX=/usr/i686-w64-mingw32 ../libvgm && \
