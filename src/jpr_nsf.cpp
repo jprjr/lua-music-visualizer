@@ -59,7 +59,7 @@ static void fade_samples(jpr_uint64 frames_rem, jpr_uint64 frames_fade, jpr_uint
     return;
 }
 
-static audio_info *jprnsf_probe(audio_decoder *decoder) {
+static audio_info *jprnsf_probe(audio_decoder *decoder, const char *filename) {
     int i;
     int total;
     int nsfe_track;
@@ -67,6 +67,7 @@ static audio_info *jprnsf_probe(audio_decoder *decoder) {
     size_t nsf_data_len;
     audio_info *info;
     xgm::NSF nsf;
+    (void)filename;
 
     nsf_data = decoder->slurp(decoder,&nsf_data_len);
     if(nsf_data_len == 0) return NULL;

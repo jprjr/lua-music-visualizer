@@ -25,7 +25,7 @@ struct vgm_private_s {
 
 typedef struct vgm_private_s vgm_private;
 
-static audio_info *jprvgm_probe(audio_decoder *decoder) {
+static audio_info *jprvgm_probe(audio_decoder *decoder, const char *filename) {
     audio_info *info;
     PlayerBase *player;
     DATA_LOADER *loader;
@@ -33,6 +33,7 @@ static audio_info *jprvgm_probe(audio_decoder *decoder) {
     size_t vgm_data_len;
 	const char* const* tagList;
 	const char* const *t;
+    (void)filename;
 
     vgm_data = decoder->slurp(decoder,&vgm_data_len);
     if(vgm_data == nullptr) return nullptr;
