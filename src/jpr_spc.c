@@ -59,11 +59,13 @@ static void jprspc_free(audio_plugin_ctx *jspc) {
     }
 }
 
-static audio_info *jprspc_probe(audio_decoder *decoder) {
+static audio_info *jprspc_probe(audio_decoder *decoder, const char *filename) {
     audio_info *info;
     jpr_uint8 *spc_data;
     size_t spc_data_len;
     id666 *id6;
+
+    (void)filename;
 
     spc_data = decoder->slurp(decoder,&spc_data_len);
     if(spc_data_len == 0) return NULL;

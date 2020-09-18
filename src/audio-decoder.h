@@ -38,7 +38,7 @@ typedef jpr_uint8 *(*slurp_cb)(audio_decoder *decoder, size_t *size);
 typedef audio_plugin_ctx *(*plugin_open_func)(audio_decoder *decoder, const char *filename);
 typedef jpr_uint64 (*plugin_decode_func)(audio_plugin_ctx *ctx, jpr_uint64 framecount, jpr_int16 *buf);
 typedef void (*plugin_close_func)(audio_plugin_ctx *ctx);
-typedef audio_info * (*plugin_probe_func)(audio_decoder *decoder);
+typedef audio_info * (*plugin_probe_func)(audio_decoder *decoder, const char *filename);
 
 typedef struct audio_plugin_s audio_plugin;
 

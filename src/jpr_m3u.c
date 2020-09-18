@@ -227,6 +227,35 @@ jprm3u_nextinput(m3u_private *priv) {
     return 1;
 }
 
+static audio_info *jprm3u_probe(audio_decoder *decoder, const char *filename) {
+    char *c;
+    audio_info *info;
+    (void)decoder;
+
+    info = (audio_info *)malloc(sizeof(audio_info));
+    if(UNLIKELY(info == NULL)) {
+        return NULL;
+    }
+    memset(info,0,sizeof(audio_info));
+
+    info->total = 1;
+    info->tracks = (track_info *)malloc(sizeof(track_info));
+    if(UNLIKELY(info->tracks == NULL)) {
+        free(info);
+        return NULL;
+    }
+    memset(info->tracks,0,sizeof(track_info));
+
+    info->tracks[0].number = 1;
+    info->tracks[0].title = path_basename(filename);
+    c = str_rchr(info->tracks[0].title,'.');
+    if(c != NULL && str_ibegins(c,"m3u")) {
+        *c = '\0';
+    }
+
+    return info;
+}
+
 static jpr_uint64 jprm3u_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jpr_int16 *buf) {
     jpr_uint64 r;
     jpr_uint64 t;
@@ -332,6 +361,7 @@ m3u_finish:
 
 static const char *const extensions[] = {
     "m3u",
+    "m3u8",
     NULL
 };
 
@@ -340,7 +370,7 @@ const audio_plugin jprm3u_plugin = {
     jprm3u_open, /* open */
     jprm3u_decode, /* decode */
     jprm3u_close, /* close */
-    NULL, /* probe */
+    jprm3u_probe, /* probe */
     extensions
 };
 

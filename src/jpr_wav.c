@@ -123,9 +123,11 @@ closereturn:
 }
 
 
-static audio_info *jprwav_probe(audio_decoder *decoder) {
+static audio_info *jprwav_probe(audio_decoder *decoder, const char *filename) {
     audio_info *info;
     wav_probe *metaprobe;
+
+    (void)filename;
 
     info = (audio_info *)malloc(sizeof(audio_info));
     if(UNLIKELY(info == NULL)) {

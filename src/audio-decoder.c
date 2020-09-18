@@ -167,7 +167,7 @@ audio_info *audio_decoder_probe(audio_decoder *a, const char *filename) {
             ext = (*plugin)->extensions;
             while(*ext != NULL) {
                 if(str_iends(filename,*ext)) {
-                    info = (*plugin)->probe(a);
+                    info = (*plugin)->probe(a,filename);
                     if(info != NULL) goto probe_cleanup;
                 }
                 ext++;

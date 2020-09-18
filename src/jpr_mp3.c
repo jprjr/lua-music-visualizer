@@ -63,10 +63,12 @@ static jpr_uint64 jprmp3_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jp
     return (jpr_uint64)drmp3_read_pcm_frames_s16((drmp3 *)ctx->priv,(drmp3_uint64)framecount,(drmp3_int16 *)buf);
 }
 
-static audio_info *jprmp3_probe(audio_decoder *decoder) {
+static audio_info *jprmp3_probe(audio_decoder *decoder, const char *filename) {
     audio_info *info;
     mp3_probe *metaprobe;
     drmp3 *pMp3 = NULL;
+
+    (void)filename;
 
     info = (audio_info *)malloc(sizeof(audio_info));
     if(UNLIKELY(info == NULL)) {

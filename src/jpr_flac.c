@@ -72,10 +72,12 @@ static void flac_meta(void *ctx, drflac_metadata *pMetadata) {
     }
 }
 
-static audio_info *jprflac_probe(audio_decoder *decoder) {
+static audio_info *jprflac_probe(audio_decoder *decoder, const char *filename) {
     audio_info *info;
     flac_probe *metaprobe;
     drflac *pFlac;
+
+    (void)filename;
 
     info = (audio_info *)malloc(sizeof(audio_info));
     if(UNLIKELY(info == NULL)) {

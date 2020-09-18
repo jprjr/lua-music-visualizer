@@ -43,13 +43,15 @@ static void fade_samples(jpr_uint64 frames_rem, jpr_uint64 frames_fade, jpr_uint
     return;
 }
 
-static audio_info *jprnez_probe(audio_decoder *decoder) {
+static audio_info *jprnez_probe(audio_decoder *decoder, const char *filename) {
     unsigned int i;
     unsigned int offset;
     jpr_uint8 *nez_data;
     size_t nez_data_len;
     NEZ_PLAY *player;
     audio_info *info;
+
+    (void)filename;
 
     nez_data = decoder->slurp(decoder,&nez_data_len);
     if(nez_data_len == 0) return NULL;
