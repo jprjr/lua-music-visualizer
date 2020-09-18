@@ -9,7 +9,6 @@
 #include "path.h"
 #include <stdlib.h>
 #include <math.h>
-#include <stdio.h>
 
 struct m3u_private_s {
     jpr_text *m3u_lines;
@@ -102,7 +101,6 @@ jprm3u_nextinput(m3u_private *priv) {
         }
 
         if(tmp[0] == '#') {
-            fprintf(stderr,"Parsing comment\n");
             /* try parsing for commands */
             c = tmp;
             while(*c && (*c == '\t' || *c == ' ' || *c == '#')) c++;
@@ -110,7 +108,6 @@ jprm3u_nextinput(m3u_private *priv) {
                 c += 7;
                 while(*c && (*c == ' ' || *c == '\t')) c++;
                 if(str_len(c) > 0) {
-                    fprintf(stderr,"done, sending, c = '%s'\n",c);
                     jprm3u_onmeta(priv->parent,"message",c);
                     jprm3u_onchange(priv->parent,"message");
                 }
