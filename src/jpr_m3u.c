@@ -241,15 +241,16 @@ static jpr_uint64 jprm3u_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jp
     }
 
     while(r < framecount) {
-        t = audio_resampler_decode(priv->resampler,framecount,&buf[r * 2]);
+        t = audio_resampler_decode(priv->resampler,framecount - r,&buf[r * 2]);
         r += t;
-        if(t != framecount) {
+        if(r != framecount) {
             audio_resampler_close(priv->resampler);
 
-            if(jprm3u_nextinput(priv)) return r;
+            if(jprm3u_nextinput(priv)) {
+                return r;
+            }
             audio_resampler_open(priv->resampler,priv->decoder);
         }
-        framecount -= t;
     }
     return r;
 }

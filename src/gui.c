@@ -439,6 +439,7 @@ static int startVideoGenerator(const char *songfile, const char *scriptfile, con
             break;
         }
     }
+    fprintf(stderr,"closing generator\n");
 
     video_generator_close(generator);
 

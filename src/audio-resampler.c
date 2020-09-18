@@ -87,5 +87,10 @@ void audio_resampler_close(audio_resampler *sampler) {
 #if ENABLE_LIBSAMPLERATE
     if(sampler->src != NULL) src_delete(sampler->src);
 #endif
+    sampler->buf   = NULL;
+    sampler->in    = NULL;
+    sampler->out   = NULL;
+    sampler->src   = NULL;
+    sampler->ratio = 0.0;
     return;
 }

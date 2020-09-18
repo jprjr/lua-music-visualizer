@@ -136,8 +136,11 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
 }
 
 jpr_uint64 audio_decoder_decode(audio_decoder *a, jpr_uint64 framecount, jpr_int16 *buf) {
+    jpr_uint64 r;
     mem_set(buf,0,a->channels * sizeof(jpr_int16)*framecount);
-    return a->plugin->decode(a->plugin_ctx,framecount,buf);
+    r = a->plugin->decode(a->plugin_ctx,framecount,buf);
+    a->decodedframes += r;
+    return r;
 }
 
 void audio_decoder_close(audio_decoder *a) {

@@ -369,7 +369,6 @@ int video_generator_loop(video_generator *v, float *progress) {
     SAVE_COUNTER_DIFF(audio_times[framecounter],audio_start,audio_end);
 #endif
     if(v->decoder->framecount > 0) {
-        v->decoder->decodedframes += samps;
         *progress = ((float)v->decoder->decodedframes) / ((float)v->decoder->framecount);
     } else {
         *progress = 0.0f;
@@ -437,9 +436,16 @@ int video_generator_loop(video_generator *v, float *progress) {
     wake_queue();
 
     mem_cpy(v->framebuf + 16 + v->framebuf_video_len,(jpr_uint8 *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
-    if(UNLIKELY(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i))) return 1;
+    if(UNLIKELY(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i))) {
+        LOG_ERROR("Video write failed, returning");
+        return 1;
+    }
 
-    if(UNLIKELY(i != v->framebuf_len)) return 1;
+    if(UNLIKELY(i != v->framebuf_len)) {
+        LOG_ERROR("Video write incomplete, returning");
+        return 1;
+    }
+
 
 #ifdef CHECK_PERFORMANCE
     SAVE_COUNTER(&frame_end);
