@@ -115,6 +115,25 @@ int path_exists(const char *filename) {
     return r;
 }
 
+int path_isabsolute(const char *filename) {
+    int r = 0;
+    switch(filename[0]) {
+#ifdef JPR_WINDOWS
+        case '\\': /* fall-through */
+#endif
+        case '/': r = 1; break;
+    }
+
+#ifdef JPR_WINDOWS
+    if(r == 0) {
+        if(str_len(filename) > 2 && filename[1] == ':' && filename[2] == '\\') { /* C:\ */
+            r = 1;
+        }
+    }
+#endif
+    return r;
+}
+
 char *path_basename(const char *filename) {
     size_t len;
     size_t sep;
@@ -254,29 +273,13 @@ char *path_getcwd(void) {
 }
 
 char *path_absolute(const char *f) {
-    size_t is_absolute;
     size_t f_len;
     size_t t_len;
     char *t;
     char *cwd;
-    is_absolute = 0;
     f_len = str_len(f);
 
-    switch(f[0]) {
-#ifdef JPR_WINDOWS
-        case '\\': /* fall-through */
-#endif
-        case '/': is_absolute = 1; break;
-    }
-
-#ifdef JPR_WINDOWS
-    if(is_absolute == 0) {
-        if(f_len > 2 && f[1] == ':' && f[2] == '\\') { /* C:\ */
-            is_absolute = 1;
-        }
-    }
-#endif
-    if (is_absolute) {
+    if (path_isabsolute(f)) {
         return str_dup(f);
     }
 

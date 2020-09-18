@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 int path_exists(const char *filename);
+int path_isabsolute(const char *filename);
 
 /* returns basename/dirname without modifying original */
 /* remember to free the returned pointer */

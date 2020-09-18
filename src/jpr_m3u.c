@@ -170,6 +170,8 @@ jprm3u_nextinput(m3u_private *priv) {
         }
 
         if(str_len(tmp) > 0) {
+            /* some extra space will be allocated in the absolute path
+             * case but whatever */
             subfile = realloc(subfile,strlen(priv->dir) + strlen(tmp) + 2);
             if(subfile == NULL) {
                 free(tmp);
@@ -177,13 +179,18 @@ jprm3u_nextinput(m3u_private *priv) {
                 priv->decoder = NULL;
                 return 1;
             }
-            str_cpy(subfile,priv->dir);
+            if(path_isabsolute(tmp)) {
+                str_cpy(subfile,tmp);
+            }
+            else {
+                str_cpy(subfile,priv->dir);
 #ifdef JPR_WINDOWS
-            str_cat(subfile,"\\");
+                str_cat(subfile,"\\");
 #else
-            str_cat(subfile,"/");
+                str_cat(subfile,"/");
 #endif
-            str_cat(subfile,tmp);
+                str_cat(subfile,tmp);
+            }
 
             audio_decoder_init(priv->decoder);
             priv->decoder->onmeta          = jprm3u_onmeta;
