@@ -36,6 +36,7 @@ static Ihandle *dlg;
 static Ihandle *config;
 
 static Ihandle *startBox, *startVbox;
+static Ihandle *progressBar;
 static Ihandle *startButton, *saveButton;
 
 /* "Basics" tab */
@@ -405,6 +406,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
     }
 
     while(video_generator_loop(generator,&progress) == 0) {
+        IupSetFloat(progressBar,"VALUE",progress);
         if(IupLoopStep() == IUP_CLOSE) {
             t = 1;
             break;
@@ -437,12 +439,15 @@ static int saveButtonCb(Ihandle *self) {
         return IUP_DEFAULT;
     }
 
+
     char *songfile = IupGetAttribute(songText,"VALUE");
     char *scriptfile = IupGetAttribute(scriptText,"VALUE");
     char *ffmpegfile = IupGetAttribute(ffmpegText,"VALUE");
     char *og_ffmpegargs = IupGetAttribute(ffmpegArgsText,"VALUE");
     char *ffmpegargs = NULL;
     char *f = NULL;
+
+    IupSetFloat(progressBar,"VALUE",0.0f);
 
     unsigned int total_args = 6;
     unsigned int i = 0;
@@ -516,6 +521,8 @@ static int startButtonCb(Ihandle *self) {
     char **args;
     char **a;
     (void)self;
+
+    IupSetFloat(progressBar,"VALUE",0.0f);
 
     args = (char **)malloc(sizeof(char *) * 10);
     if(args == NULL) goto cleanshitup_start;
@@ -895,8 +902,10 @@ int gui_start(int argc, char **argv) {
     IupSetAttribute(saveButton,"PADDING","10x10");
     IupSetAttribute(saveButton,"FONT","Arial, 24");
 
+    progressBar = IupProgressBar();
+
     startBox = IupHbox(IupFill(),startButton,saveButton,IupFill(), NULL);
-    startVbox = IupVbox(IupFill(),startBox,IupFill(),NULL);
+    startVbox = IupVbox(IupFill(),progressBar,startBox,IupFill(),NULL);
     IupSetAttribute(startBox,"ALIGNMENT","ACENTER");
     IupSetAttribute(startVbox,"ALIGNMENT","ACENTER");
 
