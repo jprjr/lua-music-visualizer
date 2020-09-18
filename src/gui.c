@@ -1,14 +1,10 @@
 #include "norm.h"
-#ifdef JPR_WINDOWS
+#if ENABLE_GUI
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <iup.h>
 #include <iup_config.h>
-#include <windows.h>
-#include <io.h>
-#include <fcntl.h>
-#include <tchar.h>
 #include "audio-decoder.h"
 #include "audio-processor.h"
 #include "video-generator.h"
@@ -23,6 +19,32 @@
 #ifdef CHECK_LEAKS
 #include "stb_leakcheck.h"
 #endif
+
+/* paths to search for video players */
+
+static const char* const video_players[] = {
+#if defined(JPR_WINDOWS)
+    "C:\\Program Files\\MPC-HC\\mpc-hc64.exe",
+    "C:\\Program Files (x86)\\MPC-HC\\mpc-hc.exe",
+    "C:\\Program Files\\MPC-HC\\mpc-hc.exe",
+#elif defined(JPR_APPLE)
+    "/usr/local/bin/mpv",
+    "/usr/local/bin/ffplay",
+#else
+    "/usr/bin/mpv",
+    "/usr/bin/ffplay",
+#endif
+    "",
+};
+
+static const char* const video_encoders[] = {
+#if defined(JPR_UNIX)
+    "/usr/local/bin/ffmpeg",
+    "/usr/bin/ffmpeg",
+#endif
+    "",
+};
+
 
 static char *filterString;
 static char *filterInfoString;
@@ -162,15 +184,17 @@ static void activateStartButton(void) {
     IupSetAttribute(saveButton,"ACTIVE","YES");
 }
 
-static const char* const video_players[] = {
-    "C:\\Program Files\\MPC-HC\\mpc-hc64.exe",
-    "C:\\Program Files (x86)\\MPC-HC\\mpc-hc.exe",
-    "C:\\Program Files\\MPC-HC\\mpc-hc.exe",
-    "",
-};
-
 static const char *findVideoPlayer(void) {
     const char **p = (const char **)video_players;
+    while(str_len(*p) > 0) {
+        if(path_exists(*p)) return *p;
+        p++;
+    }
+    return *p;
+}
+
+static const char *findVideoEncoder(void) {
+    const char **p = (const char **)video_encoders;
     while(str_len(*p) > 0) {
         if(path_exists(*p)) return *p;
         p++;
@@ -417,11 +441,18 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
 
 startvideo_cleanup:
     jpr_proc_pipe_close(&child_stdin);
-    jpr_proc_info_term(&process);
-    if(jpr_proc_info_wait(&process,&t,5) == 2) {
-        jpr_proc_info_kill(&process);
-        jpr_proc_info_wait(&process,&t,5);
+    
+    /* wait up to 30 seconds for video encoder to finish */
+    if(jpr_proc_info_wait(&process,&t,30) == 2) {
+        /* send a term signal, wait 5 seconds */
+        jpr_proc_info_term(&process);
+        if(jpr_proc_info_wait(&process,&t,5) == 2) {
+            /* send a kill signal, something's wrong */
+            jpr_proc_info_kill(&process);
+            jpr_proc_info_wait(&process,&t,5);
+        }
     }
+
     tearDownGenerator();
 
     if(t) IupExitLoop();
@@ -677,6 +708,12 @@ static void createProgramBox(void) {
     IupSetCallback(ffmpegText,"DROPFILES_CB",(Icallback) lazySetTextCB);
     IupSetAttribute(ffmpegText,"DROPFILESTARGET","YES");
     IupSetAttribute(ffmpegText,"VALUE",IupConfigGetVariableStrDef(config,"global","ffmpeg",""));
+
+    if(str_len(IupGetAttribute(ffmpegText,"VALUE")) == 0) {
+        IupSetAttribute(ffmpegText,"VALUE",findVideoEncoder());
+        IupConfigSetVariableStr(config,"global","ffmpeg",findVideoEncoder());
+        IupConfigSave(config);
+    }
 
     programBox = IupGridBox(videoplayerBtn,videoplayerText,ffmpegBtn,ffmpegText,NULL);
     IupSetAttribute(programBox,"ORIENTATION","HORIZONTAL");
