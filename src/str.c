@@ -49,6 +49,8 @@ size_t str_lower(char *dest, const char *src);
 size_t str_nlower(char *dest, const char *src, size_t max);
 size_t str_ends(const char *s, const char *q);
 size_t str_iends(const char *s, const char *q);
+size_t str_begins(const char *s, const char *q);
+size_t str_ibegins(const char *s, const char *q);
 char *str_nchr(const char *s, char c, size_t n);
 #ifdef __cplusplus
 }
@@ -411,6 +413,28 @@ size_t str_iends(const char *s, const char *q) {
 #else
     return strcasecmp(&s[slen - qlen],q) == 0;
 #endif
+#endif
+}
+
+size_t str_begins(const char *s, const char *q) {
+    size_t slen = str_len(s);
+    size_t qlen = str_len(q);
+    if(slen < qlen) return 0;
+#ifdef JPR_NO_STDLIB
+    return str_ncmp(s,q,qlen) == 0;
+#else
+    return strncmp(s,q,qlen) == 0;
+#endif
+}
+
+size_t str_ibegins(const char *s, const char *q) {
+    size_t slen = str_len(s);
+    size_t qlen = str_len(q);
+    if(slen < qlen) return 0;
+#ifdef JPR_NO_STDLIB
+    return str_incmp(s,q,qlen) == 0;
+#else
+    return strncasecmp(s,q,qlen) == 0;
 #endif
 }
 

@@ -9,6 +9,7 @@
 #include "path.h"
 #include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
 
 struct m3u_private_s {
     jpr_text *m3u_lines;
@@ -77,6 +78,9 @@ static void jprm3u_close(audio_plugin_ctx *ctx) {
 static int
 jprm3u_nextinput(m3u_private *priv) {
     const char *line = NULL;
+    char *title  = NULL;
+    char *album  = NULL;
+    char *artist = NULL;
     char *tmp = NULL;
     char *c   = NULL;
     char *subfile = NULL;
@@ -95,6 +99,69 @@ jprm3u_nextinput(m3u_private *priv) {
             free(priv->decoder);
             priv->decoder = NULL;
             return 1;
+        }
+
+        if(tmp[0] == '#') {
+            fprintf(stderr,"Parsing comment\n");
+            /* try parsing for commands */
+            c = tmp;
+            while(*c && (*c == '\t' || *c == ' ' || *c == '#')) c++;
+            if(str_ibegins(c,"message")) {
+                c += 7;
+                while(*c && (*c == ' ' || *c == '\t')) c++;
+                if(str_len(c) > 0) {
+                    fprintf(stderr,"done, sending, c = '%s'\n",c);
+                    jprm3u_onmeta(priv->parent,"message",c);
+                    jprm3u_onchange(priv->parent,"message");
+                }
+            }
+            else if(str_ibegins(c,"title")) {
+                c += 5;
+                while(*c && (*c == ' ' || *c == '\t')) c++;
+                if(str_len(c) > 0) {
+                    title = str_dup(c);
+                    if(title == NULL) {
+                        if(album != NULL) free(album);
+                        if(artist != NULL) free(artist);
+                        free(tmp);
+                        free(priv->decoder);
+                        priv->decoder = NULL;
+                        return 1;
+                    }
+                }
+            }
+            else if(str_ibegins(c,"album")) {
+                c += 5;
+                while(*c && (*c == ' ' || *c == '\t')) c++;
+                if(str_len(c) > 0) {
+                    album = str_dup(c);
+                    if(album == NULL) {
+                        if(title != NULL) free(title);
+                        if(artist != NULL) free(artist);
+                        free(tmp);
+                        free(priv->decoder);
+                        priv->decoder = NULL;
+                        return 1;
+                    }
+                }
+            }
+            else if(str_ibegins(c,"artist")) {
+                c += 6;
+                while(*c && (*c == ' ' || *c == '\t')) c++;
+                if(str_len(c) > 0) {
+                    artist = str_dup(c);
+                    if(artist == NULL) {
+                        if(album != NULL) free(album);
+                        if(artist != NULL) free(artist);
+                        free(tmp);
+                        free(priv->decoder);
+                        priv->decoder = NULL;
+                        return 1;
+                    }
+                }
+            }
+            free(tmp);
+            continue;
         }
 
         c = str_chr(tmp,'#');
@@ -127,6 +194,22 @@ jprm3u_nextinput(m3u_private *priv) {
             priv->decoder->onchange        = jprm3u_onchange;
             priv->decoder->meta_ctx        = priv->parent;
             if(audio_decoder_open(priv->decoder,subfile) == 0) {
+                /* apply title/artist/album overrides if they were given */
+                if(title != NULL) {
+                    priv->decoder->onmeta(priv->decoder->meta_ctx,"title",title);
+                    free(title);
+                    title = NULL;
+                }
+                if(artist != NULL) {
+                    priv->decoder->onmeta(priv->decoder->meta_ctx,"artist",artist);
+                    free(artist);
+                    artist = NULL;
+                }
+                if(album != NULL) {
+                    priv->decoder->onmeta(priv->decoder->meta_ctx,"album",album);
+                    free(album);
+                    album = NULL;
+                }
                 priv->decoder->onmeta(priv->decoder->meta_ctx,"file",subfile);
                 priv->decoder->onmeta_double(priv->decoder->meta_ctx,"elapsed",0.0f);
                 priv->decoder->onmeta_double(priv->decoder->meta_ctx,"total",((double)priv->decoder->framecount) / ((double)priv->decoder->samplerate));
@@ -138,6 +221,9 @@ jprm3u_nextinput(m3u_private *priv) {
         }
         free(tmp);
     }
+    if(title != NULL) free(title);
+    if(artist != NULL) free(artist);
+    if(album != NULL) free(album);
     free(subfile);
     free(priv->decoder);
     priv->decoder = NULL;

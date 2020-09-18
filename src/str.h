@@ -90,6 +90,8 @@ size_t str_nlower(char *d, const char *str, size_t max);
 size_t str_lower(char *d, const char *str);
 attr_pure size_t str_ends(const char *s, const char *q);
 attr_pure size_t str_iends(const char *s, const char *q);
+attr_pure size_t str_begins(const char *s, const char *q);
+attr_pure size_t str_ibegins(const char *s, const char *q);
 
 #define str_equals(s,q) (str_cmp(s,q) == 0)
 #define str_iequals(s,q) (str_icmp(s,q) == 0)
