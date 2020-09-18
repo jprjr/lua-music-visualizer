@@ -403,10 +403,11 @@ videogenerator_fail:
     return 1;
 }
 
-static void startVideoGenerator(const char *songfile, const char *scriptfile, const char *const *args) {
+static int startVideoGenerator(const char *songfile, const char *scriptfile, const char *const *args) {
     jpr_proc_info process;
     jpr_proc_pipe child_stdin;
     int t = 0;
+    int r = -1;
     const char *const *arg = args;
     float progress = 0.0f;
 
@@ -417,7 +418,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
     }
     fprintf(stderr,"\n");
 
-    if(setupVideoGenerator()) return;
+    if(setupVideoGenerator()) return r;
 
     jpr_proc_info_init(&process);
     jpr_proc_pipe_init(&child_stdin);
@@ -428,6 +429,8 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
         LOG_ERROR("error starting the video generator");
         goto startvideo_cleanup;
     }
+
+    r = 0;
 
     while(video_generator_loop(generator,&progress) == 0) {
         IupSetFloat(progressBar,"VALUE",progress);
@@ -444,6 +447,12 @@ startvideo_cleanup:
  
     /* wait up to 30 seconds for video encoder to finish */
     if(jpr_proc_info_wait(&process,&t,30) == 2) {
+
+#ifdef JPR_WINDOWS
+        /* windows doesn't really have a "term" so sending a "term"
+         * just kills the process, this is likely an error */
+        r = -1;
+#endif
         /* send a term signal, wait 5 seconds */
         jpr_proc_info_term(&process);
         if(jpr_proc_info_wait(&process,&t,5) == 2) {
@@ -456,7 +465,7 @@ startvideo_cleanup:
     tearDownGenerator();
 
     if(t) IupExitLoop();
-    return;
+    return r;
 
 }
 
@@ -536,7 +545,11 @@ static int saveButtonCb(Ihandle *self) {
     *a++ = IupGetAttribute(dlg,"VALUE");
     *a = NULL;
 
-    startVideoGenerator(songfile,scriptfile,(const char *const *)args);
+    if(startVideoGenerator(songfile,scriptfile,(const char *const *)args) == 0) {
+        IupMessage("Video Encode","Video encoded successfully.");
+    } else {
+        IupMessage("Video Encode","Error encoding the video.");
+    }
 
 cleanshitup_save:
     if(args != NULL) free(args);
