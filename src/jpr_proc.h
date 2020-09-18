@@ -247,9 +247,11 @@ int jpr_proc_info_wait(jpr_proc_info *info, int *e, unsigned int timeout) {
         alarm(timeout);
     }
     if(jpr_waitpid(info->pid,&st,0) == -1) {
+        alarm(0);
         if(errno == EINTR) return 2;
         return 1;
     }
+    alarm(0);
     jpr_proc_info_init(info);
     if(WIFEXITED(st)) {
         *e = (int)WEXITSTATUS(st);
