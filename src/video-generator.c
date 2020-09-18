@@ -421,7 +421,7 @@ int video_generator_loop(video_generator *v) {
     lua_pop(v->L,1);
 
 #ifndef NDEBUG
-      assert(lua_top == lua_gettop(v->L));
+    assert(lua_top == lua_gettop(v->L));
 #endif
 
     v->elapsed += v->ms_per_frame;

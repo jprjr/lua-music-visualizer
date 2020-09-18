@@ -62,7 +62,6 @@ static Ihandle *barsLabel, *barsText;
 /* "Encoder" tab */
 static Ihandle *encoderBox;
 static Ihandle *ffmpegArgsLabel, *ffmpegArgsText;
-static Ihandle *outputBtn, *outputText;
 
 /* "Misc" tab */
 static Ihandle *miscBox;
@@ -70,15 +69,6 @@ static Ihandle *cwdBtn, *cwdText;
 static audio_info *audioInfo;
 
 static char **trackList;
-
-static int printable(char *s) {
-    unsigned int i = 0;
-    while(i < str_len(s)) {
-        if(s[i] < 32) return 0;
-        i++;
-    }
-    return 1;
-}
 
 static int probeAudio(const char *filename) {
     audio_decoder *a;
@@ -167,7 +157,6 @@ static void activateStartButton(void) {
         IupSetAttribute(startButton,"ACTIVE","YES");
     }
 
-    if(str_len(IupGetAttribute(outputText,"VALUE")) == 0) return;
     if(str_len(IupGetAttribute(ffmpegText,"VALUE")) == 0) return;
     IupSetAttribute(saveButton,"ACTIVE","YES");
 }
@@ -203,8 +192,6 @@ static int lazySetTextCB(Ihandle *self, char *filename, int num, int x, int y) {
         IupConfigSetVariableStr(config,"global","working directory",filename);
     } else if(self == ffmpegText) {
         IupConfigSetVariableStr(config,"global","ffmpeg",filename);
-    } else if(self == outputText) {
-        IupConfigSetVariableStr(config,"global","output",filename);
     }
     IupConfigSave(config);
     activateStartButton();
@@ -245,24 +232,6 @@ static int scriptBtnCb(Ihandle *self) {
     IupDestroy(dlg);
     activateStartButton();
 	(void)self;
-
-    return IUP_DEFAULT;
-}
-
-static int outputBtnCb(Ihandle *self) {
-    Ihandle *dlg = IupFileDlg();
-    IupSetAttribute(dlg,"DIALOGTYPE","SAVE");
-    IupSetAttribute(dlg,"TITLE","Save video as");
-    IupSetAttribute(dlg,"EXTDEFAULT","mp4");
-    IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
-    if(IupGetInt(dlg,"STATUS") > 0) {
-        IupSetAttribute(outputText,"VALUE",IupGetAttribute(dlg,"VALUE"));
-        IupConfigSetVariableStr(config,"global","output",IupGetAttribute(dlg,"VALUE"));
-        IupConfigSave(config);
-    }
-    IupDestroy(dlg);
-	(void)self;
-    activateStartButton();
 
     return IUP_DEFAULT;
 }
@@ -413,6 +382,14 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
     jpr_proc_info process;
     jpr_proc_pipe child_stdin;
     int t = 0;
+    const char *const *arg = args;
+
+    fprintf(stderr,"Running:");
+    while(*arg) {
+        fprintf(stderr," \"%s\"",*arg);
+        arg++;
+    }
+    fprintf(stderr,"\n");
 
     if(setupVideoGenerator()) return;
 
@@ -450,12 +427,22 @@ startvideo_cleanup:
 }
 
 static int saveButtonCb(Ihandle *self) {
+    Ihandle *dlg = IupFileDlg();
+    IupSetAttribute(dlg,"DIALOGTYPE","SAVE");
+    IupSetAttribute(dlg,"TITLE","Save video as");
+    IupSetAttribute(dlg,"EXTDEFAULT","mp4");
+    IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
+    if(IupGetInt(dlg,"STATUS") < 0) {
+        return IUP_DEFAULT;
+    }
+
     char *songfile = IupGetAttribute(songText,"VALUE");
     char *scriptfile = IupGetAttribute(scriptText,"VALUE");
     char *ffmpegfile = IupGetAttribute(ffmpegText,"VALUE");
-    char *outputfile = IupGetAttribute(outputText,"VALUE");
-    char *ffmpegargs = IupGetAttribute(ffmpegArgsText,"VALUE");
-    char *f = ffmpegargs;
+    char *og_ffmpegargs = IupGetAttribute(ffmpegArgsText,"VALUE");
+    char *ffmpegargs = NULL;
+    char *f = NULL;
+
     unsigned int total_args = 6;
     unsigned int i = 0;
     char *t;
@@ -463,11 +450,20 @@ static int saveButtonCb(Ihandle *self) {
     char **a;
     (void)self;
 
+    if(og_ffmpegargs != NULL) {
+        ffmpegargs = str_dup(og_ffmpegargs);
+    } else {
+        ffmpegargs = str_dup("");
+    }
+
+    f = ffmpegargs;
     do {
       t = str_chr(f,' ');
+      if(t == NULL) t = &f[str_len(f)];
       if(t - f > 0) {
-          /* we may get some extra args this way but no big deal */
-          total_args++;
+          if(f[0] != ' ' && str_len(f) > 0) {
+              total_args++;
+          }
           f += (t - f) + 1;
       }
       else {
@@ -486,12 +482,13 @@ static int saveButtonCb(Ihandle *self) {
 
     do {
       t = str_chr(f,' ');
+      if(t == NULL) t = &f[str_len(f)];
       if(t - f > 0 ) {
           *t = '\0';
-          if(f[0] != ' ' && str_len(f) > 0 && printable(f)) {
+          if(f[0] != ' ' && str_len(f) > 0) {
               *a++ = f;
           }
-          f += i + 1;
+          f += (t - f) + 1;
       }
       else {
           f++;
@@ -499,13 +496,14 @@ static int saveButtonCb(Ihandle *self) {
     } while(*f);
 
     *a++ = "-y";
-    *a++ = outputfile;
+    *a++ = IupGetAttribute(dlg,"VALUE");
     *a = NULL;
 
     startVideoGenerator(songfile,scriptfile,(const char *const *)args);
 
 cleanshitup_save:
     if(args != NULL) free(args);
+    if(ffmpegargs != NULL) free(ffmpegargs);
 
     return IUP_DEFAULT;
 }
@@ -686,19 +684,10 @@ static void createEncoderBox(void) {
     ffmpegArgsLabel = IupLabel("FFMpeg encode flags");
     ffmpegArgsText = IupText(NULL);
     IupSetAttribute(ffmpegArgsText,"EXPAND","HORIZONTAL");
-    IupSetAttribute(ffmpegArgsText,"VALUE",IupConfigGetVariableStrDef(config,"global","ffmpeg args","-c:v libx264 -c:a aac"));
+    IupSetAttribute(ffmpegArgsText,"VALUE",IupConfigGetVariableStrDef(config,"global","ffmpeg args","-c:v libx264 -c:a aac -pix_fmt yuv420p -f mp4"));
     IupSetCallback(ffmpegArgsText,"VALUECHANGED_CB",updateAndSaveConfig);
 
-    outputBtn = IupButton("Save As",NULL);
-    IupSetCallback(outputBtn,"ACTION",(Icallback) outputBtnCb);
-
-    outputText = IupText(NULL);
-    IupSetAttribute(outputText, "EXPAND", "HORIZONTAL");
-    IupSetCallback(outputText,"DROPFILES_CB",(Icallback) lazySetTextCB);
-    IupSetAttribute(outputText,"DROPFILESTARGET","YES");
-    IupSetAttribute(outputText,"VALUE",IupConfigGetVariableStrDef(config,"global","output",""));
-
-    encoderBox = IupGridBox(ffmpegArgsLabel,ffmpegArgsText,outputBtn,outputText,NULL);
+    encoderBox = IupGridBox(ffmpegArgsLabel,ffmpegArgsText,NULL);
     IupSetAttribute(encoderBox,"ORIENTATION","HORIZONTAL");
     IupSetAttribute(encoderBox,"NUMDIV","2");
     IupSetAttribute(encoderBox,"GAPLIN","20");
@@ -818,6 +807,12 @@ int gui_start(int argc, char **argv) {
 
     int total_formats = 0;
 
+    if(filterString != NULL) append_string(&filterString,";");
+    if(filterInfoString != NULL) append_string(&filterInfoString,"/");
+    append_string(&filterString,"*.m3u");
+    append_string(&filterInfoString,"M3U Files");
+    total_formats++;
+
 #if DECODE_FLAC
     if(filterString != NULL) append_string(&filterString,";");
     if(filterInfoString != NULL) append_string(&filterInfoString,"/");
@@ -861,7 +856,7 @@ int gui_start(int argc, char **argv) {
 #if DECODE_VGM
     if(filterString != NULL) append_string(&filterString,";");
     if(filterInfoString != NULL) append_string(&filterInfoString,"/");
-    append_string(&filterString,"*.vgm");
+    append_string(&filterString,"*.vgm;*.vgz");
     append_string(&filterInfoString,"VGM");
     total_formats++;
 #endif
