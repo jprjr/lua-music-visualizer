@@ -868,7 +868,7 @@ int gui_start(int argc, char **argv) {
 
     if(filterString != NULL) append_string(&filterString,";");
     if(filterInfoString != NULL) append_string(&filterInfoString,"/");
-    append_string(&filterString,"*.m3u");
+    append_string(&filterString,"*.m3u;*.m3u8");
     append_string(&filterInfoString,"M3U Files");
     total_formats++;
 
