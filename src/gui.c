@@ -441,7 +441,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
 
 startvideo_cleanup:
     jpr_proc_pipe_close(&child_stdin);
-    
+ 
     /* wait up to 30 seconds for video encoder to finish */
     if(jpr_proc_info_wait(&process,&t,30) == 2) {
         /* send a term signal, wait 5 seconds */

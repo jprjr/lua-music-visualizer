@@ -120,6 +120,7 @@ jprm3u_nextinput(m3u_private *priv) {
             str_cat(subfile,"/");
 #endif
             str_cat(subfile,tmp);
+
             audio_decoder_init(priv->decoder);
             priv->decoder->onmeta          = jprm3u_onmeta;
             priv->decoder->onmeta_double   = jprm3u_onmeta_double;
@@ -161,7 +162,6 @@ static jpr_uint64 jprm3u_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jp
         r += t;
         if(t != framecount) {
             audio_resampler_close(priv->resampler);
-            audio_resampler_init(priv->resampler);
 
             if(jprm3u_nextinput(priv)) return r;
             audio_resampler_open(priv->resampler,priv->decoder);
@@ -218,6 +218,7 @@ static audio_plugin_ctx *jprm3u_open(audio_decoder *decoder, const char *filenam
     priv->resampler = (audio_resampler *)malloc(sizeof(audio_resampler));
     if(priv->resampler == NULL) goto m3u_error;
     priv->resampler->samplerate = 48000;
+    audio_resampler_init(priv->resampler);
 
     /* go through and get all the durations */
     while(jprm3u_nextinput(priv) == 0) {

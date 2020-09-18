@@ -701,10 +701,16 @@ int cli_start(int argc, char **argv) {
 #endif
     video_generator_close(generator);
     jpr_proc_pipe_close(&f);
-    jpr_proc_info_term(&i);
-    if(jpr_proc_info_wait(&i,&exitcode,5) == 2) {
-        jpr_proc_info_kill(&i);
-        jpr_proc_info_wait(&i,&exitcode,5);
+
+    /* wait up to 30 seconds for video encoder to finish */
+    if(jpr_proc_info_wait(&i,&exitcode,30) == 2) {
+        /* send a term signal, wait 5 seconds */
+        jpr_proc_info_term(&i);
+        if(jpr_proc_info_wait(&i,&exitcode,5) == 2) {
+            /* send a kill signal, something's wrong */
+            jpr_proc_info_kill(&i);
+            jpr_proc_info_wait(&i,&exitcode,5);
+        }
     }
 
     free(decoder);
