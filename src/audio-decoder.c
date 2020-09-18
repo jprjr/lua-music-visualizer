@@ -99,6 +99,7 @@ int audio_decoder_init(audio_decoder *a) {
     a->plugin_ctx = NULL;
     a->meta_ctx = NULL;
     a->framecount = 0;
+    a->decodedframes = 0;
     a->read = read_proc;
     a->seek = seek_proc;
     a->tell = tell_proc;
@@ -134,7 +135,7 @@ int audio_decoder_open(audio_decoder *a, const char *filename) {
 
 }
 
-jpr_uint32 audio_decoder_decode(audio_decoder *a, jpr_uint32 framecount, jpr_int16 *buf) {
+jpr_uint64 audio_decoder_decode(audio_decoder *a, jpr_uint64 framecount, jpr_int16 *buf) {
     mem_set(buf,0,a->channels * sizeof(jpr_int16)*framecount);
     return a->plugin->decode(a->plugin_ctx,framecount,buf);
 }

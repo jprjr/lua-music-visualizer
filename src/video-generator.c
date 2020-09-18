@@ -310,7 +310,7 @@ void video_generator_close(video_generator *v) {
     free(v->framebuf);
 }
 
-int video_generator_loop(video_generator *v) {
+int video_generator_loop(video_generator *v, float *progress) {
 #ifndef NDEBUG
     int lua_top;
 #endif
@@ -368,6 +368,12 @@ int video_generator_loop(video_generator *v) {
     SAVE_COUNTER(&audio_end);
     SAVE_COUNTER_DIFF(audio_times[framecounter],audio_start,audio_end);
 #endif
+    if(v->decoder->framecount > 0) {
+        v->decoder->decodedframes += samps;
+        *progress = ((float)v->decoder->decodedframes) / ((float)v->decoder->framecount);
+    } else {
+        *progress = 0.0f;
+    }
     r = samps < v->samples_per_frame;
 
     mem_set(v->framebuf+8,0,v->framebuf_video_len);

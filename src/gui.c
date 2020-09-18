@@ -383,6 +383,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
     jpr_proc_pipe child_stdin;
     int t = 0;
     const char *const *arg = args;
+    float progress = 0.0f;
 
     fprintf(stderr,"Running:");
     while(*arg) {
@@ -403,7 +404,7 @@ static void startVideoGenerator(const char *songfile, const char *scriptfile, co
         goto startvideo_cleanup;
     }
 
-    while(video_generator_loop(generator) == 0) {
+    while(video_generator_loop(generator,&progress) == 0) {
         if(IupLoopStep() == IUP_CLOSE) {
             t = 1;
             break;

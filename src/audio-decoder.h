@@ -131,7 +131,8 @@ struct audio_decoder_s {
     unsigned int samplerate;
     unsigned int channels;
     unsigned int track;
-    jpr_uint32 framecount;
+    jpr_uint64 framecount;
+    jpr_uint64 decodedframes;
     meta_proc onmeta;
     meta_proc_double onmeta_double;
     change_proc onchange;
@@ -146,7 +147,7 @@ struct audio_decoder_s {
 int audio_decoder_init(audio_decoder *);
 audio_info * audio_decoder_probe(audio_decoder *, const char *filename);
 int audio_decoder_open(audio_decoder *, const char *filename);
-jpr_uint32 audio_decoder_decode(audio_decoder *a, jpr_uint32 framecount, jpr_int16 *buf);
+jpr_uint64 audio_decoder_decode(audio_decoder *a, jpr_uint64 framecount, jpr_int16 *buf);
 void audio_decoder_free_info(audio_info *i);
 void audio_decoder_close(audio_decoder *a);
 

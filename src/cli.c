@@ -441,6 +441,7 @@ int cli_start(int argc, char **argv) {
     unsigned int channels   = 0;
     unsigned int tracknum   = 1;
     int do_probe = 0;
+    float progress       = 0.0f;
 
     jpr_proc_pipe f;
     jpr_proc_info i;
@@ -665,10 +666,11 @@ int cli_start(int argc, char **argv) {
         quit(1,decoder,processor,generator,NULL);
         return 1;
     }
-
     free(sf);
 
-    while(video_generator_loop(generator) == 0) {
+    fprintf(stderr,"duration: %f\n",generator->duration);
+
+    while(video_generator_loop(generator,&progress) == 0) {
 #ifndef _WIN32
         if(thread_queue_count(&queue) > 0) {
             sig = thread_queue_consume(&queue);

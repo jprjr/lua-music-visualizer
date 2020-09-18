@@ -8,6 +8,7 @@
 #include "audio-decoder.h"
 #include "path.h"
 #include <stdlib.h>
+#include <math.h>
 
 struct m3u_private_s {
     jpr_text *m3u_lines;
@@ -150,6 +151,11 @@ static jpr_uint64 jprm3u_decode(audio_plugin_ctx *ctx, jpr_uint64 framecount, jp
     r = 0;
     priv = (m3u_private *)ctx->priv;
 
+    if(priv->decoder == NULL) {
+        if(jprm3u_nextinput(priv)) return 0;
+        audio_resampler_open(priv->resampler,priv->decoder);
+    }
+
     while(r < framecount) {
         t = audio_resampler_decode(priv->resampler,framecount,&buf[r * 2]);
         r += t;
@@ -213,11 +219,15 @@ static audio_plugin_ctx *jprm3u_open(audio_decoder *decoder, const char *filenam
     if(priv->resampler == NULL) goto m3u_error;
     priv->resampler->samplerate = 48000;
 
-    if(jprm3u_nextinput(priv)) goto m3u_error;
+    /* go through and get all the durations */
+    while(jprm3u_nextinput(priv) == 0) {
+        jpr_uint64 fc = priv->decoder->framecount;
+        decoder->framecount += ceil(((double)fc) * ((48000.0f / ((double)priv->decoder->samplerate))));
+    }
+    if(decoder->framecount == 0) goto m3u_error;
 
-    decoder->framecount = priv->decoder->framecount;
-    decoder->framecount *= ((48000.0f / ((double)priv->decoder->samplerate)));
-    audio_resampler_open(priv->resampler,priv->decoder);
+    jpr_text_close(priv->m3u_lines);
+    priv->m3u_lines = jpr_text_create(m3u_data,m3u_data_len);
 
     goto m3u_finish;
 
