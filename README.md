@@ -13,6 +13,41 @@ the raw RGB video (warning: this will be a large file).
 
 There's a CLI interface as well as a GUI interface.
 
+# Supported formats:
+
+* MP3
+* FLAC
+* WAVE
+* Raw/headerless PCM
+* M3U8 Playlists
+* VGM/VGZ (disabled by default)
+* NSF/NSFe/NSF2 (disabled by default)
+* SPC (disabled by default)
+* KSS/HES/AY/GBS/SGC (disabled by default)
+
+## M3U8 Playlists
+
+You can write comments in M3U8 playlists to override audio metadata, as well
+as simulate sending messages on the `visualizer` MPD channel.
+
+Metadata overrides apply to the next, upcoming track, and messages are "sent"
+just before the next track begins to decode. For example:
+
+```m3u8
+# title A Custom Title
+# artist A Custom Artist
+/path/to/song.mp3 # this MP3's track and artist tags will be ignored and set
+                  # to "A Custom Title" and "A Custom Artist", respectively.
+
+# message some message
+# "some message" will be sent on the "visualizer channel" as soon as song.mp3
+# is done playing / just before the next track and will trigger on "onchange"
+# call in your lua script.
+# album A custom album
+/path/to/song.wav # this WAV's album tag will be ignored and set to
+                  # "A custom album"
+```
+
 # Usage
 
 ```bash
