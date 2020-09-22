@@ -156,6 +156,7 @@ static int write_avi_header(video_generator *v) {
     jpr_uint8 buf[327];
     jpr_uint8 *b = buf;
     unsigned int r = 0;
+    memset(buf,0,327);
 
     str_cpy((char *)b,"RIFF");
     b += 4;
@@ -269,6 +270,7 @@ static int write_avi_header(video_generator *v) {
     b += format_dword(b,0);
     str_cpy((char *)b,"movi");
     b += 4;
+    assert(b == (buf + 326));
     (void)b;
 
     if(UNLIKELY(jpr_proc_pipe_write(v->out,(const char *)buf,326,&r))) return 1;
@@ -405,7 +407,6 @@ int video_generator_loop(video_generator *v, float *progress) {
 #ifdef CHECK_PERFORMANCE
           SAVE_COUNTER(&video_end);
           SAVE_COUNTER_DIFF(video_times[framecounter],video_start,video_end);
-          framecounter++;
 #endif
 
       } else {
@@ -450,6 +451,7 @@ int video_generator_loop(video_generator *v, float *progress) {
 #ifdef CHECK_PERFORMANCE
     SAVE_COUNTER(&frame_end);
     SAVE_COUNTER_DIFF(frame_times[framecounter],frame_start,frame_end);
+    framecounter++;
 #endif
 
     return r;
