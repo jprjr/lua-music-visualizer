@@ -3,52 +3,6 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-
-jpr_uint8 pack_uint64le(jpr_uint8 *d, jpr_uint64 n) {
-    if(d != NULL) {
-        ((jpr_uint64 *)d)[0] = n;
-    }
-    return 8;
-}
-
-jpr_uint8 pack_int64le(jpr_uint8 *d, jpr_int64 n) {
-    if(d != NULL) {
-        ((jpr_int64 *)d)[0] = n;
-    }
-    return 8;
-}
-
-jpr_uint8 pack_uint32le(jpr_uint8 *d, jpr_uint32 n) {
-    if(d != NULL) {
-        ((jpr_uint32 *)d)[0] = n;
-    }
-    return 4;
-}
-
-jpr_uint8 pack_int32le(jpr_uint8 *d, jpr_int32 n) {
-    if(d != NULL) {
-        ((jpr_int32 *)d)[0] = n;
-    }
-    return 4;
-}
-
-jpr_uint8 pack_uint16le(jpr_uint8 *d, jpr_uint16 n) {
-    if(d != NULL) {
-        ((jpr_uint16 *)d)[0] = n;
-    }
-    return 2;
-}
-
-jpr_uint8 pack_int16le(jpr_uint8 *d, jpr_int16 n) {
-    if(d != NULL) {
-        ((jpr_int16 *)d)[0] = n;
-    }
-    return 2;
-}
-
-#else
-
 jpr_uint8 pack_uint64le(jpr_uint8 *d, jpr_uint64 n) {
     if(d != NULL) {
         d[0] = (jpr_uint8)(n       );
@@ -112,54 +66,6 @@ jpr_uint8 pack_int16le(jpr_uint8 *d, jpr_int16 n) {
     }
     return 2;
 }
-
-#endif
-
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-
-jpr_uint8 pack_uint64be(jpr_uint8 *d, jpr_uint64 n) {
-    if(d != NULL) {
-        ((jpr_uint64 *)d)[0] = n;
-    }
-    return 8;
-}
-
-jpr_uint8 pack_int64be(jpr_uint8 *d, jpr_int64 n) {
-    if(d != NULL) {
-        ((jpr_int64 *)d)[0] = n;
-    }
-    return 8;
-}
-
-jpr_uint8 pack_uint32be(jpr_uint8 *d, jpr_uint32 n) {
-    if(d != NULL) {
-        ((jpr_uint32 *)d)[0] = n;
-    }
-    return 4;
-}
-
-jpr_uint8 pack_int32be(jpr_uint8 *d, jpr_int32 n) {
-    if(d != NULL) {
-        ((jpr_int32 *)d)[0] = n;
-    }
-    return 4;
-}
-
-jpr_uint8 pack_uint16be(jpr_uint8 *d, jpr_uint16 n) {
-    if(d != NULL) {
-        ((jpr_uint16 *)d)[0] = n;
-    }
-    return 2;
-}
-
-jpr_uint8 pack_int16be(jpr_uint8 *d, jpr_int16 n) {
-    if(d != NULL) {
-        ((jpr_int16 *)d)[0] = n;
-    }
-    return 2;
-}
-
-#else
 
 jpr_uint8 pack_uint64be(jpr_uint8 *d, jpr_uint64 n) {
     if(d != NULL) {
@@ -225,4 +131,3 @@ jpr_uint8 pack_int16be(jpr_uint8 *d, jpr_int16 n) {
     return 2;
 }
 
-#endif

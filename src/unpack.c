@@ -2,34 +2,6 @@
 
 /* Public-domain/CC0 - see https://creativecommons.org/publicdomain/zero/1.0/ */
 
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-
-jpr_uint64 unpack_uint64le(const jpr_uint8 *b) {
-    return ((jpr_uint64 *)b)[0];
-}
-
-jpr_int64 unpack_int64le(const jpr_uint8 *b) {
-    return ((jpr_int64 *)b)[0];
-}
-
-jpr_uint32 unpack_uint32le(const jpr_uint8 *b) {
-    return ((jpr_uint32 *)b)[0];
-}
-
-jpr_int32 unpack_int32le(const jpr_uint8 *b) {
-    return ((jpr_int32 *)b)[0];
-}
-
-jpr_uint16 unpack_uint16le(const jpr_uint8 *b) {
-    return ((jpr_uint16 *)b)[0];
-}
-
-jpr_int16 unpack_int16le(const jpr_uint8 *b) {
-    return ((jpr_int16 *)b)[0];
-}
-
-#else
-
 jpr_uint64 unpack_uint64le(const jpr_uint8 *b) {
     return (((jpr_uint64)b[7])<<56) |
            (((jpr_uint64)b[6])<<48) |
@@ -80,36 +52,6 @@ jpr_int16 unpack_int16le(const jpr_uint8 *b) {
       (jpr_int16)(((  jpr_int8)b[1]) << 8 ) |
                (((jpr_uint16)b[0])      );
 }
-
-#endif
-
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-
-jpr_uint64 unpack_uint64be(const jpr_uint8 *b) {
-    return ((jpr_uint64 *)b)[0];
-}
-
-jpr_int64 unpack_int64be(const jpr_uint8 *b) {
-    return ((jpr_int64 *)b)[0];
-}
-
-jpr_uint32 unpack_uint32be(const jpr_uint8 *b) {
-    return ((jpr_uint32 *)b)[0];
-}
-
-jpr_int32 unpack_int32be(const jpr_uint8 *b) {
-    return ((jpr_int32 *)b)[0];
-}
-
-jpr_uint16 unpack_uint16be(const jpr_uint8 *b) {
-    return ((jpr_uint16 *)b)[0];
-}
-
-jpr_int16 unpack_int16be(const jpr_uint8 *b) {
-    return ((jpr_int16 *)b)[0];
-}
-
-#else
 
 jpr_uint64 unpack_uint64be(const jpr_uint8 *b) {
     return (((jpr_uint64)b[0])<<56) |
@@ -162,8 +104,6 @@ jpr_int16 unpack_int16be(const jpr_uint8 *b) {
       (jpr_int16)(((  jpr_int8)b[0]) << 8 ) |
                (((jpr_uint16)b[1])      );
 }
-
-#endif
 
 jpr_uint32 unpack_uint24le(const jpr_uint8 *b) {
     return (((jpr_uint32)b[2])<<16) |
