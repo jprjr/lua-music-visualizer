@@ -83,12 +83,13 @@ jprm3u_nextinput(m3u_private *priv) {
     char *tmp = NULL;
     char *c   = NULL;
     char *subfile = NULL;
-    unsigned int tracknum = 0;
+    unsigned int tracknum = 1;
 
     if(priv->decoder != NULL) {
         audio_decoder_close(priv->decoder);
         free(priv->decoder);
     }
+
     priv->decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
 
     while((line = jpr_text_line(priv->m3u_lines)) != NULL) {
@@ -168,6 +169,7 @@ jprm3u_nextinput(m3u_private *priv) {
                 tracknum = 1;
             }
         }
+        priv->decoder->track = tracknum;
 
         if(str_len(tmp) > 0) {
             /* some extra space will be allocated in the absolute path
