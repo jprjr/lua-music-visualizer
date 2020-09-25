@@ -872,6 +872,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         lua_pop(v->L,1);
     }
 
+    if(v->mpd != NULL) {
+        mpd_ez_start(v);
+    }
+
     if(v->lua_ref != -1) {
         lua_rawgeti(v->L,LUA_REGISTRYINDEX,v->lua_ref);
         lua_getfield(v->L,-1,"onload");
@@ -913,10 +917,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         lua_close(v->L);
         globalL = NULL;
         return 1;
-    }
-
-    if(v->mpd != NULL) {
-        mpd_ez_start(v);
     }
 
     free(rpath);
