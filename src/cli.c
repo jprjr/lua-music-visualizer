@@ -668,8 +668,6 @@ int cli_start(int argc, char **argv) {
     }
     free(sf);
 
-    fprintf(stderr,"duration: %f\n",generator->duration);
-
     while(video_generator_loop(generator,&progress) == 0) {
 #ifndef _WIN32
         if(thread_queue_count(&queue) > 0) {
