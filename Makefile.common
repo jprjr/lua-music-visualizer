@@ -66,13 +66,12 @@ CLEAN += src/license_libvgm.c src/license_libvgm.h src/license_libvgm.o
 BIN2CSRC = src/bin2c.c
 TEXT2CSRC = src/text2c.c src/text.c src/file.c src/str.c src/char.c
 
-OPT_CFLAGS = -O2 -g -DNDEBUG
-OPT_CXXFLAGS = -O2 -g -DNDEBUG
+OPT_CFLAGS = -O2 -g -DNDEBUG -fno-omit-frame-pointer
+OPT_CXXFLAGS = -O2 -g -DNDEBUG -fno-omit-frame-pointer
 CFLAGS = -Wall -Wextra -Wno-unused-function -Wno-long-long
 CXXFLAGS = -Wall -Wextra -Wno-unused-function -Wno-long-long
 LDFLAGS =
-NASM_PLAT = macho64
-NASM_FLAGS =
+
 ifeq ($(ENABLE_GUI),)
 ENABLE_GUI := 0
 endif
