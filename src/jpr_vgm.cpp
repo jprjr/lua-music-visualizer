@@ -148,13 +148,13 @@ pack_samples(jpr_int16 *dest, WAVE_32BS *src, unsigned int count) {
 	}
 }
 
-static void fade_samples(jpr_uint64 frames_rem, jpr_uint64 frames_fade, jpr_uint64 frames, WAVE_32BS *buf) {
+static void fade_samples(jpr_uint64 frames_rem, jpr_uint64 frames_fade, jpr_uint64 frames_count, WAVE_32BS *buf) {
     jpr_uint64 i = 0;
     jpr_uint64 f = frames_fade;
     jpr_uint64 fade_vol;
-    (void)buf;
+    double fade;
 
-    if(frames_rem - frames > frames_fade) return;
+    if(frames_rem - frames_count > frames_fade) return;
 
     if(frames_rem > frames_fade) {
         i = frames_rem - frames_fade;
@@ -164,13 +164,16 @@ static void fade_samples(jpr_uint64 frames_rem, jpr_uint64 frames_fade, jpr_uint
         f = frames_rem;
     }
 
-    while(i<frames) {
-        fade_vol = (jpr_uint64)((f - i)) * 0x10000;
+    while(i<frames_count) {
+        fade = (double)(f-i) / (double)frames_fade;
+        fade *= fade;
+        fade_vol = (UINT64)((f - i)) * (1 << 16);
         fade_vol /= frames_fade;
         fade_vol *= fade_vol;
-        fade_vol = fade_vol * 0x10000 >> 32;
-        buf[i].L = (jpr_int16)(((jpr_uint64)buf[i].L * fade_vol) >> 16);
-        buf[i].R = (jpr_int16)(((jpr_uint64)buf[i].R * fade_vol) >> 16);
+        fade_vol >>= 16;
+
+        buf[i].L = (INT32)(((UINT64)buf[i].L * fade_vol) >> 16);
+        buf[i].R = (INT32)(((UINT64)buf[i].R * fade_vol) >> 16);
         i++;
     }
 
