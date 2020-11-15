@@ -114,12 +114,26 @@ void process_id3(audio_decoder *a) {
         if(mem_cmp((const jpr_uint8 *)buffer,allzero,header_size) == 0) goto id3_done;
 
         id3_size -= header_size;
-        if(header_size == 10) {
-            frame_size = unpack_uint32be((jpr_uint8 *)buffer + 4);
-            buffer[4] = 0;
-        } else {
-            frame_size = unpack_uint24be((jpr_uint8 *)buffer+3);
-            buffer[3] = 0;
+        switch(id3_ver) {
+            case 2: {
+                frame_size = unpack_uint24be((jpr_uint8 *)buffer + 3);
+                buffer[3] = 0;
+                break;
+            }
+            case 3: {
+                frame_size = unpack_uint32be((jpr_uint8 *)buffer + 4);
+                buffer[4] = 0;
+                break;
+            }
+            case 4: {
+                frame_size =
+                    (((size_t)buffer[4]) << 21) +
+                    (((size_t)buffer[5]) << 14) +
+                    (((size_t)buffer[6]) << 7 ) +
+                    (((size_t)buffer[7]));
+                buffer[4] = 0;
+                break;
+            }
         }
         id3_size -= frame_size;
 
