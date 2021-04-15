@@ -13,7 +13,7 @@
 
 static const char *mpdc__host_default;
 static const jpr_uint16 mpdc__port_default;
-static const char* const mpdc__command[101];
+static const char* const mpdc__command[105];
 static const char mpdc__numtab[10];
 
 static int mpdc__ringbuf_putchr(mpdc_ringbuf *rb, jpr_uint8 byte);
@@ -49,7 +49,7 @@ static int mpdc__receive_nonblock(mpdc_connection *conn);
 static const char *mpdc__host_default = "127.0.0.1";
 static const jpr_uint16 mpdc__port_default = 6600;
 static const char mpdc__numtab[10] = "0123456789";
-static const char* const mpdc__command[101] = {
+static const char* const mpdc__command[105] = {
     "clearerror", "currentsong", "idle", "status", "stats", /* 5 */
     "consume", "crossfade", "mixrampdb", "mixrampdelay", "random", /* 5 */
     "repeat", "setvol", "single", "replay_gain_mode", "replay_gain_staus", /* 5 */
@@ -66,7 +66,7 @@ static const char* const mpdc__command[101] = {
     "sticker", "close", "kill", "password", "ping", "tagtypes", "partition", "listpartitions", /* 8 */
     "newpartition", "disableoutput", "enableoutput", "outputs", "outputset", "config", "commands", /* 7 */
     "notcommands", "urlhandlers", "decoders", "subscribe", "unsubscribe", "channels", "readmessages", /* 7 */
-    "sendmessage"
+    "sendmessage", "readpicture", "moveoutput", "delpartition", "binarylimit",
 };
 
 #define mpdc__ringbuf_reset(rb) \
