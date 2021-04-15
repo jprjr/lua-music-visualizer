@@ -377,7 +377,7 @@ static int mpdc__process(mpdc_connection *conn, size_t *len) {
 
     *len = 0;
     do {
-        if(conn->_mode == 0 || (conn->_mode ==1 && conn->_bytes == 0)) {
+        if(conn->_mode == 0 || (conn->_mode == 1 && conn->_bytes == 0)) {
             ilen = mpdc__ringbuf_getline(&conn->in,(char *)conn->scratch);
             if(ilen >= 0) *len = (unsigned int)ilen;
             if(ilen <= 0) {
@@ -394,6 +394,7 @@ static int mpdc__process(mpdc_connection *conn, size_t *len) {
             if(ilen <= 0) break;
             conn->_bytes -= *len;
         }
+
         if(conn->_mode == 0) {
             ok = mpdc__line(conn,(char *)conn->scratch,(size_t)*len);
             if(ok == 0) {
@@ -430,6 +431,11 @@ static int mpdc__process(mpdc_connection *conn, size_t *len) {
         }
 
     } while(ilen > -1);
+
+    if(ilen == -1) {
+        /* we couldn't find a newline, so just reset the input buffer */
+        mpdc__ringbuf_reset(&conn->in);
+    }
 
     if(ok == 1 && !mpdc_ringbuf_is_empty(&conn->op)) {
         conn->write_notify(conn);
