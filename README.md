@@ -512,13 +512,15 @@ return {
 ### example: draw visualizer bars
 
 ```lua
+-- set a maximum height for the bars, in pixels
+local bars_height = 100
 return {
     onframe = function()
         -- draws visualizer bars
         -- each bar is 10px wide
         -- bar height is between 0 and 90
         for i=1,stream.audio.spectrum_len,1 do
-            stream.video:draw_rectangle((i-1)*20, 680 ,10 + (i-1)*20, 680 - (ceil(stream.audio.amps[i])) , 255, 255, 255)
+            stream.video:draw_rectangle((i-1)*20, 680 ,10 + (i-1)*20, 680 - (math.ceil(stream.audio.amps[i] * bars_height)) , 255, 255, 255)
         end
 
     end
