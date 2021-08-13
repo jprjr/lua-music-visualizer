@@ -518,7 +518,7 @@ return {
     onframe = function()
         -- draws visualizer bars
         -- each bar is 10px wide
-        -- bar height is between 0 and 90
+        -- bar height is between 0 and 100 (bars height)
         for i=1,stream.audio.spectrum_len,1 do
             stream.video:draw_rectangle((i-1)*20, 680 ,10 + (i-1)*20, 680 - (math.ceil(stream.audio.amps[i] * bars_height)) , 255, 255, 255)
         end
