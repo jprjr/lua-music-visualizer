@@ -15,6 +15,7 @@
 #define MPD_TITLE  0x02
 #define MPD_ALBUM  0x04
 #define MPD_ARTIST 0x08
+#define MPD_NAME   0x10
 
 static void ez_mpdc_response_begin(mpdc_connection *conn,const char *cmd) {
     conn_info *info = (conn_info *)conn->ctx;
@@ -102,6 +103,10 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
             lua_pushstring(v->L,(const char *)value);
             lua_setfield(v->L,-2,"artist");
             v->mpd_tags |= MPD_ARTIST;
+        } else if(str_equals(key,"name")) {
+            lua_pushstring(v->L,(const char *)value);
+            lua_setfield(v->L,-2,"name");
+            v->mpd_tags |= MPD_NAME;
         }
     }
     else if(str_equals(cmd,"readmessages")) {
@@ -166,6 +171,10 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok,
         if((v->mpd_tags & MPD_ARTIST) == 0) {
             lua_pushnil(v->L);
             lua_setfield(v->L,-2,"artist");
+        }
+        if((v->mpd_tags & MPD_NAME) == 0) {
+            lua_pushnil(v->L);
+            lua_setfield(v->L,-2,"name");
         }
         lua_pop(v->L,1);
     }
