@@ -236,6 +236,7 @@ Within your Lua script, you have a few pre-defined global variables:
 
 * `stream` - a table representing the video stream
 * `image` - a module for loading image files
+* `frame` - a module for creating image frames
 * `font` - a module for loading BDF fonts
 * `file` - a module for filesystem operations
 * `song` - a table of what's playing, from MPD. Also used for message relaying
@@ -272,6 +273,17 @@ to load images synchronously. Otherwise, you should load images asynchronously.
   * If filename is nil, then an empty image is created with the given width/height/channels
 
 Scroll down to "Image Instances" for details on image methods like `img:load()`
+
+### The global `frame` object
+
+The `frame` module allows creating a single image frame, which you can then
+perform drawing operations with.
+
+* `frame = frame.new(width, height, channels, data)`
+  * Creates a new frame with the given width, height, and color channels. `data`
+  is an optional string of RGB or RGBA data to be copied into the image.
+  * The frame will have all-zero values, so warning! This means in a 4-channel image,
+  the Alpha value will be 0 (the image is fully transparent).
 
 ### The global `font` object
 

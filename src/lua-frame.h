@@ -17,6 +17,9 @@ luaopen_frame(lua_State *L);
 int
 luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer channels, const jpr_uint8 *data);
 
+int
+luaframe_from(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer channels, jpr_uint8 *data);
+
 #ifdef __cplusplus
 }
 #endif

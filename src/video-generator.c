@@ -766,47 +766,18 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     assert(lua_top == lua_gettop(v->L));
 #endif
 
-    lua_getglobal(v->L,"image"); /* push */
-    lua_getfield(v->L,-1,"new"); /* push */
-    lua_pushnil(v->L);
-    lua_pushinteger(v->L,v->width);
-    lua_pushinteger(v->L,v->height);
-    lua_pushinteger(v->L,3);
-    if(lua_pcall(v->L,4,1,0)) { /* pop */
-        err_str = lua_tostring(v->L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(err_str);
-        free(v->framebuf);
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-    /* top of the stack has an image table */
-    /* there's also the global "image" object still on the stack */
+    lua_newtable(v->L);
 
-    lua_getfield(v->L,-1,"frames"); /* push */
-    lua_rawgeti(v->L,-1,1); /* push */
-
+    luaframe_from(v->L,v->width,v->height,3,v->framebuf+8);
     lua_pushinteger(v->L,v->fps);
     lua_setfield(v->L,-2,"framerate");
 
-    lua_pushlightuserdata(v->L,v->framebuf+8);
-    lua_setfield(v->L,-2,"frame");
-
-    lua_newtable(v->L); /* push */
-    lua_pushvalue(v->L,-2);
-    lua_setfield(v->L,-2,"video"); /* set frames[1] as "video" field on a new table */
-    /* stack state (first is top) */
-    /*  {table}
-     *  frames[1]
-     *  frames
-     *  image */
+    lua_setfield(v->L,-2,"video");
 
     luaopen_audio(v->L,p);
     lua_setfield(v->L,-2,"audio");
 
     lua_setglobal(v->L,"stream");
-    lua_pop(v->L,4);
 
 #ifndef NDEBUG
     assert(lua_top == lua_gettop(v->L));

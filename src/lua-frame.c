@@ -953,6 +953,10 @@ luaframe_stamp_frame(lua_State *L) {
     int alpha;
     int alpha_inv;
 
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
+
     if(!lua_istable(L,1)) {
         lua_pushnil(L);
         lua_pushliteral(L,"Missing argument self");
@@ -973,6 +977,7 @@ luaframe_stamp_frame(lua_State *L) {
         vflip = lua_toboolean(L,-1);
         lua_getfield(L,5,"hflip");
         hflip = lua_toboolean(L,-1);
+        lua_pop(L,2);
     }
 
     if(lua_istable(L,6)) {
@@ -984,6 +989,7 @@ luaframe_stamp_frame(lua_State *L) {
         mask_top = (int)luaL_optinteger(L,-1,0);
         lua_getfield(L,6,"bottom");
         mask_bottom = (int)luaL_optinteger(L,-1,0);
+        lua_pop(L,4);
     }
 
     if(lua_isnumber(L,7)) {
@@ -1015,6 +1021,10 @@ luaframe_stamp_frame(lua_State *L) {
     frame_two = lua_touserdata(L,-1);
 
     lua_pop(L,8);
+
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(L));
+#endif
 
     if(x < 1) {
         xi = (int)(xi + (x * -1) + 1);
@@ -1104,6 +1114,7 @@ luaframe_stamp_frame(lua_State *L) {
             frame_one[byte+2] = ((frame_one[byte+2] * alpha_inv) + (r * alpha)) >> 8;
         }
     }
+
 
     return 0;
 
@@ -1401,6 +1412,12 @@ luaframe_tile(lua_State *L) {
             lua_pushinteger(L,channels);
             lua_setfield(L,-2,"channels");
 
+            lua_pushinteger(L,0);
+            lua_setfield(L,-2,"width_offset");
+
+            lua_pushinteger(L,0);
+            lua_setfield(L,-2,"height_offset");
+
             lua_pushinteger(L,tile_x * tile_y * channels);
             lua_setfield(L,-2,"frame_len");
 
@@ -1652,6 +1669,12 @@ luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer ch
     lua_pushinteger(L,channels);
     lua_setfield(L,-2,"channels");
 
+    lua_pushinteger(L,0);
+    lua_setfield(L,-2,"width_offset");
+
+    lua_pushinteger(L,0);
+    lua_setfield(L,-2,"height_offset");
+
     luaL_getmetatable(L,"frame");
     lua_setmetatable(L,-2);
 
@@ -1662,6 +1685,57 @@ luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer ch
     return 1;
 }
 
+int
+luaframe_from(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer channels, jpr_uint8 *data) {
+    lua_Integer len = 0;
+
+    if(width < 0 || height < 0 || channels < 0) {
+        lua_pushnil(L);
+        lua_pushstring(L,"invalid parameters");
+        return 2;
+    }
+
+    len = width * height * channels;
+    if(len < 0) {
+        lua_pushnil(L);
+        lua_pushstring(L,"integer overflow");
+        return 2;
+    }
+
+    if(data == NULL) {
+        lua_pushnil(L);
+        lua_pushstring(L,"missing image pointer");
+        return 2;
+    }
+
+    lua_newtable(L);
+
+    lua_pushlightuserdata(L,data);
+    lua_setfield(L,-2,"frame");
+
+    lua_pushinteger(L,len);
+    lua_setfield(L,-2,"frame_len");
+
+    lua_pushinteger(L,width);
+    lua_setfield(L,-2,"width");
+
+    lua_pushinteger(L,height);
+    lua_setfield(L,-2,"height");
+
+    lua_pushinteger(L,channels);
+    lua_setfield(L,-2,"channels");
+
+    lua_pushinteger(L,0);
+    lua_setfield(L,-2,"width_offset");
+
+    lua_pushinteger(L,0);
+    lua_setfield(L,-2,"height_offset");
+
+    luaL_getmetatable(L,"frame");
+    lua_setmetatable(L,-2);
+
+    return 1;
+}
 
 static const struct luaL_Reg luaframe_methods[] = {
     { "set"      ,      luaframe_set            },
@@ -1675,6 +1749,7 @@ static const struct luaL_Reg luaframe_methods[] = {
     { "stamp_letter",   luaframe_stamp_letter   },
     { "draw_triangle",  luaframe_draw_triangle  },
     { "tile"         ,  luaframe_tile           },
+    { "rotate"       ,  luaframe_rotate         },
     { NULL, NULL },
 };
 
@@ -1685,6 +1760,9 @@ static const struct luaL_Reg luaframe_functions[] = {
 
 int luaopen_frame(lua_State *L) {
     const char *s;
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
     luaL_newmetatable(L,"frame");
     lua_newtable(L);
     luaL_setfuncs(L,luaframe_methods,0);
