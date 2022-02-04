@@ -335,8 +335,6 @@ An image instance has the following methods and properties
 * `img.frames` - only available after calling `img:load`, an array of one or more frames
 * `img.framecount` - only available after calling `img:load`, total number of frames in the `frames` array
 * `img.delays` - only available after calling `img:load` - an array of frame delays (only applicable to gifs)
-* `img.rotated` - only available after calling `img:rotate()`, a frame that's been resized and rotated
-* `img.tiles` - only available after calling `img:tile()`, a 2d array of tiles (x, then y)
 * `img:load(async)` - loads an image into memory
   * If `async` is true, image is loaded in the background and available on some future iteration of `onframe`
   * else, image is loaded immediately
@@ -357,10 +355,11 @@ Once the image is loaded, it will contain an array of frames. Additionally, `str
 For convenience, most `frame` functions can be used on the `stream` object directly, instead of `stream.video`, ie,
 `stream:get_pixel(x,y)` can be used in place of `stream.video:get_pixel(x,y)`
 
-* `frame.width` - same as `img.width`
-* `frame.height` - same as `img.height`
-* `frame.channels` - same as `img.channels`
-* `frame.state` - all frames are `fixed` images
+* `frame.width` - the frame width
+* `frame.height` - the frame height
+* `frame.channels` - the number of color channels in the frame (3 for RGB, 4 for RGBA)
+* `frame.width_offset` - defaults to 0, a rotated frame will have this as a positive value.
+* `frame.height_offset` - defaults to 0, a rotated frame will have this as a positive value.
 * `r, g, b, a = frame:get_pixel(x,y)`
   * retrieves the red, green, blue, and alpha values for a given pixel
   * `x,y` starts at `1,1` for the top-left corner of the image
@@ -422,6 +421,20 @@ For convenience, most `frame` functions can be used on the `stream` object direc
   * bmask specifies pixels to mask on the bottom (after scaling)
 * `frame:stamp_letter(font,codepoint,scale,x,y,h,s,l,lmask,rmask,tmask,bmask)`
   * same as `stamp_letter`, but with hue, saturation, and lightness values instead of red, green, blue
+* tiled = frame:tile(width,height)
+  * takes the current `frame`, and transforms it into a 2d array of frames, each is width x height.
+  * The array is arranged as rows, then columns. 1,1 is the top-left.
+  * `tiled[1][1]` is the top-left tile
+  * `tiled[1][x]` is the (xth) column of the first row
+  * `tiled[x][1]` is the top-most tile of the xth row
+* frame = frame:rotate(degrees)
+  * rotates a frame by the given degrees, which can be a integer or float
+  * the returned frame will have `width_offset` and `height_offset` set as a positive value.
+  * the returned frame will likely be larger than the original, the `_offset` fields are useful
+    for maintaining a relative position.
+    * example, if you're placing an image at x,y - but want to rotate it and keep
+    the same position, you'd place the rotate image at x - width_offset, y - height_offset
+  * rotating an already-rotated frame is technically possibly but not recommended
 
 ## Font instances
 

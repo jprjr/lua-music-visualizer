@@ -10,6 +10,7 @@
 #include "mpdc.h"
 #include "util.h"
 #include "jpr_proc.h"
+#include "loader.lua.lh"
 #include "stream.lua.lh"
 #include "lua-audio.h"
 #include "lua-datetime.h"
@@ -18,6 +19,7 @@
 #else
 #include "lua-bdf.h"
 #endif
+#include "lua-frame.h"
 #include "lua-image.h"
 #include "lua-file.h"
 #include <lua.h>
@@ -610,6 +612,22 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     lua_top = lua_gettop(v->L);
 #endif
 
+    if(luaL_loadbuffer(v->L,loader_lua,loader_lua_length-1,"loader.lua")) {
+        lua_close(v->L);
+        globalL = NULL;
+        return 1;
+    }
+
+    lua_newtable(v->L);
+    lua_pushstring(v->L,"return function() print('hello') end");
+    lua_setfield(v->L,-2,"lmv.hello");
+    if(lua_pcall(v->L,1,0,0)) {
+        fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
+        lua_close(v->L);
+        globalL = NULL;
+        return 1;
+    }
+
     lua_newtable(v->L);
     lua_setglobal(v->L,"song");
 
@@ -694,6 +712,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
 
     luaopen_datetime(v->L);
 
+    luaopen_frame(v->L);
     luaopen_image(v->L);
 #ifndef NDEBUG
     assert(lua_top == lua_gettop(v->L));
@@ -772,7 +791,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     lua_setfield(v->L,-2,"framerate");
 
     lua_pushlightuserdata(v->L,v->framebuf+8);
-    lua_setfield(v->L,-2,"image");
+    lua_setfield(v->L,-2,"frame");
 
     lua_newtable(v->L); /* push */
     lua_pushvalue(v->L,-2);

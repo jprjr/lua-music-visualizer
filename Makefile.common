@@ -11,6 +11,7 @@ OBJS := \
   src/mpdc.o \
   src/bdf.o \
   src/lua-bdf.o \
+  src/lua-frame.o \
   src/lua-image.o \
   src/lua-file.o \
   src/lua-audio.o \
@@ -43,9 +44,11 @@ OBJS := \
   src/jpr_m3u.o
 
 LUALHS = \
+  src/loader.lua.lh \
   src/bdf.lua.lh \
   src/font.lua.lh \
   src/image.lua.lh \
+  src/frame.lua.lh \
   src/stream.lua.lh
 
 LINKER := $(CC)
