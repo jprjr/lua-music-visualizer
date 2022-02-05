@@ -1432,7 +1432,7 @@ luaframe_tile(lua_State *L) {
                 y_ind_inv = height - (
                   (y_ind * y) + y_cpy_ind ) - 1;
                 y_cpy_ind_inv = tile_y - y_cpy_ind - 1;
-                memcpy(
+                mem_cpy(
                   &chunk[
                     (y_cpy_ind_inv * tile_x) * channels
                   ],

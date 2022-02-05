@@ -174,7 +174,7 @@ jprm3u_nextinput(m3u_private *priv) {
         if(str_len(tmp) > 0) {
             /* some extra space will be allocated in the absolute path
              * case but whatever */
-            subfile = realloc(subfile,strlen(priv->dir) + strlen(tmp) + 2);
+            subfile = realloc(subfile,str_len(priv->dir) + str_len(tmp) + 2);
             if(subfile == NULL) {
                 free(tmp);
                 free(priv->decoder);
@@ -245,7 +245,7 @@ static audio_info *jprm3u_probe(audio_decoder *decoder, const char *filename) {
     if(UNLIKELY(info == NULL)) {
         return NULL;
     }
-    memset(info,0,sizeof(audio_info));
+    mem_set(info,0,sizeof(audio_info));
 
     info->total = 1;
     info->tracks = (track_info *)malloc(sizeof(track_info));
@@ -253,7 +253,7 @@ static audio_info *jprm3u_probe(audio_decoder *decoder, const char *filename) {
         free(info);
         return NULL;
     }
-    memset(info->tracks,0,sizeof(track_info));
+    mem_set(info->tracks,0,sizeof(track_info));
 
     info->tracks[0].number = 1;
     info->tracks[0].title = path_basename(filename);

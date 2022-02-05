@@ -2,6 +2,7 @@
 #include "image.h"
 #include "lua-frame.h"
 #include "lua-image.h"
+#include "lua-thread.h"
 #include "image.lua.lh"
 #include "thread.h"
 #include "str.h"
@@ -14,6 +15,35 @@
 #include "stb_leakcheck.h"
 #endif
 
+enum IMAGE_STATE {
+    IMAGE_ERR,
+    IMAGE_UNLOADED,
+    IMAGE_LOADING,
+    IMAGE_LOADED,
+    IMAGE_FIXED
+};
+
+typedef struct image_q {
+    int table_ref;
+    char *filename;
+    unsigned int width;
+    unsigned int height;
+    unsigned int channels;
+    unsigned int frames;
+    jpr_uint8 *image;
+} image_q;
+
+static void image_q_free(lua_State *L, void *value) {
+    image_q *q = (image_q *)value;
+    if(q->table_ref != LUA_NOREF) {
+        luaL_unref(L,LUA_REGISTRYINDEX,q->table_ref);
+    }
+    if(q->image != NULL) {
+        free(q->image);
+    }
+    free(q->filename);
+    free(value);
+}
 
 #if !defined(luaL_newlibtable) \
   && (!defined LUA_VERSION_NUM || LUA_VERSION_NUM==501)
@@ -30,21 +60,10 @@ static void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup) {
   lua_pop(L, nup);  /* remove upvalues */
 }
 #endif
-
-static thread_ptr_t thread;
-static thread_signal_t t_signal;
-
-static thread_queue_t thread_queue;
-static image_q image_queue[100];
-
-static thread_queue_t *ret_queue;
+    
 
 void
-wake_queue(void) {
-    thread_signal_raise(&t_signal);
-}
-void
-lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 *image) {
+lua_load_image_cb(void *Lua, int table_ref, unsigned int frames, jpr_uint8 *image) {
     lua_State *L = (lua_State *)Lua;
 #ifndef NDEBUG
     int lua_top = lua_gettop(L);
@@ -59,7 +78,7 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 
     int delay = 0;
 
     jpr_uint8 *b = NULL;
-    lua_rawgeti(L,LUA_REGISTRYINDEX,(int)table_ref);
+    lua_rawgeti(L,LUA_REGISTRYINDEX,table_ref);
 
     table_ind = lua_gettop(L);
 
@@ -78,7 +97,7 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 
       lua_pop(L,1);
 
       #ifndef NDEBUG
-          assert(lua_top == lua_gettop(L));
+      assert(lua_top == lua_gettop(L));
       #endif
       return;
     }
@@ -133,7 +152,6 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 
     lua_pushinteger(L,frames);
     lua_setfield(L,table_ind,"framecount");
 
-    free(image);
     lua_pop(L,1);
 
 #ifndef NDEBUG
@@ -143,71 +161,35 @@ lua_load_image_cb(void *Lua, intptr_t table_ref, unsigned int frames, jpr_uint8 
     return;
 }
 
-void
-queue_image_load(intptr_t table_ref,const char* filename, unsigned int width, unsigned int height, unsigned int channels) {
-    image_q *q = (image_q *)malloc(sizeof(image_q));
-
-    if(UNLIKELY(q == NULL)) {
-        LOG_ERROR("error: out of memory");
-        JPR_EXIT(1);
+static int
+lua_image_onframe(lua_State *L) {
+    lmv_thread_t *t = (lmv_thread_t *)lua_touserdata(L,lua_upvalueindex(1));
+    image_q *q = NULL;
+    int res = 0;
+    while( (q = (image_q *)lmv_thread_result(t,&res)) != NULL) {
+        lua_load_image_cb(L, q->table_ref, q->frames, q->image);
+        image_q_free(L,q);
     }
-
-    q->filename = malloc(str_len(filename) + 1);
-    if(UNLIKELY(q->filename == NULL)) {
-        LOG_ERROR("error: out of memory");
-        JPR_EXIT(1);
-    }
-    str_cpy(q->filename,filename);
-
-    q->table_ref = (int)table_ref;
-    q->width = width;
-    q->height = height;
-    q->channels = channels;
-    q->frames = 0;
-    q->image = NULL;
-
-    thread_queue_produce(&thread_queue,q);
-
+    return 0;
 }
 
 static int
-lua_image_thread(void *userdata) {
-    image_q *q = NULL;
-    (void)userdata;
-
-    while(1) {
-        thread_signal_wait(&t_signal,THREAD_SIGNAL_WAIT_INFINITE);
-        while(thread_queue_count(&thread_queue) > 0) {
-            q = (image_q *)thread_queue_consume(&thread_queue);
-
-            if(UNLIKELY(q == NULL)) {
-                continue;
-            }
-
-            if(UNLIKELY(q->table_ref < 0)) {
-                thread_exit(0);
-            }
-
-            q->image = image_load(q->filename,&(q->width),&(q->height),&(q->channels),&(q->frames));
-            thread_queue_produce(ret_queue,q);
-            q = NULL;
-        }
-    }
-    thread_exit(1);
-    return 1;
+bgimage_process(void *userdata, lmv_produce produce, void *queue) {
+    image_q *q = userdata;
+    q->image = image_load(q->filename,&(q->width),&(q->height),&(q->channels),&(q->frames));
+    produce(queue,q);
+    return 0;
 }
 
 static int
 lua_image_new(lua_State *L) {
     const char *filename = NULL;
     int table_ind = 0;
-    int image_ind = 0;
     int frame_ind = 0;
     int delay_ind = 0;
     unsigned int width;
     unsigned int height;
     unsigned int channels;
-    jpr_uint8 *image;
 #ifndef NDEBUG
     int lua_top = lua_gettop(L);
 #endif
@@ -341,6 +323,7 @@ static int
 lua_image_load(lua_State *L) {
     int state = 0;
     int async = 0;
+    image_q *q = NULL;
 
     const char *filename = NULL;
     unsigned int width = 0;
@@ -477,79 +460,70 @@ lua_image_load(lua_State *L) {
 
     lua_pushvalue(L,1);
     table_ref = luaL_ref(L,LUA_REGISTRYINDEX);
-    queue_image_load(table_ref,filename,width,height,channels);
+    if(UNLIKELY(table_ref == LUA_NOREF)) {
+        LOG_ERROR("error: unable to create reference");
+        JPR_EXIT(1);
+    }
+
+    q = (image_q *)malloc(sizeof(image_q));
+
+    if(UNLIKELY(q == NULL)) {
+        luaL_unref(L,LUA_REGISTRYINDEX,table_ref);
+        LOG_ERROR("error: out of memory");
+        JPR_EXIT(1);
+    }
+
+    q->filename = malloc(str_len(filename) + 1);
+    if(UNLIKELY(q->filename == NULL)) {
+        LOG_ERROR("error: out of memory");
+        JPR_EXIT(1);
+    }
+    str_cpy(q->filename,filename);
+
+    q->table_ref = table_ref;
+    q->width = width;
+    q->height = height;
+    q->channels = channels;
+    q->frames = 0;
+    q->image = NULL;
+
+    lmv_thread_inject(lua_touserdata(L,lua_upvalueindex(1)),q);
 
     lua_pushboolean(L,1);
-    return 1;
-}
-
-static int
-lua_image_get_ref(lua_State *L) {
-    intptr_t r;
-    lua_pushvalue(L,1);
-    r = luaL_ref(L,LUA_REGISTRYINDEX);
-    lua_pushinteger(L,r);
-    return 1;
-}
-
-static int
-lua_image_from_ref(lua_State *L) {
-    intptr_t t = lua_tointeger(L,1);
-    lua_rawgeti(L,LUA_REGISTRYINDEX,(int)t);
     return 1;
 }
 
 static const struct luaL_Reg lua_image_instance_methods[] = {
     { "unload", lua_image_unload },
     { "load", lua_image_load },
-    { "get_ref", lua_image_get_ref },
     { NULL, NULL },
 };
 
 static const struct luaL_Reg lua_image_methods[] = {
     { "new"           , lua_image_new },
-    { "from_ref"      , lua_image_from_ref },
+    { "onframe"       , lua_image_onframe },
     { NULL     , NULL                },
 };
-
-int luaimage_setup_threads(thread_queue_t *ret) {
-    thread_signal_init(&t_signal);
-    thread_queue_init(&thread_queue,100,(void **)&image_queue,0);
-    ret_queue = ret;
-
-    thread = thread_create( lua_image_thread, NULL, NULL, THREAD_STACK_SIZE_DEFAULT );
-    return 0;
-}
-
-int luaimage_stop_threads(void) {
-    image_q q;
-    q.table_ref = -1;
-    thread_queue_produce(&thread_queue,&q);
-    wake_queue();
-    thread_join(thread);
-    thread_destroy(thread);
-    thread_queue_term(&thread_queue);
-    thread_signal_term(&t_signal);
-    return 0;
-}
 
 int
 luaopen_image(lua_State *L) {
     const char *s = NULL;
-#ifndef NDEBUG
-    int lua_top = lua_gettop(L);
-#endif
+
+    lmv_thread_init(L);
+    if(lmv_thread_new(L,bgimage_process,image_q_free,image_q_free,100) != 1) {
+        return luaL_error(L,"error creating thread upvalue");
+    }
 
     luaL_newmetatable(L,"image");
     lua_newtable(L);
-    luaL_setfuncs(L,lua_image_instance_methods,0);
+    lua_pushvalue(L,-3);
+    luaL_setfuncs(L,lua_image_instance_methods,1);
     lua_setfield(L,-2,"__index");
     lua_pop(L,1);
 
     lua_newtable(L);
-    luaL_setfuncs(L,lua_image_methods,0);
-
-    lua_setglobal(L,"image");
+    lua_pushvalue(L,-2);
+    luaL_setfuncs(L,lua_image_methods,1);
 
     if(luaL_loadbuffer(L,image_lua,image_lua_length-1,"image.lua")) {
         s = lua_tostring(L,-1);
@@ -558,23 +532,16 @@ luaopen_image(lua_State *L) {
         return 1;
     }
 
-    if(lua_pcall(L,0,0,0)) {
+    lua_pushvalue(L,-2);
+
+    if(lua_pcall(L,1,0,0)) {
         s = lua_tostring(L,-1);
         WRITE_STDERR("error: ");
         LOG_ERROR(s);
         return 1;
     }
 
-#ifndef NDEBUG
-    assert(lua_top == lua_gettop(L));
-#endif
-
-    return 0;
-}
-
-int luaclose_image() {
-    luaimage_stop_threads();
-    return 0;
+    return 1;
 }
 
 

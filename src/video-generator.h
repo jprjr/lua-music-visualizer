@@ -6,7 +6,6 @@
 #include "audio-resampler.h"
 #include "audio-decoder.h"
 #include "mpdc.h"
-#include "lua-image.h"
 #include "jpr_proc.h"
 #define THREAD_U64 jpr_uint64
 #include "thread.h"
@@ -28,8 +27,6 @@ struct video_generator_s {
     unsigned int framebuf_audio_len;
     lua_State *L;
     int lua_ref;
-    thread_queue_t image_queue;
-    image_q images[100];
     unsigned int samples_per_frame;
     double ms_per_frame;
     double elapsed;

@@ -12,6 +12,7 @@ OBJS := \
   src/bdf.o \
   src/lua-bdf.o \
   src/lua-frame.o \
+  src/lua-thread.o \
   src/lua-image.o \
   src/lua-file.o \
   src/lua-audio.o \
@@ -89,6 +90,7 @@ ENABLE_NEZ  = 0
 ENABLE_NSF  = 0
 ENABLE_VGM  = 0
 ENABLE_ALL  = 0
+ENABLE_FFMPEG = 0
 
 ifeq ($(ENABLE_ALL),1)
   ENABLE_PCM  = 1
@@ -99,6 +101,7 @@ ifeq ($(ENABLE_ALL),1)
   ENABLE_NEZ = 1
   ENABLE_NSF = 1
   ENABLE_VGM = 1
+  ENABLE_FFMPEG = 1
 endif
 
 ifeq ($(CHECK_PERFORMANCE),1)
@@ -181,6 +184,13 @@ ifeq ($(ENABLE_VGM),1)
 else
   CFLAGS += -DDECODE_VGM=0
   CXXFLAGS += -DDECODE_VGM=0
+endif
+
+ifeq ($(ENABLE_FFMPEG),1)
+  OBJS += src/lua-video.o
+  CFLAGS += -DDECODE_FFMPEG=1
+else
+  CFLAGS += -DDECODE_FFMPEG=0
 endif
 
 %.o: %.cpp $(LUALHS)

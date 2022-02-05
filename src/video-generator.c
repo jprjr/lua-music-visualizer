@@ -22,6 +22,9 @@
 #include "lua-frame.h"
 #include "lua-image.h"
 #include "lua-file.h"
+#if DECODE_FFMPEG
+#include "lua-video.h"
+#endif
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
@@ -305,12 +308,10 @@ void video_generator_close(video_generator *v) {
         free(v->mpd->ctx);
         free(v->mpd);
     }
-    luaclose_image();
     lua_close(v->L);
     audio_decoder_close(v->decoder);
     audio_resampler_close(v->sampler);
     audio_processor_close(v->processor);
-    thread_queue_term(&(v->image_queue));
     free(v->framebuf);
 }
 
@@ -333,7 +334,7 @@ int video_generator_loop(video_generator *v, float *progress) {
     jpr_uint64 samps;
     int r = 0;
     unsigned int i = 0;
-    image_q *q = NULL;
+    const char *err_str;
 
 #ifdef CHECK_PERFORMANCE
     avg_frame_time = 0.0f;
@@ -381,17 +382,6 @@ int video_generator_loop(video_generator *v, float *progress) {
 
     mem_set(v->framebuf+8,0,v->framebuf_video_len);
 
-    while(thread_queue_count(&(v->image_queue)) > 0) {
-        q = thread_queue_consume(&(v->image_queue));
-        if(LIKELY(q != NULL)) {
-            lua_load_image_cb(v->L,q->table_ref,q->frames,q->image);
-            luaL_unref(v->L,LUA_REGISTRYINDEX,q->table_ref);
-            free(q->filename);
-            free(q);
-            q = NULL;
-        }
-    }
-
     if(v->lua_ref != -1) {
 #ifndef NDEBUG
       lua_top = lua_gettop(v->L);
@@ -404,7 +394,14 @@ int video_generator_loop(video_generator *v, float *progress) {
           SAVE_COUNTER(&video_start);
 #endif
           if(lua_pcall(v->L,1,0,0)) {
-              fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
+              err_str = lua_tostring(v->L,-1);
+              WRITE_STDERR("error: ");
+              LOG_ERROR(err_str);
+              lua_pop(v->L,2);
+#ifndef NDEBUG
+              assert(lua_top == lua_gettop(v->L));
+#endif
+              return 1;
           }
 #ifdef CHECK_PERFORMANCE
           SAVE_COUNTER(&video_end);
@@ -435,8 +432,6 @@ int video_generator_loop(video_generator *v, float *progress) {
     v->elapsed += v->ms_per_frame;
 
     lua_gc(v->L,LUA_GCSTEP,0);
-
-    wake_queue();
 
     mem_cpy(v->framebuf + 16 + v->framebuf_video_len,(jpr_uint8 *)&(v->processor->buffer[pro_offset]),v->framebuf_audio_len);
     if(UNLIKELY(jpr_proc_pipe_write(v->out,(const char *)v->framebuf,v->framebuf_len,&i))) {
@@ -507,8 +502,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     d->onchange      = onchange;
     d->meta_ctx = (void *)v;
     v->lua_ref = -1;
-
-    thread_queue_init(&(v->image_queue),100,(void **)&(v->images),0);
 
     v->L = luaL_newstate();
     if(!v->L) {
@@ -621,8 +614,13 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     lua_newtable(v->L);
     lua_pushstring(v->L,"return function() print('hello') end");
     lua_setfield(v->L,-2,"lmv.hello");
+    lua_pushcfunction(v->L,luaopen_image);
+    lua_setfield(v->L,-2,"lmv.image");
+
     if(lua_pcall(v->L,1,0,0)) {
-        fprintf(stderr,"error: %s\n",lua_tostring(v->L,-1));
+        err_str = lua_tostring(v->L,-1);
+        WRITE_STDERR("error: ");
+        LOG_ERROR(err_str);
         lua_close(v->L);
         globalL = NULL;
         return 1;
@@ -713,12 +711,11 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     luaopen_datetime(v->L);
 
     luaopen_frame(v->L);
-    luaopen_image(v->L);
-#ifndef NDEBUG
-    assert(lua_top == lua_gettop(v->L));
-#endif
 
-    luaimage_setup_threads(&(v->image_queue));
+    lua_getglobal(v->L,"require");
+    lua_pushliteral(v->L,"lmv.image");
+    lua_call(v->L,1,1);
+    lua_setglobal(v->L,"image");
 #ifndef NDEBUG
     assert(lua_top == lua_gettop(v->L));
 #endif
@@ -726,6 +723,10 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     luaopen_file(v->L);
 #ifndef NDEBUG
     assert(lua_top == lua_gettop(v->L));
+#endif
+
+#if DECODE_FFMPEG
+    luaopen_video(v->L);
 #endif
 
 #if USE_OLD_FONT

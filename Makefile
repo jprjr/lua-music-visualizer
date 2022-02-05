@@ -24,15 +24,22 @@ FFTW_CFLAGS = $(shell $(PKGCONFIG) --cflags fftw3)
 FFTW_LDFLAGS = $(shell $(PKGCONFIG) --libs fftw3)
 endif
 
+ifeq ($(ENABLE_FFMPEG),1)
+FFMPEG_CFLAGS = $(shell $(PKGCONFIG) --cflags libavformat)
+FFMPEG_LDFLAGS = $(shell $(PKGCONFIG) --libs libavformat)
+endif
+
 CFLAGS += $(LUA_CFLAGS)
 CFLAGS += $(SAMPLERATE_CFLAGS)
 CFLAGS += $(VGM_CFLAGS)
 CFLAGS += $(FFTW_CFLAGS)
+CFLAGS += $(FFMPEG_CFLAGS)
 
 LDFLAGS += $(LUA_LDFLAGS)
 LDFLAGS += $(SAMPLERATE_LDFLAGS)
 LDFLAGS += $(VGM_LDFLAGS)
 LDFLAGS += $(FFTW_LDFLAGS)
+LDFLAGS += $(FFMPEG_LDFLAGS)
 
 LDFLAGS += -lm -pthread
 

@@ -2,6 +2,7 @@
 
 #include "datetime-struct.h"
 #include "datetime.h"
+#include "str.h"
 
 #include <lua.h>
 #include <lauxlib.h>
