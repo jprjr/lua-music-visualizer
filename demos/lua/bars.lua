@@ -1,4 +1,3 @@
--- luacheck: globals stream
 local bar_height = 100
 local bar_width = 10
 local bar_offset = 5 -- start at this x offset in the image
@@ -6,6 +5,7 @@ local bar_spacing = 5 -- number of pixels between bars
 
 local audio = require'lmv.audio'
 local analyzer = audio.analyzer(20)
+local stream = require'lmv.stream'
 
 local framecounter = 0
 

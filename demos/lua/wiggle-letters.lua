@@ -1,4 +1,4 @@
--- luacheck: globals stream
+local stream = require'lmv.stream'
 local bdf = require'lmv.bdf'
 local vga
 local sin = math.sin

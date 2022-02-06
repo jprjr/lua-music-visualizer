@@ -47,6 +47,7 @@ struct conn_info_s {
     video_generator *v;
     char *s;
     unsigned int a;
+    int song_table_ref;
 };
 typedef struct conn_info_s conn_info;
 

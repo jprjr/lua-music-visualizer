@@ -1,4 +1,4 @@
--- luacheck: globals stream
+local stream = require'lmv.stream'
 local bdf = require'lmv.bdf'
 local sin = math.sin
 local ceil = math.ceil

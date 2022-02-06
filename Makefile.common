@@ -17,6 +17,8 @@ OBJS := \
   src/lua-file.o \
   src/lua-audio.o \
   src/lua-datetime.o \
+  src/lua-stream.o \
+  src/lua-song.o \
   src/audio-processor.o \
   src/audio-resampler.o \
   src/audio-decoder.o \

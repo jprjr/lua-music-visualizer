@@ -11,6 +11,8 @@
 #endif
 
 #ifdef USE_FFTW3
+#include <complex.h>
+#include <fftw3.h>
 #define MALLOC fftw_malloc
 #define FREE fftw_free
 #else

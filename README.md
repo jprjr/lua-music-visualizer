@@ -107,10 +107,11 @@ may make the resulting binary non-redistributable.
 
 Hopefully you can just run `make`. Look at the Makefile if that doesn't work.
 
-Different decoders can be enabled/disabled with your `make` command. The available
+Different modules/decoders can be enabled/disabled with your `make` command. The available
 parameters (and their default state) are:
 
-* `ENABLE_LIBSAMPLERATE=1`
+* `ENABLE_LIBSAMPLERATE=1` -- allows for resampling with libsamplerate
+* `ENABLE_FFTW3=0` -- uses fftw3 for spectrum analyzers (default is KISS FFT)
 * `ENABLE_PCM=1`
 * `ENABLE_WAV=1`
 * `ENABLE_MP3=1`
@@ -233,16 +234,31 @@ meaning you can create submodules within your Lua folder and load them using `re
 
 ## Modules
 
-There's some internal modules you can use in your lua scripts:
+There's some modules you can use in your lua scripts:
 
+* `lmv.stream` - a module for interacting with the stream (drawing text, images, etc).
 * `lmv.audio` - a module for getting audio info and creating spectrum analyzers.
-* `lmv.color` - a module for calculating colors
-* `lmv.image` - a module for loading image files
-* `lmv.frame` - a module for creating image frames
-* `lmv.bdf` - a module for loading BDF fonts
-* `lmv.file` - a module for filesystem operations
+* `lmv.color` - a module for calculating colors.
+* `lmv.image` - a module for loading image files.
+* `lmv.frame` - a module for creating image frames.
+* `lmv.bdf` - a module for loading BDF fonts.
+* `lmv.file` - a module for filesystem operations.
+* `lmv.song` - a module for querying the current song, and to relay messages via MPD.
 
 These can all be included with the standard `require`, like `local image = require('lmv.image')`
+
+### The `lmv.stream` module
+
+The `stream` module is a table with two keys.
+
+* `stream.video` - an `lmv.frame` module, which represents the current frame of video. See
+the section "The `lvm.frame` module for details.
+  * `stream.video.framerate` - the video framerate
+* `stream.audio` - an `lvm.audio` module, see the section "The `lmv.audio` module" for details.
+
+The `stream` module has convenience methods for interacting with the video frame, for
+example, instead of calling `stream.video:draw_rectangle()`, you can call
+`stream:draw_rectangle()`.
 
 ### The `lmv.audio` module
 
@@ -351,24 +367,9 @@ The `file` module has methods for common file operations:
   * Returns `true` if a path exists, `nil` otherwise.
 
 
-## Globals
+### The `lmv.song` module
 
-Within your Lua script, you have a few pre-defined global variables:
-
-* `stream` - a table representing the video stream
-* `song` - a table of what's playing, from MPD. Also used for message relaying
-
-### The global `stream` object
-
-The `stream` table has two keys:
-
-* `stream.video` - this represents the current frame of video, it's actually an instance of a `frame` which has more details below
-  * `stream.video.framerate` - the video framerate
-* `stream.audio` - an `lvm.audio` module, see the section "The `lmv.audio" module for details.
-
-### The global `song` object
-
-The `song` object has metadata on the current song. The only guaranteed key is `elapsed`. Everything else can be nil.
+The `song` module returns table with on the current song. The only guaranteed key is `elapsed`. Everything else can be nil.
 
 If you're playing from a local FLAC/MP3/WAVE file, these will be pre-populated. If you're
 connected to MPD, it may take a frame or two for these to be populated.
@@ -381,7 +382,7 @@ connected to MPD, it may take a frame or two for these to be populated.
 * `song.artist` - the artist of the current song
 * `song.album` - the album of the current song
 * `song.message` - `lua-music-visualizer` uses MPD's [client-to-client](https://www.musicpd.org/doc/protocol/client_to_client.html) functionality, It listens on a channel named `visualizer`, if there's a new message on that channel, it will appear here in the song object.
-* `song.sendmessage(msg)` - allows sending a message on the `visualier` channel.
+* `song.sendmessage(msg)` - allows sending a message on the `visualizer` channel.
 
 ## Image Instances
 
@@ -511,6 +512,7 @@ Loaded BDF fonts have the following properties/methods:
 Draw a white square in the top-left corner:
 
 ```lua
+local stream = require'lmv.stream'
 return function()
   stream.video:draw_rectangle(1,1,200,200,255,255,255)
 end
@@ -521,8 +523,7 @@ end
 Load an image and stamp it over the video
 
 ```lua
--- register a global "img" to use
--- globals can presist across script reloads
+local stream = require'lmv.stream'
 local image = require'lmv.image'
 
 local img = image.new('something.jpg')
@@ -538,6 +539,7 @@ return {
 ### example: load a background
 
 ```lua
+local stream = require'lmv.stream'
 local image = require'lmv.image'
 -- we specify the image should be resized to fit the stream's video frame
 -- and use the same number of channels (RGB).
@@ -553,10 +555,13 @@ return {
 }
 ```
 
+
 ### example: display song title
 
 ```lua
 local bdf = require'lmv.bdf'
+local song = require'lmv.song'
+local stream = require'lmv.stream'
 local font = bdf.new('some-font.bdf')
 
 return {
@@ -856,6 +861,15 @@ for details.
 * `src/utf.h` - public domain, details found in file
 * `src/util.h` - public domain, details found in file
 * `src/HandmadeMath.h` - public domain, see https://github.com/HandmadeMath/Handmade-Math/blob/master/LICENSE
+
+# Changes
+
+## Version 2.0.0
+
+Version 2.0.0 is a breaking change - there are no more global tables like `stream`, `image`, `song`, `font`.
+These have been replaced with modules.
+
+The CLI parameter `--bars` has been removed - you can now use `lvm.audio` to create your own analyzer.
 
 # Known users
 

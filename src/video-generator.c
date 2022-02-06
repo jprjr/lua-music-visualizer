@@ -8,13 +8,14 @@
 #include "jpr_proc.h"
 #include "color.lua.lh"
 #include "loader.lua.lh"
-#include "stream.lua.lh"
 #include "lua-audio.h"
 #include "lua-datetime.h"
 #include "lua-bdf.h"
 #include "lua-frame.h"
 #include "lua-image.h"
 #include "lua-file.h"
+#include "lua-stream.h"
+#include "lua-song.h"
 #if DECODE_FFMPEG
 #include "lua-video.h"
 #endif
@@ -131,7 +132,7 @@ static void onchange(void *ctx, const char *type) {
 
 static void onmeta(void *ctx, const char *key, const char *value) {
     video_generator *v = ctx;
-    lua_getglobal(v->L,"song");
+    lua_rawgeti(v->L, LUA_REGISTRYINDEX, v->song_table_ref);
     lua_pushstring(v->L,value);
     lua_setfield(v->L,-2,key);
     lua_pop(v->L,1);
@@ -139,7 +140,7 @@ static void onmeta(void *ctx, const char *key, const char *value) {
 
 static void onmeta_double(void *ctx, const char *key, double value) {
     video_generator *v = ctx;
-    lua_getglobal(v->L,"song");
+    lua_rawgeti(v->L, LUA_REGISTRYINDEX, v->song_table_ref);
     lua_pushnumber(v->L,value);
     lua_setfield(v->L,-2,key);
     lua_pop(v->L,1);
@@ -413,7 +414,7 @@ int video_generator_loop(video_generator *v, float *progress) {
 #ifndef NDEBUG
     lua_top = lua_gettop(v->L);
 #endif
-    lua_getglobal(v->L,"song");
+    lua_rawgeti(v->L, LUA_REGISTRYINDEX, v->song_table_ref);
     lua_pushnumber(v->L,v->elapsed / 1000.0f);
     lua_setfield(v->L,-2,"elapsed");
     lua_pop(v->L,1);
@@ -471,21 +472,14 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     v->mpd = NULL;
     v->out = out;
 
-    rpath = malloc(sizeof(char)*PATH_MAX);
-    if(UNLIKELY(rpath == NULL)) {
-        LOG_ERROR("out of memory");
-        return 1;
-    }
-    rpath[0] = 0;
-
     if(audio_decoder_init(d)) {
         LOG_ERROR("init audio decoder failed");
-        free(rpath);
         return 1;
     }
+
     if(audio_resampler_init(r)) {
         LOG_ERROR("init audio resampler failed");
-        free(rpath);
+        return 1;
     }
 
     mpd_ez_setup(v);
@@ -499,7 +493,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     v->L = luaL_newstate();
     if(!v->L) {
         LOG_ERROR("init lua failed");
-        free(rpath);
         return 1;
     }
     globalL = v->L;
@@ -513,11 +506,98 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     (void)jit;
 #endif
 
+#ifndef NDEBUG
+    lua_top = lua_gettop(v->L);
+#endif
+
+    if(luaL_loadbuffer(v->L,loader_lua,loader_lua_length-1,"loader.lua")) {
+        lua_close(v->L);
+        globalL = NULL;
+        return 1;
+    }
+
+    lua_newtable(v->L);
+    lua_pushlstring(v->L,color_lua,color_lua_length-1);
+    lua_setfield(v->L,-2,"lmv.color");
+    lua_pushcfunction(v->L,luaopen_frame);
+    lua_setfield(v->L,-2,"lmv.frame");
+    lua_pushcfunction(v->L,luaopen_image);
+    lua_setfield(v->L,-2,"lmv.image");
+    lua_pushcfunction(v->L,luaopen_datetime);
+    lua_setfield(v->L,-2,"lmv.datetime");
+    lua_pushcfunction(v->L,luaopen_bdf);
+    lua_setfield(v->L,-2,"lmv.bdf");
+    lua_pushcfunction(v->L,luaopen_file);
+    lua_setfield(v->L,-2,"lmv.file");
+    lua_pushcfunction(v->L,luaopen_audio);
+    lua_setfield(v->L,-2,"lmv.audio");
+    lua_pushcfunction(v->L,luaopen_stream);
+    lua_setfield(v->L,-2,"lmv.stream");
+    lua_pushcfunction(v->L,luaopen_song);
+    lua_setfield(v->L,-2,"lmv.song");
+#ifdef ENABLE_FFMPEG
+    lua_pushcfunction(v->L,luaopen_video);
+    lua_setfield(v->L,-2,"lmv.video");
+#endif
+
+    if(lua_pcall(v->L,1,0,0)) {
+        err_str = lua_tostring(v->L,-1);
+        WRITE_STDERR("error: ");
+        LOG_ERROR(err_str);
+        lua_close(v->L);
+        globalL = NULL;
+        return 1;
+    }
+
+    luaframe_init(v->L);
+    luaaudio_init(v->L,p);
+    luastream_init(v->L,v);
+    v->song_table_ref = luasong_init(v->L);
+
+    /* open audio file and populate metadata */
+    if(audio_decoder_open(d,filename)) {
+        LOG_ERROR("error opening audio decoder");
+        lua_close(v->L);
+        globalL = NULL;
+        return 1;
+    }
+
+    if(audio_resampler_open(r,d)) {
+        LOG_ERROR("error opening audio resampler");
+        lua_close(v->L);
+        globalL = NULL;
+        return 1;
+    }
+
+    if(r->samplerate % v->fps != 0) {
+        LOG_ERROR("error: fps does not divide cleanly into samplerate");
+        lua_close(v->L);
+        globalL = NULL;
+        return 1;
+    }
+
+    v->samples_per_frame = r->samplerate / v->fps;
+    v->ms_per_frame = 1000.0f / ((double)v->fps);
+    v->elapsed = 0;
+    v->mpd_tags = 0;
+    v->duration = (((double)d->framecount) / ((double)d->samplerate));
+
+    v->framebuf_video_len = v->width * v->height * 3;
+    v->framebuf_audio_len = v->samples_per_frame * d->channels * sizeof(jpr_int16);
+    v->framebuf_len = v->framebuf_video_len + v->framebuf_audio_len + 16;
+
+    v->framebuf = malloc(v->framebuf_len);
+    if(UNLIKELY(v->framebuf == NULL)) {
+        LOG_ERROR("out of memory");
+        lua_close(v->L);
+        globalL = NULL;
+        return 1;
+    }
+
     script_path = path_absolute(luascript);
     if(UNLIKELY(script_path == NULL)) {
         WRITE_STDERR("error finding the full path for ");
         LOG_ERROR(luascript);
-        free(rpath);
         lua_close(v->L);
         globalL = NULL;
         return 1;
@@ -529,11 +609,17 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     if(UNLIKELY(dir == NULL)) {
         WRITE_STDERR("error finding dirname for ");
         LOG_ERROR(luascript);
-        free(rpath);
         lua_close(v->L);
         globalL = NULL;
         return 1;
     }
+
+    rpath = malloc(sizeof(char)*PATH_MAX);
+    if(UNLIKELY(rpath == NULL)) {
+        LOG_ERROR("out of memory");
+        return 1;
+    }
+    rpath[0] = 0;
 
     str_cpy(rpath,"package.path = '");
     str_ecat(rpath,dir,"\\",'\\');
@@ -595,93 +681,11 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     free(rpath);
 
 #ifndef NDEBUG
-    lua_top = lua_gettop(v->L);
-#endif
-
-    if(luaL_loadbuffer(v->L,loader_lua,loader_lua_length-1,"loader.lua")) {
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-    lua_newtable(v->L);
-    lua_pushstring(v->L,"return function() print('hello') end");
-    lua_setfield(v->L,-2,"lmv.hello");
-    lua_pushlstring(v->L,color_lua,color_lua_length-1);
-    lua_setfield(v->L,-2,"lmv.color");
-    lua_pushcfunction(v->L,luaopen_frame);
-    lua_setfield(v->L,-2,"lmv.frame");
-    lua_pushcfunction(v->L,luaopen_image);
-    lua_setfield(v->L,-2,"lmv.image");
-    lua_pushcfunction(v->L,luaopen_datetime);
-    lua_setfield(v->L,-2,"lmv.datetime");
-    lua_pushcfunction(v->L,luaopen_bdf);
-    lua_setfield(v->L,-2,"lmv.bdf");
-    lua_pushcfunction(v->L,luaopen_file);
-    lua_setfield(v->L,-2,"lmv.file");
-    lua_pushcfunction(v->L,luaopen_audio);
-    lua_setfield(v->L,-2,"lmv.audio");
-
-    if(lua_pcall(v->L,1,0,0)) {
-        err_str = lua_tostring(v->L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(err_str);
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-    luaframe_init(v->L);
-    luaaudio_init(v->L,p);
-
-    lua_newtable(v->L);
-    lua_setglobal(v->L,"song");
-
-#ifndef NDEBUG
     assert(lua_top == lua_gettop(v->L));
 #endif
 
-    /* open audio file and populate metadata */
-    if(audio_decoder_open(d,filename)) {
-        LOG_ERROR("error opening audio decoder");
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
 
-    if(audio_resampler_open(r,d)) {
-        LOG_ERROR("error opening audio resampler");
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-    if(r->samplerate % v->fps != 0) {
-        LOG_ERROR("error: fps does not divide cleanly into samplerate");
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-    v->samples_per_frame = r->samplerate / v->fps;
-    v->ms_per_frame = 1000.0f / ((double)v->fps);
-    v->elapsed = 0;
-    v->mpd_tags = 0;
-    v->duration = (((double)d->framecount) / ((double)d->samplerate));
-
-    v->framebuf_video_len = v->width * v->height * 3;
-    v->framebuf_audio_len = v->samples_per_frame * d->channels * sizeof(jpr_int16);
-    v->framebuf_len = v->framebuf_video_len + v->framebuf_audio_len + 16;
-
-    v->framebuf = malloc(v->framebuf_len);
-    if(UNLIKELY(v->framebuf == NULL)) {
-        LOG_ERROR("out of memory");
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-    lua_getglobal(v->L,"song");
+    lua_rawgeti(v->L, LUA_REGISTRYINDEX, v->song_table_ref);
     lua_pushnumber(v->L,0.0f);
     lua_setfield(v->L,-2,"elapsed");
     lua_pushnumber(v->L, v->duration);
@@ -715,47 +719,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     v->decoder = d;
     v->sampler = r;
     v->processor = p;
-
-#ifndef NDEBUG
-    assert(lua_top == lua_gettop(v->L));
-#endif
-
-#if DECODE_FFMPEG
-    luaopen_video(v->L);
-#endif
-
-#ifndef NDEBUG
-    assert(lua_top == lua_gettop(v->L));
-#endif
-
-    if(luaL_loadbuffer(v->L,stream_lua,stream_lua_length - 1,"stream.lua")) {
-        err_str = lua_tostring(v->L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(err_str);
-        free(v->framebuf);
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-    if(lua_pcall(v->L,0,1,0)) {
-        err_str = lua_tostring(v->L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(err_str);
-        free(v->framebuf);
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-    luaframe_from(v->L,v->width,v->height,3,v->framebuf+8);
-    lua_pushinteger(v->L,v->fps);
-    lua_setfield(v->L,-2,"framerate");
-
-    lua_setfield(v->L,-2,"video");
-
-    lua_setglobal(v->L,"stream");
-
 
 #ifndef NDEBUG
     assert(lua_top == lua_gettop(v->L));

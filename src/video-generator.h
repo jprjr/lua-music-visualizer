@@ -33,6 +33,7 @@ struct video_generator_s {
     double duration;
     mpdc_connection *mpd;
     unsigned int mpd_tags;
+    int song_table_ref;
 };
 
 int video_generator_init(video_generator *, audio_processor *, audio_resampler *, audio_decoder *, int jit, const char *modulename, const char *filename, const char *luascript, jpr_proc_pipe *out);

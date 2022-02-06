@@ -1,3 +1,4 @@
+#include "lua-song.h"
 #include "mpd_ez.h"
 #include "scan.h"
 #include "str.h"
@@ -47,7 +48,7 @@ static void ez_mpdc_response(mpdc_connection *conn, const char *cmd, const char 
     tmp_uint = 0;
     tmp_fac = 0;
 
-    lua_getglobal(v->L,"song"); /* push */
+    lua_rawgeti(v->L, LUA_REGISTRYINDEX, info->song_table_ref);
 
     if(str_equals(cmd,"status")) {
         if(str_equals(key,"songid")) {
@@ -155,7 +156,7 @@ static void ez_mpdc_response_end(mpdc_connection *conn, const char *cmd, int ok,
     }
 
     if(str_equals(cmd,"currentsong")) {
-        lua_getglobal(v->L,"song"); /* push */
+        lua_rawgeti(v->L, LUA_REGISTRYINDEX, info->song_table_ref);
         if((v->mpd_tags & MPD_FILE) == 0) {
             lua_pushnil(v->L);
             lua_setfield(v->L,-2,"file");
@@ -384,6 +385,9 @@ int mpd_ez_setup(video_generator *v) {
 }
 
 void mpd_ez_start(video_generator *v) {
+    conn_info *i = (conn_info *)v->mpd->ctx;
+    i->song_table_ref = luasong_init(v->L);
+
     mpdc_subscribe(v->mpd,"visualizer");
     mpdc_status(v->mpd);
     mpdc_currentsong(v->mpd);
