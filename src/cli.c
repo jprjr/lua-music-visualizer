@@ -135,7 +135,6 @@ static int usage(const char *self, int e) {
     WRITE_STDERR("  --width=width\n");
     WRITE_STDERR("  --height=height\n");
     WRITE_STDERR("  --fps=fps\n");
-    WRITE_STDERR("  --bars=bars\n");
     WRITE_STDERR("  --samplerate=samplerate (enables raw input)\n");
     WRITE_STDERR("  --channels (enables raw input)\n");
     WRITE_STDERR("  --resample=samplerate (force output audio sample rate)\n");
@@ -435,7 +434,6 @@ int cli_start(int argc, char **argv) {
     unsigned int width      = 0;
     unsigned int height     = 0;
     unsigned int fps        = 0;
-    unsigned int bars       = 0;
     unsigned int samplerate = 0;
     unsigned int resample   = 0;
     unsigned int channels   = 0;
@@ -529,21 +527,6 @@ int cli_start(int argc, char **argv) {
                 s = *argv;
             }
             if(scan_uint(s,&fps) == 0) {
-                return usage(self,1);
-            }
-            argv++;
-            argc--;
-        }
-        else if(str_istarts(*argv,"--bars")) {
-            c = str_chr(*argv,'=');
-            if(c != NULL) {
-                s = &c[1];
-            } else {
-                argv++;
-                argc--;
-                s = *argv;
-            }
-            if(scan_uint(s,&bars) == 0) {
                 return usage(self,1);
             }
             argv++;
@@ -649,7 +632,6 @@ int cli_start(int argc, char **argv) {
     generator->width         =      width;
     generator->height        =     height;
     generator->fps           =        fps;
-    processor->spectrum_bars =       bars;
     decoder->samplerate      = samplerate;
     decoder->channels        =   channels;
     decoder->track           =   tracknum;

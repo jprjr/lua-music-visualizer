@@ -1,4 +1,8 @@
-local stream = {}
+local audio = require'lmv.audio'
+
+local stream = {
+  audio = audio,
+}
 
 stream.get_pixel = function(self,x,y)
   return self.video:get_pixel(x,y)

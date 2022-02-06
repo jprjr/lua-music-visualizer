@@ -1,8 +1,8 @@
 #!/bin/sh
 
-if [ ! -f "demos/rainbow-string" ] ; then
+if [ ! -f "demos/bars" ] ; then
     1>&2 printf "Please run this script from the root of the repo\n"
-    1>&2 printf "./demos/rainbow-string\n"
+    1>&2 printf "./demos/bars\n"
     exit 1
 fi
 
@@ -12,4 +12,5 @@ fi
 1>&2 printf "Launching lua-music-visualizer, demo should quit in 10 seconds"
 
 launch_vis ffplay -loglevel error pipe:0
+
 

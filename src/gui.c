@@ -78,10 +78,6 @@ static Ihandle *widthLabel, *widthText;
 static Ihandle *heightLabel, *heightText;
 static Ihandle *fpsLabel, *fpsDropdown;
 
-/* "Audio" tab */
-static Ihandle *audioBox;
-static Ihandle *barsLabel, *barsText;
-
 /* "Encoder" tab */
 static Ihandle *encoderBox;
 static Ihandle *ffmpegArgsLabel, *ffmpegArgsText;
@@ -347,14 +343,12 @@ static int setupVideoGenerator(void) {
     char *fps_t = IupGetAttribute(fpsDropdown,IupGetAttribute(fpsDropdown,"VALUE"));
     char *width_t = IupGetAttribute(widthText,"VALUE");
     char *height_t = IupGetAttribute(heightText,"VALUE");
-    char *bars_t = IupGetAttribute(barsText,"VALUE");
     char *track_t = IupGetAttribute(trackDropdown,"VALUE");
     unsigned int fps, width, height, bars, track;
 
     scan_uint(fps_t,&fps);
     scan_uint(width_t,&width);
     scan_uint(height_t,&height);
-    scan_uint(bars_t,&bars);
     scan_uint(track_t,&track);
 
     if(width == 0 || height == 0) {
@@ -393,7 +387,6 @@ static int setupVideoGenerator(void) {
     generator->width = width;
     generator->height = height;
     generator->fps = fps;
-    processor->spectrum_bars = bars;
     resampler->samplerate = 48000;
 
     return 0;
@@ -617,11 +610,6 @@ static int updateAndSaveConfig(Ihandle *self) {
         key = "height";
         val = IupGetAttribute(self,"VALUE");
     }
-    else if(self == barsText) {
-        sec = "audio";
-        key = "visualizer bars";
-        val = IupGetAttribute(self,"VALUE");
-    }
     else if(self == ffmpegArgsText) {
         sec = "global";
         key = "ffmpeg args";
@@ -634,29 +622,6 @@ static int updateAndSaveConfig(Ihandle *self) {
     activateStartButton();
 
     return IUP_DEFAULT;
-}
-
-static void createAudioBox(void) {
-    barsLabel = IupLabel("Visualizer Bars");
-    barsText = IupText(NULL);
-
-    IupSetAttribute(barsText,"EXPAND","HORIZONTAL");
-    IupSetAttribute(barsText,"VALUE",IupConfigGetVariableStrDef(config,"audio","visualizer bars","24"));
-    IupSetAttribute(barsText,"SPINVALUE",IupConfigGetVariableStrDef(config,"audio","visualizer bars","24"));
-    IupSetAttribute(barsText,"SPIN","YES");
-    IupSetAttribute(barsText,"SPINMIN","0");
-    IupSetAttribute(barsText,"SPINMAX","100");
-    IupSetAttribute(barsText,"SPININC","1");
-    IupSetCallback(barsText,"VALUECHANGED_CB",updateAndSaveConfig);
-
-    audioBox = IupGridBox(barsLabel,barsText,NULL);
-    IupSetAttribute(audioBox,"ORIENTATION","HORIZONTAL");
-    IupSetAttribute(audioBox,"NUMDIV","2");
-    IupSetAttribute(audioBox,"GAPLIN","20");
-    IupSetAttribute(audioBox,"GAPCOL","20");
-    IupSetAttribute(audioBox,"NORMALIZESIZE","HORIZONTAL");
-    IupSetAttribute(audioBox,"MARGIN","20x20");
-    IupSetAttribute(audioBox,"TABTITLE","Audio");
 }
 
 
@@ -963,13 +928,12 @@ int gui_start(int argc, char **argv) {
     createBasicBox();
     createProgramBox();
     createVideoBox();
-    createAudioBox();
     createEncoderBox();
     createMiscBox();
 
     activateStartButton();
 
-    dlg = IupDialog(IupVbox(IupTabs(gridbox,programBox,videoBox,audioBox,encoderBox,miscBox,NULL),startVbox,NULL));
+    dlg = IupDialog(IupVbox(IupTabs(gridbox,programBox,videoBox,encoderBox,miscBox,NULL),startVbox,NULL));
     IupSetAttribute(dlg,"TITLE","Lua Music Visualizer");
     IupSetAttribute(dlg,"SIZE","300x170");
     IupShowXY(dlg,IUP_CENTER,IUP_CENTER);

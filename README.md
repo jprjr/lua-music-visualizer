@@ -56,7 +56,6 @@ lua-music-visualizer \
   --width=1280 (video width) \
   --height=720 (video height) \
   --fps=30 (video fps) \
-  --bars=24 (number of spectrum analyzer bars to compute) \
   --samplerate=48000 (input sample rate, only for raw PCM) \
   --channels=2 (input audio channels, only for raw PCM) \
   --resample=48000 (desired output sample rate, off by default) \
@@ -236,6 +235,7 @@ meaning you can create submodules within your Lua folder and load them using `re
 
 There's some internal modules you can use in your lua scripts:
 
+* `lmv.audio` - a module for getting audio info and creating spectrum analyzers.
 * `lmv.color` - a module for calculating colors
 * `lmv.image` - a module for loading image files
 * `lmv.frame` - a module for creating image frames
@@ -244,7 +244,29 @@ There's some internal modules you can use in your lua scripts:
 
 These can all be included with the standard `require`, like `local image = require('lmv.image')`
 
-### the `lmv.color` module
+### The `lmv.audio` module
+
+The `audio` module contains some info about the audio stream, and a function for
+creating a spectrum analyzer.
+
+* `audio.samplerate` - has the current stream samplerate
+* `audio.channels` - has the current stream channels
+* `analyzer = audio.analyzer(bars)` - a function for creating a new
+spectrum analyzer, that will calculate a given number of bars.
+
+#### The spectrum analyzer
+
+The result of `audio.analyzer(bars)` is a table with the following
+fields:
+
+* `analyzer.freqs` - an array-like table with the center frequency of
+each bar
+* `analyzer.amps` - an array-like table with the amplitude of each
+bar, between 0.0 and 1.0
+* `analyzer:update()` - a function to update the analyzer, should
+be called on every frame.
+
+### The `lmv.color` module
 
 The `color` module contains utility functions for converting between color spaces.
 
@@ -253,6 +275,14 @@ The `color` module contains utility functions for converting between color space
   * `h` (Hue) should be between 0 and 359 (inclusive)
   * `s` (Saturation) should be between 0 and 100 (inclusive)
   * `l` (Lightness) should be between 0 and 100 (inclusive)
+  * The returned red, green, and blue values will be between 0 and 255 (inclusive).
+
+* `r, g, b = color.hsv_to_rgb(h, s, v)`
+  * converts a Hue, Saturation, and Value value to Red, Green, and Blue values.
+  * `h` (Hue) should be between 0 and 359 (inclusive)
+  * `s` (Saturation) should be between 0 and 100 (inclusive)
+  * `v` (Value) should be between 0 and 100 (inclusive)
+  * The returned red, green, and blue values will be between 0 and 255 (inclusive).
 
 ### The `lmv.image` module
 
@@ -334,13 +364,7 @@ The `stream` table has two keys:
 
 * `stream.video` - this represents the current frame of video, it's actually an instance of a `frame` which has more details below
   * `stream.video.framerate` - the video framerate
-* `stream.audio` - a table of audio data
-  * `stream.audio.samplerate` - audio samplerate, like `48000`
-  * `stream.audio.channels` - audio channels, like `2`
-  * `stream.audio.samplesize` - sample size in bytes, like `2` for 16-bit audio
-  * `stream.audio.freqs` - an array of available frequencies, suitable for making a visualizer
-  * `stream.audio.amps` - an array of available amplitudes, suitable for making a visualizer - values between 0.0 and 1.0
-  * `stream.audio.spectrum_len` - the number of available amplitudes/frequencies
+* `stream.audio` - an `lvm.audio` module, see the section "The `lmv.audio" module for details.
 
 ### The global `song` object
 
@@ -548,20 +572,35 @@ return {
 ### example: draw visualizer bars
 
 ```lua
--- set a maximum height for the bars, in pixels
-local bars_height = 100
+local bar_height = 100 -- maximum bar height
+local bar_width = 10 -- width of each bar
+local bar_offset = 5 -- start at this x offset in the image
+local bar_spacing = 5 -- number of pixels between bars
+
+-- bars will be drawn at y=110 and above
+
+local audio = require'lmv.audio'
+local analyzer = audio.analyzer(20)
+
 return {
     onframe = function()
-        -- draws visualizer bars
-        -- each bar is 10px wide
-        -- bar height is between 0 and 100 (bars height)
-        for i=1,stream.audio.spectrum_len,1 do
-            stream.video:draw_rectangle((i-1)*20, 680 ,10 + (i-1)*20, 680 - (math.ceil(stream.audio.amps[i] * bars_height)) , 255, 255, 255)
+        analyzer:update()
+        for i=1,#analyzer.amps,1 do
+            stream.video:draw_rectangle(
+              bar_offset + (i-1)*(bar_width + bar_spacing),
+              110 - (math.ceil(analyzer.amps[i] * bar_height)),
+              bar_offset + (i-1)*(bar_width + bar_spacing) + bar_width,
+              110,
+              255, 255, 255) -- just draw a white box
         end
-
     end
 }
 ```
+
+Output:
+
+![output of bars](gifs/bars.gif)
+
 
 ### example: animate a gif
 

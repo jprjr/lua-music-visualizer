@@ -28,8 +28,8 @@ local function hsl_to_rgb(h,s,l)
     h = h - 360
   end
 
-  l = l / 100
   s = s / 100
+  l = l / 100
 
   local c = (1 - abs(2*l - 1)) * s
   local hp = h / 60
@@ -39,22 +39,74 @@ local function hsl_to_rgb(h,s,l)
   local g1 = 0
   local b1 = 0
 
-  if hp <= 1 then
+  if hp < 1 then
     r1 = c
     g1 = x
-  elseif hp <= 2 then
+  elseif hp < 2 then
     r1 = x
     g1 = c
-  elseif hp <= 3 then
+  elseif hp < 3 then
     g1 = c
     b1 = x
-  elseif hp <= 4 then
+  elseif hp < 4 then
     g1 = x
     b1 = c
-  elseif hp <= 5 then
+  elseif hp < 5 then
     r1 = x
     b1 = c
-  elseif hp <= 6 then
+  elseif hp < 6 then
+    r1 = c
+    b1 = x
+  end
+
+  return ceil((r1 + m) * 255), ceil((g1 + m) * 255), ceil((b1 + m) * 255)
+end
+
+local function hsv_to_rgb(h,s,v)
+  -- accepts 0 <= h < 360
+  -- accepts 0 <= s <= 100
+  -- accepts 0 <= v <= 100
+
+  if s < 0 then s = 0 end
+  if s > 100 then s = 100 end
+  if v < 0 then v = 0 end
+  if v > 100 then v = 100 end
+
+  if v == 100 then
+    return 255, 255, 255
+  end
+
+  while(h >= 360) do
+    h = h - 360
+  end
+
+  s = s / 100
+  v = v / 100
+
+  local c = v * s
+  local hp = h / 60
+  local x = c * (1 - abs((hp % 2) - 1))
+  local m = v - c
+  local r1 = 0
+  local g1 = 0
+  local b1 = 0
+
+  if hp < 1 then
+    r1 = c
+    g1 = x
+  elseif hp < 2 then
+    r1 = x
+    g1 = c
+  elseif hp < 3 then
+    g1 = c
+    b1 = x
+  elseif hp < 4 then
+    g1 = x
+    b1 = c
+  elseif hp < 5 then
+    r1 = x
+    b1 = c
+  elseif hp < 6 then
     r1 = c
     b1 = x
   end
@@ -64,4 +116,5 @@ end
 
 return {
   hsl_to_rgb = hsl_to_rgb,
+  hsv_to_rgb = hsv_to_rgb,
 }

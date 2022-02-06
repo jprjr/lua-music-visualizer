@@ -619,6 +619,8 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     lua_setfield(v->L,-2,"lmv.bdf");
     lua_pushcfunction(v->L,luaopen_file);
     lua_setfield(v->L,-2,"lmv.file");
+    lua_pushcfunction(v->L,luaopen_audio);
+    lua_setfield(v->L,-2,"lmv.audio");
 
     if(lua_pcall(v->L,1,0,0)) {
         err_str = lua_tostring(v->L,-1);
@@ -630,6 +632,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     }
 
     luaframe_init(v->L);
+    luaaudio_init(v->L,p);
 
     lua_newtable(v->L);
     lua_setglobal(v->L,"song");
@@ -750,9 +753,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     lua_setfield(v->L,-2,"framerate");
 
     lua_setfield(v->L,-2,"video");
-
-    luaopen_audio(v->L,p);
-    lua_setfield(v->L,-2,"audio");
 
     lua_setglobal(v->L,"stream");
 

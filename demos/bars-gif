@@ -1,0 +1,17 @@
+#!/bin/sh
+
+if [ ! -f "demos/bars" ] ; then
+    1>&2 printf "Please run this script from the root of the repo\n"
+    1>&2 printf "./demos/bars\n"
+    exit 1
+fi
+
+. demos/lib/deps
+. demos/lib/launch
+
+1>&2 printf "Saving a gif to gifs/bars.gif\n"
+
+launch_vis \
+ffmpeg -loglevel error -i pipe:0 -frames:v 60 -filter_complex "[0:v]crop=x=0:y=0:w=305:h=120,split [a] [b] ; [a] palettegen [p] ; [b][p] paletteuse" -y gifs/bars.gif
+
+
