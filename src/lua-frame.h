@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+void luaframe_init(lua_State *L);
+
 int
 luaopen_frame(lua_State *L);
 

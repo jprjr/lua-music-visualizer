@@ -137,9 +137,9 @@ int lmv_thread_new(lua_State *L,lmv_process process, lmv_free free_in, lmv_free 
 
 void lmv_thread_init(lua_State *L) {
     if(luaL_newmetatable(L,"lmv.thread")) {
-      lua_pushcclosure(L,lmv_thread__gc,0);
-      lua_setfield(L,-2,"__gc");
-      lua_pop(L,1);
+        lua_pushcclosure(L,lmv_thread__gc,0);
+        lua_setfield(L,-2,"__gc");
     }
+    lua_pop(L,1);
 }
 

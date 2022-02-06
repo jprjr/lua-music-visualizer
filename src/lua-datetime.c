@@ -71,6 +71,5 @@ static const struct luaL_Reg lua_datetime_methods[] = {
 int luaopen_datetime(lua_State *L) {
     lua_newtable(L);
     luaL_setfuncs(L,lua_datetime_methods,0);
-    lua_setglobal(L,"datetime");
-    return 0;
+    return 1;
 }

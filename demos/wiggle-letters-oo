@@ -1,8 +1,8 @@
 #!/bin/sh
 
-if [ ! -f "demos/wiggle-letters" ] ; then
+if [ ! -f "demos/wiggle-letters-oo" ] ; then
     1>&2 printf "Please run this script from the root of the repo\n"
-    1>&2 printf "./demos/wiggle-letters\n"
+    1>&2 printf "./demos/wiggle-letters-oo\n"
     exit 1
 fi
 

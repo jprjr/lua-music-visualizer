@@ -136,9 +136,8 @@ static const struct luaL_Reg lua_file_methods[] = {
 int luaopen_file(lua_State *L) {
     lua_newtable(L);
     luaL_setfuncs(L,lua_file_methods,0);
-    lua_setglobal(L,"file");
 
-    return 0;
+    return 1;
 }
 
 #ifdef __cplusplus

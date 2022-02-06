@@ -47,8 +47,7 @@ OBJS := \
 LUALHS = \
   src/loader.lua.lh \
   src/bdf.lua.lh \
-  src/font.lua.lh \
-  src/image.lua.lh \
+  src/color.lua.lh \
   src/frame.lua.lh \
   src/stream.lua.lh
 

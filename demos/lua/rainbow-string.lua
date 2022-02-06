@@ -1,8 +1,10 @@
+-- luacheck: globals stream
+local bdf = require'lmv.bdf'
+local color = require'lmv.color'
 local vga
 
 local framecounter = 0
 local colorcounter = 0
-local colorprops = {}
 
 local function cycle_color(i, props)
   if i == 1 then
@@ -16,7 +18,7 @@ local function cycle_color(i, props)
     -- we move 10 degrees per frame, so 36 frames for a full cycle
     colorcounter = 0
   end
-  local r, g, b = image.hsl_to_rgb((colorcounter + (i-1) ) * 10, 50, 50)
+  local r, g, b = color.hsl_to_rgb((colorcounter + (i-1) ) * 10, 50, 50)
   return {
     x = props.x,
     y = 50 + i * (vga.height/2),
@@ -29,7 +31,7 @@ local function cycle_color(i, props)
 end
 
 local function onload()
-  vga = font.load('demos/fonts/7x14.bdf')
+  vga = bdf.load('demos/fonts/7x14.bdf')
 end
 
 local function onframe()

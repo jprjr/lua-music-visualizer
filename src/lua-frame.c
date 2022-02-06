@@ -1424,7 +1424,7 @@ luaframe_tile(lua_State *L) {
             chunk = lua_newuserdata(L,tile_x * tile_y * channels);
             lua_setfield(L,-2,"frame");
 
-            luaL_getmetatable(L,"frame");
+            luaL_getmetatable(L,"lmv.frame");
             lua_setmetatable(L,-2);
 
             y_cpy_ind = 0;
@@ -1543,7 +1543,7 @@ luaframe_rotate(lua_State *L) {
     lua_pushinteger(L,diag * diag * 4);
     lua_setfield(L,-2,"frame_len");
 
-    luaL_getmetatable(L,"frame");
+    luaL_getmetatable(L,"lmv.frame");
     lua_setmetatable(L,-2);
 
     mem_set(rotated,0,diag*diag*4);
@@ -1675,7 +1675,7 @@ luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer ch
     lua_pushinteger(L,0);
     lua_setfield(L,-2,"height_offset");
 
-    luaL_getmetatable(L,"frame");
+    luaL_getmetatable(L,"lmv.frame");
     lua_setmetatable(L,-2);
 
     if(data != NULL) {
@@ -1731,7 +1731,7 @@ luaframe_from(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer c
     lua_pushinteger(L,0);
     lua_setfield(L,-2,"height_offset");
 
-    luaL_getmetatable(L,"frame");
+    luaL_getmetatable(L,"lmv.frame");
     lua_setmetatable(L,-2);
 
     return 1;
@@ -1758,38 +1758,44 @@ static const struct luaL_Reg luaframe_functions[] = {
     { NULL, NULL },
 };
 
-int luaopen_frame(lua_State *L) {
-    const char *s;
+void luaframe_init(lua_State *L) {
 #ifndef NDEBUG
     int lua_top = lua_gettop(L);
 #endif
-    luaL_newmetatable(L,"frame");
-    lua_newtable(L);
-    luaL_setfuncs(L,luaframe_methods,0);
-    lua_setfield(L,-2,"__index");
+    if(luaL_newmetatable(L,"lmv.frame")) {
+        lua_newtable(L);
+        luaL_setfuncs(L,luaframe_methods,0);
+        if(luaL_loadbuffer(L,frame_lua,frame_lua_length-1,"frame.lua")) {
+            LOG_ERROR(lua_tostring(L,-1));
+            lua_error(L);
+            return;
+        }
+        lua_pushvalue(L,-2);
+        if(lua_pcall(L,1,0,0)) {
+            LOG_ERROR(lua_tostring(L,-1));
+            lua_error(L);
+            return;
+        }
+        lua_setfield(L,-2,"__index");
+    }
     lua_pop(L,1);
-
-    lua_newtable(L);
-    luaL_setfuncs(L,luaframe_functions,0);
-    lua_setglobal(L,"frame");
-
-    if(luaL_loadbuffer(L,frame_lua,frame_lua_length-1,"frame.lua")) {
-        s = lua_tostring(L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(s);
-        return 1;
-    }
-
-    if(lua_pcall(L,0,0,0)) {
-        s = lua_tostring(L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(s);
-        return 1;
-    }
-
 #ifndef NDEBUG
     assert(lua_top == lua_gettop(L));
 #endif
+}
 
-    return 0;
+int luaopen_frame(lua_State *L) {
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
+    luaframe_init(L);
+
+    lua_newtable(L);
+    luaL_setfuncs(L,luaframe_functions,0);
+
+#ifndef NDEBUG
+    assert(lua_top + 1 == lua_gettop(L));
+#endif
+
+    return 1;
 }

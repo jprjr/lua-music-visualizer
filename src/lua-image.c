@@ -3,7 +3,6 @@
 #include "lua-frame.h"
 #include "lua-image.h"
 #include "lua-thread.h"
-#include "image.lua.lh"
 #include "thread.h"
 #include "str.h"
 #include "util.h"
@@ -32,6 +31,8 @@ typedef struct image_q {
     unsigned int frames;
     jpr_uint8 *image;
 } image_q;
+
+static int threader_ref = LUA_NOREF;
 
 static void image_q_free(lua_State *L, void *value) {
     image_q *q = (image_q *)value;
@@ -125,19 +126,24 @@ lua_load_image_cb(void *Lua, int table_ref, unsigned int frames, jpr_uint8 *imag
     delay_ind = lua_gettop(L);
 
     for(i=0;i<frames;i++) {
-        luaframe_new(L,width,height,channels,b);
-        lua_rawseti(L,frame_ind,i+1);
-        if(frames > 1) {
-          b += width * height * channels;
-          delay = 0 + b[0];
-          delay += b[1] << 8;
+        if(luaframe_new(L,width,height,channels,b) == 1) {
+          lua_rawseti(L,frame_ind,i+1);
+          if(frames > 1) {
+            b += width * height * channels;
+            delay = 0 + b[0];
+            delay += b[1] << 8;
+          }
+          else {
+              delay = 0;
+          }
+          lua_pushinteger(L,delay);
+          lua_rawseti(L,delay_ind,i+1);
+          b += 2;
+        } else {
+            /* top of the index is the error message */
+            LOG_ERROR(lua_tostring(L,-1));
+            lua_pop(L,2);
         }
-        else {
-            delay = 0;
-        }
-        lua_pushinteger(L,delay);
-        lua_rawseti(L,delay_ind,i+1);
-        b += 2;
     }
 
     lua_setfield(L,table_ind,"delays");
@@ -248,9 +254,12 @@ lua_image_new(lua_State *L) {
         lua_newtable(L); /* image.frames  -- push */
         frame_ind = lua_gettop(L);
 
-        luaframe_new(L,width,height,channels,NULL);
-
-        lua_rawseti(L,frame_ind,1);
+        if(luaframe_new(L,width,height,channels,NULL) == 1) {
+            lua_rawseti(L,frame_ind,1);
+        } else {
+            LOG_ERROR(lua_tostring(L,-1));
+            lua_pop(L,2);
+        }
         lua_setfield(L,table_ind,"frames");
 
         lua_newtable(L); /* image.delays */
@@ -263,7 +272,7 @@ lua_image_new(lua_State *L) {
         lua_setfield(L,table_ind,"framecount");
     }
 
-    luaL_getmetatable(L,"image");
+    luaL_getmetatable(L,"lmv.image");
     lua_setmetatable(L,table_ind);
 
 #ifndef NDEBUG
@@ -425,19 +434,23 @@ lua_image_load(lua_State *L) {
         delay_ind = lua_gettop(L);
 
         for(i=0;i<frames;i++) {
-            luaframe_new(L,width,height,channels,b);
-            lua_rawseti(L,frame_ind,i+1);
-            if(frames > 1) {
-              b += width * height * channels;
-              delay = 0 + b[0];
-              delay += b[1] << 8;
+            if(luaframe_new(L,width,height,channels,b) == 1) {
+                lua_rawseti(L,frame_ind,i+1);
+                if(frames > 1) {
+                  b += width * height * channels;
+                  delay = 0 + b[0];
+                  delay += b[1] << 8;
+                }
+                else {
+                    delay = 0;
+                }
+                lua_pushinteger(L,delay);
+                lua_rawseti(L,delay_ind,i+1);
+                b += 2;
+            } else {
+                LOG_ERROR(lua_tostring(L,-1));
+                lua_pop(L,2);
             }
-            else {
-                delay = 0;
-            }
-            lua_pushinteger(L,delay);
-            lua_rawseti(L,delay_ind,i+1);
-            b += 2;
         }
 
         lua_setfield(L,1,"delays");
@@ -505,41 +518,36 @@ static const struct luaL_Reg lua_image_methods[] = {
     { NULL     , NULL                },
 };
 
+static void luaimage_init(lua_State *L) {
+#ifndef NDEBUG
+    int lua_top = lua_gettop(L);
+#endif
+    lmv_thread_init(L);
+
+    if(luaL_newmetatable(L,"lmv.image")) {
+        lua_newtable(L);
+        if(lmv_thread_new(L,bgimage_process,image_q_free,image_q_free,100) != 1) {
+            luaL_error(L,"error creating thread upvalue");
+            return;
+        }
+        lua_pushvalue(L,-1);
+        threader_ref = luaL_ref(L,LUA_REGISTRYINDEX);
+        luaL_setfuncs(L,lua_image_instance_methods,1);
+        lua_setfield(L,-2,"__index");
+    }
+    lua_pop(L,1);
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(L));
+#endif
+}
+
 int
 luaopen_image(lua_State *L) {
-    const char *s = NULL;
-
-    lmv_thread_init(L);
-    if(lmv_thread_new(L,bgimage_process,image_q_free,image_q_free,100) != 1) {
-        return luaL_error(L,"error creating thread upvalue");
-    }
-
-    luaL_newmetatable(L,"image");
-    lua_newtable(L);
-    lua_pushvalue(L,-3);
-    luaL_setfuncs(L,lua_image_instance_methods,1);
-    lua_setfield(L,-2,"__index");
-    lua_pop(L,1);
+    luaimage_init(L);
 
     lua_newtable(L);
-    lua_pushvalue(L,-2);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, threader_ref);
     luaL_setfuncs(L,lua_image_methods,1);
-
-    if(luaL_loadbuffer(L,image_lua,image_lua_length-1,"image.lua")) {
-        s = lua_tostring(L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(s);
-        return 1;
-    }
-
-    lua_pushvalue(L,-2);
-
-    if(lua_pcall(L,1,0,0)) {
-        s = lua_tostring(L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(s);
-        return 1;
-    }
 
     return 1;
 }

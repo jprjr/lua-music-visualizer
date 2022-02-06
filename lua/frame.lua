@@ -1,83 +1,9 @@
--- luacheck: globals frame font
--- this is loaded after the core C methods
--- are loaded
+local frame_mt_funcs = ...
 
-local band, rshift, lshift, bnot
-local ok, bit = pcall(require,'bit')
-if ok then
-  band, rshift, lshift, bnot = bit.band, bit.rshift, bit.lshift, bit.bnot
-else
-  ok, bit = pcall(require,'bit32')
-  if ok then
-    band, rshift, lshift, bnot = bit.band, bit.rshift, bit.lshift, bit.bnot
-  end
-end
+local bdf = require'lmv.bdf'
+local color = require'lmv.color'
 
-local reg = debug.getregistry()
-
-local frame_mt = reg["frame"]
-local frame_mt_funcs = frame_mt["__index"]
-
-local ceil = math.ceil
-local abs = math.abs
-
-local function hsl_to_rgb(h,s,l)
-  -- accepts 0 <= h < 360
-  -- accepts 0 <= s <= 100
-  -- accepts 0 <= l <= 100
-
-  if l == 100 then
-    return 255, 255, 255
-  end
-
-  if l == 0 then
-    return 0, 0 ,0
-  end
-
-  if s == 0 then
-    l = ceil(255 * (l / 100) )
-    return l, l, l
-  end
-
-  while(h >= 360) do
-    h = h - 360
-  end
-
-  l = l / 100
-  s = s / 100
-
-  local c = (1 - abs(2*l - 1)) * s
-  local hp = h / 60
-  local x = c * (1 - abs((hp % 2) - 1))
-  local m = l - (c / 2)
-  local r1 = 0
-  local g1 = 0
-  local b1 = 0
-
-  if hp <= 1 then
-    r1 = c
-    g1 = x
-  elseif hp <= 2 then
-    r1 = x
-    g1 = c
-  elseif hp <= 3 then
-    g1 = c
-    b1 = x
-  elseif hp <= 4 then
-    g1 = x
-    b1 = c
-  elseif hp <= 5 then
-    r1 = x
-    b1 = c
-  elseif hp <= 6 then
-    r1 = c
-    b1 = x
-  end
-
-  return ceil((r1 + m) * 255), ceil((g1 + m) * 255), ceil((b1 + m) * 255)
-end
-
-frame.hsl_to_rgb = hsl_to_rgb
+local hsl_to_rgb = color.hsl_to_rgb
 
 frame_mt_funcs.set_pixel_hsl = function(self,x,y,h,s,l,a)
   local r, g, b = hsl_to_rgb(h,s,l)
@@ -118,7 +44,7 @@ frame_mt_funcs.stamp_string_adv = function(self, str, props, userd)
   local p
   local tp = type(props)
 
-  local codepoints = font.utf8_to_table(str)
+  local codepoints = bdf.utf8_to_table(str)
   for i,codepoint in ipairs(codepoints) do
     local ap
     if tp == 'table' then
@@ -151,7 +77,7 @@ frame_mt_funcs.stamp_string_adv = function(self, str, props, userd)
 
 end
 
-frame_mt_funcs.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask,hflip,vflip)
+frame_mt_funcs.stamp_string = function(self,f,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask,hflip,vflip)
   local lmask_applied = false
   if not lmask then
     lmask_applied = true
@@ -166,21 +92,21 @@ frame_mt_funcs.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,r
   tmask = tmask * scale
   bmask = bmask * scale
 
-  local codepoints = font.utf8_to_table(str)
+  local codepoints = bdf.utf8_to_table(str)
 
   local xi = x
   for _,codepoint in ipairs(codepoints) do
-    if not font.widths[codepoint] then
+    if not f.widths[codepoint] then
       codepoint = 32
     end
-    if lmask and lmask >= (font.widths[codepoint] * scale) then
-      lmask = lmask - (font.widths[codepoint] * scale)
-      xi = xi + (font.widths[codepoint] * scale)
+    if lmask and lmask >= (f.widths[codepoint] * scale) then
+      lmask = lmask - (f.widths[codepoint] * scale)
+      xi = xi + (f.widths[codepoint] * scale)
     else
-      if max and  xi + (font.widths[codepoint] * scale) > max then
-        rmask =  (font.widths[codepoint] * scale) - (max - xi)
+      if max and  xi + (f.widths[codepoint] * scale) > max then
+        rmask =  (f.widths[codepoint] * scale) - (max - xi)
       end
-      xi = xi + self:stamp_letter(font,codepoint,scale,xi,y,r,g,b,
+      xi = xi + self:stamp_letter(f,codepoint,scale,xi,y,r,g,b,
         lmask_applied == false and lmask or 0,
         rmask,tmask,bmask,hflip,vflip)
       if lmask_applied == false then
@@ -191,13 +117,14 @@ frame_mt_funcs.stamp_string = function(self,font,str,scale,x,y,r,g,b,max,lmask,r
   end
 end
 
-frame_mt_funcs.stamp_string_hsl = function(self,font,str,scale,x,y,h,s,l,max,lmask,rmask,tmask,bmask,hflip,vflip)
+frame_mt_funcs.stamp_string_hsl = function(self,f,str,scale,x,y,h,s,l,max,lmask,rmask,tmask,bmask,hflip,vflip)
   local r, g, b = hsl_to_rgb(h,s,l)
-  return self:stamp_string(font,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask,hflip,vflip)
+  return self:stamp_string(f,str,scale,x,y,r,g,b,max,lmask,rmask,tmask,bmask,hflip,vflip)
 end
 
-frame_mt_funcs.stamp_letter_hsl = function(self,font,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
+frame_mt_funcs.stamp_letter_hsl = function(self,f,codepoint,scale,x,y,h,s,l,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
   local r, g, b = hsl_to_rgb(h,s,l)
-  return self:stamp_letter(font,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
+  return self:stamp_letter(f,codepoint,scale,x,y,r,g,b,hloffset,hroffset,ytoffset,yboffset,hflip,vflip)
 end
+
 

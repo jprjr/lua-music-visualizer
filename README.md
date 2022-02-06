@@ -227,35 +227,34 @@ For reference, here's all the function signatures you can expose:
 
 # The Lua environment
 
-## Globals
+## Paths
 
 Before any script is called, your Lua folder is added to the `package.path` variable,
 meaning you can create submodules within your Lua folder and load them using `require`.
 
-Within your Lua script, you have a few pre-defined global variables:
+## Modules
 
-* `stream` - a table representing the video stream
-* `image` - a module for loading image files
-* `frame` - a module for creating image frames
-* `font` - a module for loading BDF fonts
-* `file` - a module for filesystem operations
-* `song` - a table of what's playing, from MPD. Also used for message relaying
+There's some internal modules you can use in your lua scripts:
 
-### The global `stream` object
+* `lmv.color` - a module for calculating colors
+* `lmv.image` - a module for loading image files
+* `lmv.frame` - a module for creating image frames
+* `lmv.bdf` - a module for loading BDF fonts
+* `lmv.file` - a module for filesystem operations
 
-The `stream` table has two keys:
+These can all be included with the standard `require`, like `local image = require('lmv.image')`
 
-* `stream.video` - this represents the current frame of video, it's actually an instance of a `frame` which has more details below
-  * `stream.video.framerate` - the video framerate
-* `stream.audio` - a table of audio data
-  * `stream.audio.samplerate` - audio samplerate, like `48000`
-  * `stream.audio.channels` - audio channels, like `2`
-  * `stream.audio.samplesize` - sample size in bytes, like `2` for 16-bit audio
-  * `stream.audio.freqs` - an array of available frequencies, suitable for making a visualizer
-  * `stream.audio.amps` - an array of available amplitudes, suitable for making a visualizer - values between 0.0 and 1.0
-  * `stream.audio.spectrum_len` - the number of available amplitudes/frequencies
+### the `lmv.color` module
 
-### The global `image` object
+The `color` module contains utility functions for converting between color spaces.
+
+* `r, g, b = color.hsl_to_rgb(h, s, l)`
+  * converts a Hue, Saturation, and Lightness value to Red, Green, and Blue values.
+  * `h` (Hue) should be between 0 and 359 (inclusive)
+  * `s` (Saturation) should be between 0 and 100 (inclusive)
+  * `l` (Lightness) should be between 0 and 100 (inclusive)
+
+### The `lmv.image` module
 
 The `image` module can load most images, including GIFs. All images have a 2-stage loading process. Initially, it
 just probes the image for information like height, width, etc. You can then load the image synchronously or asynchronously.
@@ -274,7 +273,7 @@ to load images synchronously. Otherwise, you should load images asynchronously.
 
 Scroll down to "Image Instances" for details on image methods like `img:load()`
 
-### The global `frame` object
+### The `lmv.frame` module
 
 The `frame` module allows creating a single image frame, which you can then
 perform drawing operations with.
@@ -285,18 +284,20 @@ perform drawing operations with.
   * The frame will have all-zero values, so warning! This means in a 4-channel image,
   the Alpha value will be 0 (the image is fully transparent).
 
-### The global `font` object
+### The `lmv.bdf` module
 
-The `font` object can load BDF (bitmap) fonts.
+The `bdf` module can load BDF (bitmap) fonts.
 
-* `f = font.new(filename)`
-  * Loads a BDF font and returns a font object
+* `f = bdf.new(filename)`
+  * Loads a BDF font and returns an object.
+* `table = f.utf8_to_table(str)`
+  * converts a string to a table of UTF-8 codepoints
 
-Scroll down to "Font Instances" for details on font methods
+Scroll down to "BDF Instances" for details on BDF methods.
 
-### The global `file` object
+### The `lmv.file` module.
 
-The `file` object has methods for common file operations:
+The `file` module has methods for common file operations:
 
 * `dir = file.ls(path)`
   * Lists files in a directory
@@ -318,6 +319,28 @@ The `file` object has methods for common file operations:
 
 * `ok = file.exists(path)`
   * Returns `true` if a path exists, `nil` otherwise.
+
+
+## Globals
+
+Within your Lua script, you have a few pre-defined global variables:
+
+* `stream` - a table representing the video stream
+* `song` - a table of what's playing, from MPD. Also used for message relaying
+
+### The global `stream` object
+
+The `stream` table has two keys:
+
+* `stream.video` - this represents the current frame of video, it's actually an instance of a `frame` which has more details below
+  * `stream.video.framerate` - the video framerate
+* `stream.audio` - a table of audio data
+  * `stream.audio.samplerate` - audio samplerate, like `48000`
+  * `stream.audio.channels` - audio channels, like `2`
+  * `stream.audio.samplesize` - sample size in bytes, like `2` for 16-bit audio
+  * `stream.audio.freqs` - an array of available frequencies, suitable for making a visualizer
+  * `stream.audio.amps` - an array of available amplitudes, suitable for making a visualizer - values between 0.0 and 1.0
+  * `stream.audio.spectrum_len` - the number of available amplitudes/frequencies
 
 ### The global `song` object
 
@@ -387,7 +410,7 @@ For convenience, most `frame` functions can be used on the `stream` object direc
 * `frame:set(frame)`
   * copies a whole frame as-is to the frame
   * the source and destination frame must have the same width, height, and channels values
-* `frame:stamp_image(stamp,x,y,flip,mask,a)`
+* `frame:stamp_frame(stamp,x,y,flip,mask,a)`
   * stamps a frame (`stamp`) on top of `frame` at `x,y`
   * `x,y` starts at `1,1` for the top-left corner of the image
   * `flip` is an optional table with the following keys:
@@ -441,19 +464,19 @@ For convenience, most `frame` functions can be used on the `stream` object direc
     the same position, you'd place the rotate image at x - width_offset, y - height_offset
   * rotating an already-rotated frame is technically possibly but not recommended
 
-## Font instances
+## BDF font instances
 
-Loaded fonts have the following properties/methods:
+Loaded BDF fonts have the following properties/methods:
 
-* `f:pixel(codepoint,x,y)`
+* `bdf:pixel(codepoint,x,y)`
   * returns true if the pixel at `x,y` is active
   * codepoint is UTF-8 codepoint, ie, 'A' is 65
-* `f:pixeli(codepoint,x,y)`
+* `bdf:pixeli(codepoint,x,y)`
   * same as `pixel()`, but inverted
-* `f:get_string_width(str,scale)`
+* `bdf:get_string_width(str,scale)`
   * calculates the width of a rendered string
   * scale needs to be 1 or greater
-* `f:utf8_to_table(str)`
+* `bdf:utf8_to_table(str)`
   * converts a string to a table of UTF-8 codepoints
 
 ## Examples
@@ -476,16 +499,14 @@ Load an image and stamp it over the video
 ```lua
 -- register a global "img" to use
 -- globals can presist across script reloads
+local image = require'lmv.image'
 
-img = img or nil
+local img = image.new('something.jpg')
+img:load() -- load immediately
 
 return {
-    onload = function()
-      img = image.new('something.jpg')
-      img:load(false) -- load immediately
-    end,
     onframe = function()
-      stream.video:stamp_image(img.frames[1],1,1)
+      stream.video:stamp_frame(img.frames[1],1,1)
     end
 }
 ```
@@ -493,16 +514,16 @@ return {
 ### example: load a background
 
 ```lua
--- register a global 'bg' variable
-bg = bg or nil
+local image = require'lmv.image'
+-- we specify the image should be resized to fit the stream's video frame
+-- and use the same number of channels (RGB).
+local bg = image.new('something.jpg',stream.video.width,stream.video.height,stream.video.channels)
+bg:load()
 
 return {
-    onload = function()
-      bg = image.new('something.jpg',stream.video.width,stream.video.height,stream.video.channels)
-      bg:load(false) -- load immediately
-      -- image will be resized to fill the video frame
-    end,
     onframe = function()
+      -- since we know bg is the same dimensions and color depth as the video,
+      -- we can use "set" to copy the entire frame in, instead of stamping it.
       stream.video:set(bg)
     end
 }
@@ -511,16 +532,13 @@ return {
 ### example: display song title
 
 ```lua
--- register a global 'f' to use for a font
-f = f or nil
+local bdf = require'lmv.bdf'
+local font = bdf.new('some-font.bdf')
 
 return {
-    onload = function()
-      f = font.new('some-font.bdf')
-    end,
     onframe = function()
       if song.title then
-          stream.video:stamp_string(f,song.title,3,1,1)
+          stream.video:stamp_string(font,song.title,3,1,1)
           -- places the song title at top-left (1,1), with a 3x scale
       end
     end
@@ -548,25 +566,23 @@ return {
 ### example: animate a gif
 
 ```lua
+local image = require'lmv.image'
 local frametime = 1000 / stream.video.framerate
 -- frametime is how long each frame of video lasts in milliseconds
 -- we'll use this to figure out when to advance to the next
 -- frame of the gif
 
--- register a global 'gif' variable
-gif = gif or nil
+local gif = image.new('some-gif.gif')
+gif:load()
 
 return {
     onload = function()
-      gif = image.new('agif.gif')
-      gif:load(false) -- load immediately
-
       -- initialize the gif with the first frame and frametime
       gif.frameno = 1
       gif.nextframe = gif.delays[gif.frameno]
     end,
     onframe = function()
-      stream.video:stamp_image(gif.frames[gif.frameno],1,1)
+      stream.video:stamp_frame(gif.frames[gif.frameno],1,1)
       gif.nextframe = gif.nextframe - frametime
       if gif.nextframe <= 0 then
           -- advance to the next frame
@@ -583,14 +599,15 @@ return {
 ### example: use `stamp_string_adv` with a function to generate a rainbow
 
 ```lua
+local bdf = require'lmv.bdf'
+local color = require'lmv.color'
 local vga
 
+local framecounter = 0
 local colorcounter = 0
-local colorprops = {}
 
 local function cycle_color(i, props)
   if i == 1 then
-    -- at the beginning of the string, increase our color counter
     colorcounter = colorcounter + 1
     props = {
       x = 1,
@@ -601,11 +618,7 @@ local function cycle_color(i, props)
     -- we move 10 degrees per frame, so 36 frames for a full cycle
     colorcounter = 0
   end
-  
-  -- use the color counter offset + i to change per-letter colors
-  local r, g, b = image.hsl_to_rgb((colorcounter + (i-1) ) * 10, 50, 50)
-
-  -- also for fun, we make each letter drop down
+  local r, g, b = color.hsl_to_rgb((colorcounter + (i-1) ) * 10, 50, 50)
   return {
     x = props.x,
     y = 50 + i * (vga.height/2),
@@ -618,12 +631,16 @@ local function cycle_color(i, props)
 end
 
 local function onload()
-  vga = font.load('demos/fonts/7x14.bdf')
+  vga = bdf.load('demos/fonts/7x14.bdf')
 end
 
 local function onframe()
   stream:stamp_string(vga, "Just some text", 3, 1, 1, 255, 255, 255)
   stream:stamp_string_adv("Some more text", cycle_color )
+  framecounter = framecounter + 1
+  if framecounter == 300 then
+    os.exit(0)
+  end
 end
 
 return {
@@ -639,13 +656,14 @@ Output:
 ### example: use `stamp_string_adv` with a function to do the wave
 
 ```lua
+local bdf = require'lmv.bdf'
 local vga
 local sin = math.sin
 local ceil = math.ceil
 
+local framecounter = 0
 local sincounter = -1
 local default_y = 30
-local wiggleprops = {}
 
 local function wiggle_letters(i, props)
   if i == 1 then
@@ -670,11 +688,15 @@ local function wiggle_letters(i, props)
 end
 
 local function onload()
-  vga = font.load('demos/fonts/7x14.bdf')
+  vga = bdf.load('demos/fonts/7x14.bdf')
 end
 
 local function onframe()
   stream:stamp_string_adv("Do the wave", wiggle_letters )
+  framecounter = framecounter + 1
+  if framecounter == 300 then
+    os.exit(0)
+  end
 end
 
 return {
@@ -687,6 +709,62 @@ Output:
 
 ![output of wave demo](gifs/wiggle-letters.gif)
 
+### Example: previous wiggle-letters example, but object-oriented
+
+```lua
+local bdf = require'lmv.bdf'
+local sin = math.sin
+local ceil = math.ceil
+
+local OODemo = {}
+local OODemo__metatable = {
+  __index = OODemo
+}
+
+-- returns a closure suitable for stream:stamp_string_adv
+function OODemo:new_wiggle_letters()
+  return function(i, props)
+    if i == 1 then
+      self.sincounter = self.sincounter + 1
+      props = {
+        x = 10,
+      }
+    end
+    if self.sincounter == (26) then
+      self.sincounter = 0
+    end
+
+    return {
+      x = props.x,
+      y = self.default_y + ceil( sin((self.sincounter / 4) + i - 1) * 10),
+      font = self.vga,
+      scale = 3,
+      r = 255,
+      g = 255,
+      b = 255,
+    }
+  end
+end
+
+-- initialize default values, load a font, generate the closure
+function OODemo:onload()
+  self.framecounter = 0
+  self.sincounter = -1
+  self.default_y = 30
+  self.vga = bdf.load('demos/fonts/7x14.bdf')
+  self.wiggle_letters = self:new_wiggle_letters()
+end
+
+function OODemo:onframe()
+  stream:stamp_string_adv("Do the wave", self.wiggle_letters )
+  self.framecounter = self.framecounter + 1
+  if self.framecounter == 300 then
+    os.exit(0)
+  end
+end
+
+return setmetatable({},OODemo__metatable)
+```
 
 # License
 

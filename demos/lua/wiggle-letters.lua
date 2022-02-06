@@ -1,3 +1,5 @@
+-- luacheck: globals stream
+local bdf = require'lmv.bdf'
 local vga
 local sin = math.sin
 local ceil = math.ceil
@@ -5,7 +7,6 @@ local ceil = math.ceil
 local framecounter = 0
 local sincounter = -1
 local default_y = 30
-local wiggleprops = {}
 
 local function wiggle_letters(i, props)
   if i == 1 then
@@ -30,7 +31,7 @@ local function wiggle_letters(i, props)
 end
 
 local function onload()
-  vga = font.load('demos/fonts/7x14.bdf')
+  vga = bdf.load('demos/fonts/7x14.bdf')
 end
 
 local function onframe()

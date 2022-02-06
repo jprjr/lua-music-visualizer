@@ -1,3 +1,5 @@
+local stream = {}
+
 stream.get_pixel = function(self,x,y)
   return self.video:get_pixel(x,y)
 end
@@ -43,7 +45,7 @@ stream.draw_rectangle_rgb = stream.draw_rectangle
 stream.stamp_string_rgb = stream.stamp_string
 stream.stamp_letter_rgb = stream.stamp_letter
 
-stream.set_image = function(self,b)
+stream.set_frame = function(self,b)
   return self.video:set(b)
 end
 
@@ -51,9 +53,8 @@ stream.stamp_frame = function(self,b,x,y,flip,mask,alpha)
   return self.video:stamp_frame(b,x,y,flip,mask,alpha)
 end
 
-stream.stamp_image = stream.stamp_frame
-
 stream.blend = function(self,b,alpha)
   return self.video:blend(b,alpha)
 end
 
+return stream

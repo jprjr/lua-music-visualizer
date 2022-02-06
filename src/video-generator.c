@@ -1,7 +1,3 @@
-#ifndef USE_OLD_FONT
-#define USE_OLD_FONT 0
-#endif
-
 #include "int.h"
 #include "norm.h"
 #include "path.h"
@@ -10,15 +6,12 @@
 #include "mpdc.h"
 #include "util.h"
 #include "jpr_proc.h"
+#include "color.lua.lh"
 #include "loader.lua.lh"
 #include "stream.lua.lh"
 #include "lua-audio.h"
 #include "lua-datetime.h"
-#if USE_OLD_FONT
-#include "font.lua.lh"
-#else
 #include "lua-bdf.h"
-#endif
 #include "lua-frame.h"
 #include "lua-image.h"
 #include "lua-file.h"
@@ -614,8 +607,18 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     lua_newtable(v->L);
     lua_pushstring(v->L,"return function() print('hello') end");
     lua_setfield(v->L,-2,"lmv.hello");
+    lua_pushlstring(v->L,color_lua,color_lua_length-1);
+    lua_setfield(v->L,-2,"lmv.color");
+    lua_pushcfunction(v->L,luaopen_frame);
+    lua_setfield(v->L,-2,"lmv.frame");
     lua_pushcfunction(v->L,luaopen_image);
     lua_setfield(v->L,-2,"lmv.image");
+    lua_pushcfunction(v->L,luaopen_datetime);
+    lua_setfield(v->L,-2,"lmv.datetime");
+    lua_pushcfunction(v->L,luaopen_bdf);
+    lua_setfield(v->L,-2,"lmv.bdf");
+    lua_pushcfunction(v->L,luaopen_file);
+    lua_setfield(v->L,-2,"lmv.file");
 
     if(lua_pcall(v->L,1,0,0)) {
         err_str = lua_tostring(v->L,-1);
@@ -625,6 +628,8 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         globalL = NULL;
         return 1;
     }
+
+    luaframe_init(v->L);
 
     lua_newtable(v->L);
     lua_setglobal(v->L,"song");
@@ -708,19 +713,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     v->sampler = r;
     v->processor = p;
 
-    luaopen_datetime(v->L);
-
-    luaopen_frame(v->L);
-
-    lua_getglobal(v->L,"require");
-    lua_pushliteral(v->L,"lmv.image");
-    lua_call(v->L,1,1);
-    lua_setglobal(v->L,"image");
-#ifndef NDEBUG
-    assert(lua_top == lua_gettop(v->L));
-#endif
-
-    luaopen_file(v->L);
 #ifndef NDEBUG
     assert(lua_top == lua_gettop(v->L));
 #endif
@@ -729,8 +721,11 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     luaopen_video(v->L);
 #endif
 
-#if USE_OLD_FONT
-    if(luaL_loadbuffer(v->L,font_lua,font_lua_length-1,"font.lua")) {
+#ifndef NDEBUG
+    assert(lua_top == lua_gettop(v->L));
+#endif
+
+    if(luaL_loadbuffer(v->L,stream_lua,stream_lua_length - 1,"stream.lua")) {
         err_str = lua_tostring(v->L,-1);
         WRITE_STDERR("error: ");
         LOG_ERROR(err_str);
@@ -750,25 +745,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
         return 1;
     }
 
-#else
-
-    if(UNLIKELY(luaopen_bdf(v->L) == 0)) {
-        free(v->framebuf);
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-#endif
-
-    lua_setglobal(v->L,"font");
-
-#ifndef NDEBUG
-    assert(lua_top == lua_gettop(v->L));
-#endif
-
-    lua_newtable(v->L);
-
     luaframe_from(v->L,v->width,v->height,3,v->framebuf+8);
     lua_pushinteger(v->L,v->fps);
     lua_setfield(v->L,-2,"framerate");
@@ -780,29 +756,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
 
     lua_setglobal(v->L,"stream");
 
-#ifndef NDEBUG
-    assert(lua_top == lua_gettop(v->L));
-#endif
-
-    if(luaL_loadbuffer(v->L,stream_lua,stream_lua_length - 1,"stream.lua")) {
-        err_str = lua_tostring(v->L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(err_str);
-        free(v->framebuf);
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
-
-    if(lua_pcall(v->L,0,0,0)) {
-        err_str = lua_tostring(v->L,-1);
-        WRITE_STDERR("error: ");
-        LOG_ERROR(err_str);
-        free(v->framebuf);
-        lua_close(v->L);
-        globalL = NULL;
-        return 1;
-    }
 
 #ifndef NDEBUG
     assert(lua_top == lua_gettop(v->L));
