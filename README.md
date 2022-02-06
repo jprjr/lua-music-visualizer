@@ -317,6 +317,12 @@ to load images synchronously. Otherwise, you should load images asynchronously.
     * The actual image data is NOT loaded, use `img:load()` to load data.
   * If filename is nil, then an empty image is created with the given width/height/channels
 
+* `loader = image.loader(queue size)`
+  * Creates a new asynchronous image loader.
+  * The size parameter is the maximum amount of queued images.
+  * You pass the loader object to `img:load()`.
+  * Call `loader.update` to copy images back into Lua.
+
 Scroll down to "Image Instances" for details on image methods like `img:load()`
 
 ### The `lmv.frame` module
@@ -395,9 +401,9 @@ An image instance has the following methods and properties
 * `img.frames` - only available after calling `img:load`, an array of one or more frames
 * `img.framecount` - only available after calling `img:load`, total number of frames in the `frames` array
 * `img.delays` - only available after calling `img:load` - an array of frame delays (only applicable to gifs)
-* `img:load(async)` - loads an image into memory
-  * If `async` is true, image is loaded in the background and available on some future iteration of `onframe`
-  * else, image is loaded immediately
+* `img:load(loader)` - loads an image into memory
+  * `loader` is an optional object created by `image.loader` - if supplied, the image will be loaded
+  using a background thread, otherwise the image is loaded immediately.
 * `img:unload()` - unloads an image from memory
 
 If `img:load()` fails, either asynchronously or synchronously, then the `state` key will be set to `error`
@@ -534,6 +540,23 @@ return {
       stream.video:stamp_frame(img.frames[1],1,1)
     end
 }
+```
+
+### example: load image asynchronously
+
+```lua
+local image = require'lmv.image'
+local stream = require'lmv.stream'
+local loader = image.loader(10)
+local img = image.new('something.jpg')
+img:load(loader)
+
+return function()
+  loader:update() -- process any images loaded by this loader
+  if img.state == 'loaded' then
+    stream.video:stamp_frame(img.frames[1],1,1)
+  end
+end
 ```
 
 ### example: load a background
