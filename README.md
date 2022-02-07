@@ -300,6 +300,16 @@ The `color` module contains utility functions for converting between color space
   * `v` (Value) should be between 0 and 100 (inclusive)
   * The returned red, green, and blue values will be between 0 and 255 (inclusive).
 
+* `h, s, l = color.rgb_to_hsl(r, g, b)`
+  * Converts a Red, Green, and Blue value to Hue, Saturation, and Lightness.
+  * `r`, `g`, and `b` should all be between 0 and 255 (inclusive).
+  * The returned Hue will be between 0 and 359 (inclusive), saturation between 0 and 100, lightness between 0 and 100.
+
+* `h, s, v = color.rgb_to_hsv(r, g, b)`
+  * Converts a Red, Green, and Blue value to Hue, Saturation, and Value.
+  * `r`, `g`, and `b` should all be between 0 and 255 (inclusive).
+  * The returned Hue will be between 0 and 359 (inclusive), saturation between 0 and 100, value between 0 and 100.
+
 ### The `lmv.image` module
 
 The `image` module can load most images, including GIFs. All images have a 2-stage loading process. Initially, it
@@ -884,6 +894,7 @@ for details.
 * `src/utf.h` - public domain, details found in file
 * `src/util.h` - public domain, details found in file
 * `src/HandmadeMath.h` - public domain, see https://github.com/HandmadeMath/Handmade-Math/blob/master/LICENSE
+* `src/headley.h` - public domain, see https://nemequ.github.io/headley
 
 # Changes
 

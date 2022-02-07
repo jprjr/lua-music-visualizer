@@ -6,9 +6,9 @@
 #include "mpdc.h"
 #include "util.h"
 #include "jpr_proc.h"
-#include "color.lua.lh"
 #include "loader.lua.lh"
 #include "lua-audio.h"
+#include "lua-color.h"
 #include "lua-datetime.h"
 #include "lua-bdf.h"
 #include "lua-frame.h"
@@ -517,7 +517,7 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     }
 
     lua_newtable(v->L);
-    lua_pushlstring(v->L,color_lua,color_lua_length-1);
+    lua_pushcfunction(v->L,luaopen_color);
     lua_setfield(v->L,-2,"lmv.color");
     lua_pushcfunction(v->L,luaopen_frame);
     lua_setfield(v->L,-2,"lmv.frame");

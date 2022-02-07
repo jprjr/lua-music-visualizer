@@ -15,6 +15,7 @@ OBJS := \
   src/lua-thread.o \
   src/lua-image.o \
   src/lua-file.o \
+  src/lua-color.o \
   src/lua-audio.o \
   src/lua-datetime.o \
   src/lua-stream.o \
