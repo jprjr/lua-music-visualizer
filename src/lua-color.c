@@ -12,21 +12,39 @@
 #define POW52 4503599627370496.0
 #define POW51 2251799813685248.0
 #define ROUND(x) floor( ((x) + (POW52 + POW51) - (POW52 + POW51)))
+#else
+#define ROUND(x) lrintf(x)
 #endif
 
-#define ROUND(x) lrintf(x)
+typedef struct tuple_max {
+    float m;
+    int w;
+} tuple_max;
 
-typedef struct tuple_s {
-    union { float r; float h; };
-    union { float g; float s; };
-    union { float b; float l; float v; };
-} tuple_s;
+typedef struct tuple_rgb {
+    float r;
+    float g;
+    float b;
+} tuple_rgb;
+
+typedef struct tuple_hsl {
+    float h;
+    float s;
+    float l;
+} tuple_hsl;
+
+typedef struct tuple_hsv {
+    float h;
+    float s;
+    float v;
+} tuple_hsv;
+
 
 /* use the same logic as lua for fmod */
 HEDLEY_CONST
 HEDLEY_INLINE
-HEDLEY_PRIVATE
-int color_fmod(float a, float b) {
+static
+float color_fmod(float a, float b) {
     float m = fmodf(a,b);
 
     /* original logic in lua
@@ -37,37 +55,34 @@ int color_fmod(float a, float b) {
     return m;
 }
 
-HEDLEY_PURE
-HEDLEY_NON_NULL(2)
+HEDLEY_CONST
 HEDLEY_INLINE
-HEDLEY_PRIVATE
-float findmax(tuple_s rgb, int* HEDLEY_RESTRICT which) {
-    float m = -1.0;
-    int w = 0;
+static
+tuple_max findmax(const tuple_rgb rgb) {
+    tuple_max t = { .m = -1.0, .w = 0 };
 
-    if(rgb.r > m) {
-        m = rgb.r;
-        w = 1;
+    if(rgb.r > t.m) {
+        t.m = rgb.r;
+        t.w = 1;
     }
 
-    if(rgb.g > m) {
-        m = rgb.g;
-        w = 2;
+    if(rgb.g > t.m) {
+        t.m = rgb.g;
+        t.w = 2;
     }
 
-    if(rgb.b > m) {
-        m = rgb.b;
-        w = 3;
+    if(rgb.b > t.m) {
+        t.m = rgb.b;
+        t.w = 3;
     }
 
-    *which = w;
-    return m;
+    return t;
 }
 
 HEDLEY_CONST
 HEDLEY_INLINE
-HEDLEY_PRIVATE
-float findmin(tuple_s rgb) {
+static
+float findmin(const tuple_rgb rgb) {
     float m = 2.0;
 
     if(rgb.r < m) {
@@ -87,29 +102,23 @@ float findmin(tuple_s rgb) {
 
 HEDLEY_CONST
 HEDLEY_INLINE
-HEDLEY_PRIVATE
-tuple_s rgb_to_hsl(tuple_s rgb) {
-    tuple_s hsl;
+static
+tuple_hsl rgb_to_hsl(const tuple_rgb rgb) {
+    tuple_max cmax;
+    tuple_hsl hsl;
+    float cmin, delta;
 
-    int which;
-    float cmax, cmin, delta;
-
-    rgb.r /= 255.0;
-    rgb.g /= 255.0;
-    rgb.b /= 255.0;
-
-    which = 0;
-    cmax = findmax(rgb,&which);
+    cmax = findmax(rgb);
     cmin = findmin(rgb);
-    delta = cmax - cmin;
+    delta = cmax.m - cmin;
 
     hsl.h = 0.0;
     hsl.s = 0.0;
-    hsl.l = (cmax + cmin) / 2.0;
+    hsl.l = (cmax.m + cmin) / 2.0;
 
     if(delta > 0.0) {
         hsl.s = delta / ( 1.0 - fabs((2.0 * hsl.l) - 1.0));
-        switch(which) {
+        switch(cmax.w) {
             case 1: hsl.h = 60.0 * (color_fmod((rgb.g-rgb.b)/delta,6.0)); break;
             case 2: hsl.h = 60.0 * (((rgb.b-rgb.r)/delta) + 2.0); break;
             case 3: hsl.h = 60.0 * (((rgb.r-rgb.g)/delta) + 4.0); break;
@@ -117,36 +126,27 @@ tuple_s rgb_to_hsl(tuple_s rgb) {
         }
     }
 
-    hsl.s *= 100.0;
-    hsl.l *= 100.0;
-
     return hsl;
 }
 
 HEDLEY_CONST
 HEDLEY_INLINE
-HEDLEY_PRIVATE
-tuple_s rgb_to_hsv(tuple_s rgb) {
-    tuple_s hsv;
+static
+tuple_hsv rgb_to_hsv(const tuple_rgb rgb) {
+    tuple_max cmax;
+    tuple_hsv hsv;
+    float cmin, delta;
 
-    int which;
-    float cmax, cmin, delta;
-
-    rgb.r /= 255.0;
-    rgb.g /= 255.0;
-    rgb.b /= 255.0;
-
-    which = 0;
-    cmax = findmax(rgb,&which);
+    cmax = findmax(rgb);
     cmin = findmin(rgb);
-    delta = cmax - cmin;
+    delta = cmax.m - cmin;
 
     hsv.h = 0.0;
     hsv.s = 0.0;
-    hsv.v = cmax;
+    hsv.v = cmax.m;
 
     if(delta > 0.0) {
-        switch(which) {
+        switch(cmax.w) {
             case 1: hsv.h = 60.0 * (color_fmod((rgb.g-rgb.b)/delta,6.0)); break;
             case 2: hsv.h = 60.0 * (((rgb.b-rgb.r)/delta) + 2.0); break;
             case 3: hsv.h = 60.0 * (((rgb.r-rgb.g)/delta) + 4.0); break;
@@ -154,26 +154,20 @@ tuple_s rgb_to_hsv(tuple_s rgb) {
         }
     }
 
-    if(cmax != 0.0) {
-        hsv.s = delta / cmax;
+    if(cmax.m != 0.0) {
+        hsv.s = delta / cmax.m;
     }
-
-    hsv.s *= 100.0;
-    hsv.v *= 100.0;
 
     return hsv;
 }
 
 HEDLEY_CONST
 HEDLEY_INLINE
-HEDLEY_PRIVATE
-tuple_s hsl_to_rgb(tuple_s hsl) {
-    tuple_s rgb;
+static
+tuple_rgb hsl_to_rgb(const tuple_hsl hsl) {
+    tuple_rgb rgb;
     float c, hp, x, m;
     int hpi;
-
-    hsl.s /= 100.0;
-    hsl.l /= 100.0;
 
     c = ( 1.0 - fabs((2.0 * hsl.l) - 1.0)) * hsl.s;
     hp = hsl.h / 60.0;
@@ -195,23 +189,20 @@ tuple_s hsl_to_rgb(tuple_s hsl) {
         default: HEDLEY_UNREACHABLE(); break;
     }
 
-    rgb.r = (rgb.r + m) * 255.0;
-    rgb.g = (rgb.g + m) * 255.0;
-    rgb.b = (rgb.b + m) * 255.0;
+    rgb.r += m;
+    rgb.g += m;
+    rgb.b += m;
 
     return rgb;
 }
 
 HEDLEY_CONST
 HEDLEY_INLINE
-HEDLEY_PRIVATE
-tuple_s hsv_to_rgb(tuple_s hsv) {
-    tuple_s rgb;
+static
+tuple_rgb hsv_to_rgb(const tuple_hsv hsv) {
+    tuple_rgb rgb;
     float c, hp, x, m;
     int hpi;
-
-    hsv.s /= 100.0;
-    hsv.l /= 100.0;
 
     c = hsv.v * hsv.s;
     hp = hsv.h / 60.0;
@@ -234,18 +225,18 @@ tuple_s hsv_to_rgb(tuple_s hsv) {
         default: HEDLEY_UNREACHABLE(); break;
     }
 
-    rgb.r = (rgb.r + m) * 255.0;
-    rgb.g = (rgb.g + m) * 255.0;
-    rgb.b = (rgb.b + m) * 255.0;
+    rgb.r += m;
+    rgb.g += m;
+    rgb.b += m;
 
     return rgb;
 }
 
-HEDLEY_PRIVATE
+static
 int
 luargb_to_hsl(lua_State *L) {
-    tuple_s rgb;
-    tuple_s hsl;
+    tuple_rgb rgb;
+    tuple_hsl hsl;
 
     rgb.r = (float)lua_tonumber(L,1);
     rgb.g = (float)lua_tonumber(L,2);
@@ -259,21 +250,25 @@ luargb_to_hsl(lua_State *L) {
 
     if( rgb.b <= 0.0) rgb.b = 0.0;
     if( rgb.b >= 255.0) rgb.b = 255.0;
+
+    rgb.r /= 255.0;
+    rgb.g /= 255.0;
+    rgb.b /= 255.0;
 
     hsl = rgb_to_hsl(rgb);
 
     lua_pushinteger(L,(lua_Integer)ROUND(hsl.h));
-    lua_pushinteger(L,(lua_Integer)ROUND(hsl.s));
-    lua_pushinteger(L,(lua_Integer)ROUND(hsl.l));
+    lua_pushinteger(L,(lua_Integer)ROUND(hsl.s * 100.0));
+    lua_pushinteger(L,(lua_Integer)ROUND(hsl.l * 100.0));
 
     return 3;
 }
 
-HEDLEY_PRIVATE
+static
 int
 luargb_to_hsv(lua_State *L) {
-    tuple_s rgb;
-    tuple_s hsv;
+    tuple_rgb rgb;
+    tuple_hsv hsv;
 
     rgb.r = (float)lua_tonumber(L,1);
     rgb.g = (float)lua_tonumber(L,2);
@@ -288,20 +283,24 @@ luargb_to_hsv(lua_State *L) {
     if( rgb.b <= 0.0) rgb.b = 0.0;
     if( rgb.b >= 255.0) rgb.b = 255.0;
 
+    rgb.r /= 255.0;
+    rgb.g /= 255.0;
+    rgb.b /= 255.0;
+
     hsv = rgb_to_hsv(rgb);
 
     lua_pushinteger(L,(lua_Integer)ROUND(hsv.h));
-    lua_pushinteger(L,(lua_Integer)ROUND(hsv.s));
-    lua_pushinteger(L,(lua_Integer)ROUND(hsv.v));
+    lua_pushinteger(L,(lua_Integer)ROUND(hsv.s * 100.0));
+    lua_pushinteger(L,(lua_Integer)ROUND(hsv.v * 100.0));
 
     return 3;
 }
 
-HEDLEY_PRIVATE
+static
 int
 luahsl_to_rgb(lua_State *L) {
-    tuple_s hsl;
-    tuple_s rgb;
+    tuple_hsl hsl;
+    tuple_rgb rgb;
 
     hsl.h = (float)lua_tonumber(L,1);
     hsl.s = (float)lua_tonumber(L,2);
@@ -316,20 +315,23 @@ luahsl_to_rgb(lua_State *L) {
     if( hsl.l <= 0.0) hsl.l = 0.0;
     if( hsl.l >= 100.0) hsl.l = 100.0;
 
+    hsl.s /= 100.0;
+    hsl.l /= 100.0;
+
     rgb = hsl_to_rgb(hsl);
 
-    lua_pushnumber(L,(lua_Integer)ROUND( rgb.r ));
-    lua_pushnumber(L,(lua_Integer)ROUND( rgb.g ));
-    lua_pushnumber(L,(lua_Integer)ROUND( rgb.b ));
+    lua_pushnumber(L,(lua_Integer)ROUND( rgb.r * 255.0 ));
+    lua_pushnumber(L,(lua_Integer)ROUND( rgb.g * 255.0 ));
+    lua_pushnumber(L,(lua_Integer)ROUND( rgb.b * 255.0 ));
 
     return 3;
 }
 
-HEDLEY_PRIVATE
+static
 int
 luahsv_to_rgb(lua_State *L) {
-    tuple_s hsv;
-    tuple_s rgb;
+    tuple_hsv hsv;
+    tuple_rgb rgb;
 
     hsv.h = (float)lua_tonumber(L,1);
     hsv.s = (float)lua_tonumber(L,2);
@@ -344,11 +346,15 @@ luahsv_to_rgb(lua_State *L) {
     if( hsv.v <= 0.0) hsv.v = 0.0;
     if( hsv.v >= 100.0) hsv.v = 100.0;
 
+    hsv.s /= 100;
+    hsv.v /= 100;
+
     rgb = hsv_to_rgb(hsv);
 
-    lua_pushnumber(L,(lua_Integer)ROUND( rgb.r ));
-    lua_pushnumber(L,(lua_Integer)ROUND( rgb.g ));
-    lua_pushnumber(L,(lua_Integer)ROUND( rgb.b ));
+    lua_pushnumber(L,(lua_Integer)ROUND( rgb.r * 255.0 ));
+    lua_pushnumber(L,(lua_Integer)ROUND( rgb.g * 255.0 ));
+    lua_pushnumber(L,(lua_Integer)ROUND( rgb.b * 255.0 ));
+
     return 3;
 }
 

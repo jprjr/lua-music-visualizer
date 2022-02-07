@@ -6,6 +6,10 @@ if not jit or jit.status() == false then
   return
 end
 
+-- in this case we have JIT enabled, which
+-- means a native Lua version will be a good
+-- deal faster.
+
 local floor = math.floor
 local min = math.min
 local abs = math.abs
@@ -282,3 +286,4 @@ color.rgb_to_hsl = rgb_to_hsl
 color.rgb_to_hsv = rgb_to_hsv
 color.hsl_to_hsv = hsl_to_hsv
 color.hsv_to_hsl = hsv_to_hsl
+
