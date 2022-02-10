@@ -85,6 +85,7 @@ variable.
 
 * Lua or LuaJIT
 * libsamplerate
+* (optional) libavformat/libavcodec (ffmpeg)
 * (optional) FFTW3
 * (optional) [snes_spc](https://github.com/jprjr/snes_spc)
 * (optional) [libid666](https://github.com/jprjr/libid666)
@@ -111,6 +112,7 @@ Different modules/decoders can be enabled/disabled with your `make` command. The
 parameters (and their default state) are:
 
 * `ENABLE_LIBSAMPLERATE=1` -- allows for resampling with libsamplerate
+* `ENABLE_FFMPEG=0` - builds the `lmv.video` module with libavformat/ffmpeg.
 * `ENABLE_FFTW3=0` -- uses fftw3 for spectrum analyzers (default is KISS FFT)
 * `ENABLE_PCM=1`
 * `ENABLE_WAV=1`
@@ -244,6 +246,7 @@ There's some modules you can use in your lua scripts:
 * `lmv.bdf` - a module for loading BDF fonts.
 * `lmv.file` - a module for filesystem operations.
 * `lmv.song` - a module for querying the current song, and to relay messages via MPD.
+* `lmv.video` (if built with `ENABLE_FFMPEG=1`) - a module for decoding videos.
 
 These can all be included with the standard `require`, like `local image = require('lmv.image')`
 
@@ -399,6 +402,65 @@ connected to MPD, it may take a frame or two for these to be populated.
 * `song.album` - the album of the current song
 * `song.message` - `lua-music-visualizer` uses MPD's [client-to-client](https://www.musicpd.org/doc/protocol/client_to_client.html) functionality, It listens on a channel named `visualizer`, if there's a new message on that channel, it will appear here in the song object.
 * `song.sendmessage(msg)` - allows sending a message on the `visualizer` channel.
+
+### The `lmv.video` module
+
+The `video` module allows decoding images/videos with ffmpeg.
+
+* `video.new(params)` - create a new `video` instance, `params` is a table with the following keys:
+  * `url` - the url or path to the video you want to play.
+  * `loops` - the number of times to (attempt) looping the input, set to 0 for infinite loops.
+  * `colordepth` - the integer 3 or 4, basically whether you want an alpha channel.
+  * `filters` - an array-like table of filters, each entry is another table with a single key and value pair.
+
+The returned `video` instance is a userdata with the following functions:
+
+* `video:frame()` - attempts to retrieve a new `frame` instance from the video.
+* `video:status()` - check the status of the video thread, can be:
+  * `loading` - probing/etc, but has not started decoding.
+  * `ok` - decoding video
+  * `done` - done decoding video
+  * `error` - some error occured.
+* `video:stop()` - stop the video decoder.
+
+The video instance will always have some filters added automatically, after your own:
+
+* `vflip` - technically all images in `lua-music-visualizer` are stored bottom-up,
+* `format` - to convert to either `BGR` or `BGRA` format, how video is used internally.
+* `fps` - to make the FPS match the main video FPS.
+
+Here's an example of loading an MP4 file, resizing it, and putting the frames on the video.
+
+```lua
+local video = require'lmv.video'
+local stream = require'lmv.stream'
+
+local v, err = video.new({
+  url = "example.mp4",
+  loops = 0,
+  filters = {
+    { scale = 'w=320:h=-1' },
+  },
+})
+
+if err then
+  os.exit(1)
+end
+
+-- keep a reference to the previous frame once available
+local frame
+
+onframe = function()
+  local newframe = v:frame()
+  if newframe then
+    frame = newframe
+  end
+  if frame then
+    stream:stamp_frame(frame)
+  end
+}
+```
+
 
 ## Image Instances
 

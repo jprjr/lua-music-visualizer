@@ -25,8 +25,8 @@ FFTW_LDFLAGS = $(shell $(PKGCONFIG) --libs fftw3)
 endif
 
 ifeq ($(ENABLE_FFMPEG),1)
-FFMPEG_CFLAGS = $(shell $(PKGCONFIG) --cflags libavformat)
-FFMPEG_LDFLAGS = $(shell $(PKGCONFIG) --libs libavformat)
+FFMPEG_CFLAGS = $(shell $(PKGCONFIG) --cflags libavformat libavcodec libavfilter libavutil)
+FFMPEG_LDFLAGS = $(shell $(PKGCONFIG) --libs libavformat libavcodec libavfilter libavutil)
 endif
 
 CFLAGS += $(LUA_CFLAGS)

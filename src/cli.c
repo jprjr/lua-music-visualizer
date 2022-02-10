@@ -418,14 +418,14 @@ int cli_start(int argc, char **argv) {
     const char *module;
     int jit;
     char *c;
-    char *sf;
+    char *sf = NULL;
 
-    audio_decoder *decoder;
-    audio_resampler *resampler;
-    audio_processor *processor;
-    video_generator *generator;
+    audio_decoder *decoder = NULL;
+    audio_resampler *resampler = NULL;;
+    audio_processor *processor = NULL;;
+    video_generator *generator = NULL;;
 #ifndef _WIN32
-    thread_ptr_t signal_thread;
+    thread_ptr_t signal_thread = NULL;
     thread_queue_t queue;
     int sig_queue[10];
     int *sig;
@@ -444,6 +444,7 @@ int cli_start(int argc, char **argv) {
     jpr_proc_pipe f;
     jpr_proc_info i;
     int exitcode;
+    int r = 0;
 
     self = *argv++;
     argc--;
@@ -598,9 +599,10 @@ int cli_start(int argc, char **argv) {
     thread_queue_init(&queue,10,(void **)&sig_queue,0);
 
     block_signals();
-    signal_thread = thread_create(signal_thread_proc,&queue,NULL,THREAD_STACK_SIZE_DEFAULT);
+    signal_thread = thread_create(signal_thread_proc,&queue,"signal thread",THREAD_STACK_SIZE_DEFAULT);
     if(UNLIKELY(signal_thread == NULL)) {
-        quit(1,NULL);
+        r = 1;
+        goto cli_cleanup;
     }
 #endif
 
@@ -608,15 +610,35 @@ int cli_start(int argc, char **argv) {
     if(jpr_proc_pipe_init(&f)) return 1;
 
     decoder = (audio_decoder *)malloc(sizeof(audio_decoder));
-    if(UNLIKELY(decoder == NULL)) quit(1,NULL);
+    if(UNLIKELY(decoder == NULL)) {
+        r = 1;
+        goto cli_cleanup;
+    }
+
     resampler = (audio_resampler *)malloc(sizeof(audio_resampler));
-    if(UNLIKELY(resampler == NULL)) quit(1,decoder,NULL);
+    if(UNLIKELY(resampler == NULL)) {
+        r = 1;
+        goto cli_cleanup;
+    }
+
     processor = (audio_processor *)malloc(sizeof(audio_processor));
-    if(UNLIKELY(processor == NULL)) quit(1,decoder,resampler,NULL);
+    if(UNLIKELY(processor == NULL)) {
+        r = 1;
+        goto cli_cleanup;
+    }
+
     generator = (video_generator *)malloc(sizeof(video_generator));
-    if(UNLIKELY(generator == NULL)) quit(1,decoder,resampler,processor,NULL);
+    if(UNLIKELY(generator == NULL)) {
+        r = 1;
+        goto cli_cleanup;
+    }
 
     sf = str_dup(songfile);
+    if(UNLIKELY(sf == NULL)) {
+        r = 1;
+        goto cli_cleanup;
+    }
+
     c = str_chr(sf,'#');
     if(c != NULL) {
         *c = '\0';
@@ -639,16 +661,18 @@ int cli_start(int argc, char **argv) {
 
     if(jpr_proc_spawn(&i,(const char * const *)argv,&f,NULL,NULL)) {
         LOG_ERROR("error spawning process");
-        quit(1,decoder,resampler,processor,generator,NULL);
-        return 1;
+        r = 1;
+        goto cli_cleanup;
     }
 
     if(video_generator_init(generator,processor,resampler,decoder,jit,module,sf,scriptfile,&f)) {
         LOG_ERROR("error starting the video generator");
-        quit(1,decoder,processor,generator,NULL);
-        return 1;
+        r = 1;
+        goto cli_cleanup;
     }
+
     free(sf);
+    sf = NULL;
 
     while(video_generator_loop(generator,&progress) == 0) {
 #ifndef _WIN32
@@ -673,13 +697,15 @@ int cli_start(int argc, char **argv) {
 #endif
     }
 
+    cli_cleanup:
 #ifndef _WIN32
     quitting:
     /* signal thread may still be waiting on a signal
      * if we get here because of end-of-file */
     kill(getpid(),SIGINT);
 #endif
-    video_generator_close(generator);
+    if(generator != NULL) video_generator_close(generator);
+
     jpr_proc_pipe_close(&f);
 
     /* wait up to 30 seconds for video encoder to finish */
@@ -693,20 +719,24 @@ int cli_start(int argc, char **argv) {
         }
     }
 
-    free(decoder);
-    free(resampler);
-    free(processor);
-    free(generator);
+    if(sf != NULL) free(sf);
+    if(decoder != NULL) free(decoder);
+    if(resampler != NULL) free(resampler);
+    if(processor != NULL) free(processor);
+    if(generator != NULL) free(generator);
 #ifndef _WIN32
+    if(signal_thread != NULL) {
+        thread_join(signal_thread);
+        thread_destroy(signal_thread);
+    }
+
     while(thread_queue_count(&queue) > 0) {
         sig = thread_queue_consume(&queue);
         free(sig);
     }
 
-    thread_join(signal_thread);
-    thread_destroy(signal_thread);
     thread_queue_term(&queue);
 #endif
 
-    return 0;
+    return r;
 }

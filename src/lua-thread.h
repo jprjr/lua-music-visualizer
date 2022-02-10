@@ -70,6 +70,10 @@ void lmv_thread_init(lua_State *L);
 
 int lmv_thread_new(lua_State *L, lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize);
 
+/* like new, but uses malloc and returns a lightuserdata, you must track and free this */
+int lmv_thread_newmalloc(lua_State *L, lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize);
+void lmv_thread_free(lua_State *L, lmv_thread_t *t);
+
 void *lmv_thread_result(lmv_thread_t *, int *res);
 void lmv_thread_inject(lmv_thread_t *, void *);
 

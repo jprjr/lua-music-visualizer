@@ -322,6 +322,7 @@ int jpr_proc_pipe_close(jpr_proc_pipe *pipe) {
     return !r;
 #else
     int r;
+    if(pipe->pipe == -1) return 0;
     r = jpr_close(pipe->pipe);
     if(r == 0) pipe->pipe = -1;
     return r;
