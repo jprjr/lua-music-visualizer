@@ -66,7 +66,7 @@ static int signal_thread_proc(void *userdata) {
 #endif
     sig = (int *)malloc(sizeof(int));
     while( sigwait(&sigset,sig) == 0) {
-        thread_queue_produce(queue,sig);
+        thread_queue_produce(queue,sig,THREAD_QUEUE_WAIT_INFINITE);
         switch(*sig) {
 #ifdef SIGUSR1
             case SIGUSR1: {
@@ -677,7 +677,7 @@ int cli_start(int argc, char **argv) {
     while(video_generator_loop(generator,&progress) == 0) {
 #ifndef _WIN32
         if(thread_queue_count(&queue) > 0) {
-            sig = thread_queue_consume(&queue);
+            sig = thread_queue_consume(&queue,THREAD_QUEUE_WAIT_INFINITE);
             switch(*sig) {
 #ifdef SIGINT
                 case SIGINT: free(sig); goto quitting; break;
@@ -731,7 +731,7 @@ int cli_start(int argc, char **argv) {
     }
 
     while(thread_queue_count(&queue) > 0) {
-        sig = thread_queue_consume(&queue);
+        sig = thread_queue_consume(&queue,THREAD_QUEUE_WAIT_INFINITE);
         free(sig);
     }
 

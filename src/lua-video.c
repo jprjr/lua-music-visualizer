@@ -350,15 +350,8 @@ luavideo_new(lua_State *L) {
     unsigned int filterslen = 0;
     int errflag = 0;
     char *buf;
-    char fpsbuf[32];
+    char args[512];
     luaL_Buffer errbuf;
-
-    if(fmt_uint(NULL,video->fps) > 27) {
-        lua_pushnil(L);
-        luaL_addstring(&errbuf,"your fps is insane");
-        luaL_pushresult(&errbuf);
-        return 2;
-    }
 
     if(!lua_istable(L,1)) {
         lua_pushnil(L);
@@ -515,10 +508,9 @@ luavideo_new(lua_State *L) {
         goto cleanup;
     }
 
-    str_cpy(fpsbuf,"fps=");
-    fpsbuf[fmt_uint(fpsbuf,video->fps)] = '\0';
+    snprintf(args,sizeof(args),"fps=%d",video->fps);
     errflag = avfilter_graph_create_filter(&filter_ctxs[filteridx++], fps_filter,
-      NULL, fpsbuf, NULL, graph);
+      NULL, args, NULL, graph);
     if(errflag < 0) {
         luaL_addstring(&errbuf,"filter fps:");
         buf = luaL_prepbuffer(&errbuf);
@@ -541,7 +533,9 @@ luavideo_new(lua_State *L) {
     ctrl->loops = loops;
     thread_signal_init(&ctrl->signal);
 
-    if(lmv_thread_newmalloc(L, luavideo_process, luavideo_queue_cleanup, luavideo_outqueue_cleanup, 1) != 1) {
+    snprintf(args,sizeof(args),"video: %s",url);
+
+    if(lmv_thread_newmalloc(L, luavideo_process, luavideo_queue_cleanup, luavideo_outqueue_cleanup, 1, args) != 1) {
         luaL_addstring(&errbuf,"error allocating thread");
         thread_signal_term(&ctrl->signal);
         goto cleanup;

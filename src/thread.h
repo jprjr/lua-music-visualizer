@@ -3,7 +3,7 @@
           Licensing information can be found at the end of the file.
 ------------------------------------------------------------------------------
 
-thread.h - v0.2 - Cross platform threading functions for C/C++.
+thread.h - v0.3 - Cross platform threading functions for C/C++.
 
 Do this:
     #define THREAD_IMPLEMENTATION
@@ -19,17 +19,18 @@ before you include this file in *one* C/C++ file to create the implementation.
 
 #define THREAD_STACK_SIZE_DEFAULT ( 0 )
 #define THREAD_SIGNAL_WAIT_INFINITE ( -1 )
+#define THREAD_QUEUE_WAIT_INFINITE ( -1 )
 
 typedef void* thread_id_t;
 thread_id_t thread_current_thread_id( void );
 void thread_yield( void );
+void thread_set_high_priority( void );
 void thread_exit( int return_code );
 
 typedef void* thread_ptr_t;
 thread_ptr_t thread_create( int (*thread_proc)( void* ), void* user_data, char const* name, int stack_size );
 void thread_destroy( thread_ptr_t thread );
 int thread_join( thread_ptr_t thread );
-void thread_set_high_priority( thread_ptr_t thread );
 
 typedef union thread_mutex_t thread_mutex_t;
 void thread_mutex_init( thread_mutex_t* mutex );
@@ -73,8 +74,8 @@ void* thread_tls_get( thread_tls_t tls );
 typedef struct thread_queue_t thread_queue_t;
 void thread_queue_init( thread_queue_t* queue, int size, void** values, int count );
 void thread_queue_term( thread_queue_t* queue );
-void thread_queue_produce( thread_queue_t* queue, void* value );
-void* thread_queue_consume( thread_queue_t* queue );
+int thread_queue_produce( thread_queue_t* queue, void* value, int timeout_ms );
+void* thread_queue_consume( thread_queue_t* queue, int timeout_ms );
 int thread_queue_count( thread_queue_t* queue );
 
 #endif /* thread_h */
@@ -82,8 +83,13 @@ int thread_queue_count( thread_queue_t* queue );
 
 /**
 
+thread.h 
+========
+
+Cross platform threading functions for C/C++.
+
 Example
-=======
+-------
 
 Here's a basic sample program which starts a second thread which just waits and prints a message.
 
@@ -92,29 +98,24 @@ Here's a basic sample program which starts a second thread which just waits and 
 
     #include <stdio.h> // for printf
     
-    int thread_proc( void* user_data)
-        {
+    int thread_proc( void* user_data) {
         thread_timer_t timer;
         thread_timer_init( &timer );
 
         int count = 0;
         thread_atomic_int_t* exit_flag = (thread_atomic_int_t*) user_data;
-        while( thread_atomic_int_load( exit_flag ) == 0 )
-            {
+        while( thread_atomic_int_load( exit_flag ) == 0 ) {
             printf( "Thread... " );
             thread_timer_wait( &timer, 1000000000 ); // sleep for a second
             ++count;
-            }
+        }
 
         thread_timer_term( &timer );
         printf( "Done\n" );
         return count;
-        }
+    }
 
-    int main( int argc, char** argv )
-        {
-        (void) argc, argv;
-        
+    int main( int argc, char** argv ) {        
         thread_atomic_int_t exit_flag;
         thread_atomic_int_store( &exit_flag, 0 );
 
@@ -122,11 +123,10 @@ Here's a basic sample program which starts a second thread which just waits and 
 
         thread_timer_t timer;
         thread_timer_init( &timer );
-        for( int i = 0; i < 5; ++i )
-            {
+        for( int i = 0; i < 5; ++i ) {
             printf( "Main... " );
             thread_timer_wait( &timer, 2000000000 ); // sleep for two seconds
-            }
+        }
         thread_timer_term( &timer );
         
         thread_atomic_int_store( &exit_flag, 1 ); // signal thread to exit
@@ -136,19 +136,19 @@ Here's a basic sample program which starts a second thread which just waits and 
 
         thread_destroy( thread );
         return retval;
-        }
+    }
 
 
 API Documentation
-=================
+-----------------
 
 thread.h is a single-header library, and does not need any .lib files or other binaries, or any build scripts. To use it,
 you just include thread.h to get the API declarations. To get the definitions, you must include thread.h from *one* 
 single C or C++ file, and #define the symbol `THREAD_IMPLEMENTATION` before you do. 
 
 
-Customization
--------------
+### Customization
+
 thread.h allows for specifying the exact type of 64-bit unsigned integer to be used in its API. By default, it is 
 defined as `unsigned long long`, but as this is not a standard type on all compilers, you can redefine it by #defining 
 THREAD_U64 before including thread.h. This is useful if you, for example, use the types from `<stdint.h>` in the rest of 
@@ -178,6 +178,18 @@ thread_yield
 Makes the calling thread yield execution to another thread. The operating system controls which thread is switched to.
 
 
+thread_set_high_priority
+------------------------
+
+    void thread_set_high_priority( void )
+
+When created, threads are set to run at normal priority. In some rare cases, such as a sound buffer update loop, it can
+be necessary to have one thread of your application run on a higher priority than the rest. Calling 
+`thread_set_high_priority` will raise the priority of the calling thread, giving it a chance to be run more often.
+Do not increase the priority of a thread unless you absolutely have to, as it can negatively affect performance if used
+without care.
+
+
 thread_exit
 -----------
 
@@ -196,7 +208,7 @@ given the debug name given in the `name` parameter, if supported on the platform
 specified in the `stack_size` parameter. To get the operating system default stack size, use the defined constant
 `THREAD_STACK_SIZE_DEFAULT`. When returning from the thread_proc function, the value you return can be received in
 another thread by calling thread_join. `thread_create` returns a pointer to the thread instance, which can be used 
-as a parameter to the functions `thread_destroy`, `thread_join` and `thread_set_high_priority`.
+as a parameter to the functions `thread_destroy` and `thread_join`.
 
 
 thread_destroy
@@ -215,18 +227,6 @@ thread_join
     int thread_join( thread_ptr_t thread )
 
 Waits for the specified thread to exit. Returns the value which the thread returned when exiting.
-
-
-thread_set_high_priority
-------------------------
-
-    void thread_set_high_priority( thread_ptr_t thread )
-
-When created, threads are set to run at normal priority. In some rare cases, such as a sound buffer update loop, it can
-be necessary to have one thread of your application run on a higher priority than the rest. Calling 
-`thread_set_high_priority` will raise the priority of the specified thread, giving it a chance to be run more often.
-Do not increase the priority of a thread unless you absolutely have to, as it can negatively affect performance if used
-without care.
 
 
 thread_mutex_init
@@ -295,8 +295,8 @@ thread_signal_wait
     int thread_signal_wait( thread_signal_t* signal, int timeout_ms )
 
 Waits for a signal to be raised, or until `timeout_ms` milliseconds have passed. If the wait timed out, a value of 0 is
-returned, otherwise a non-zero value is returned. If the `timeout_ms` parameter is 0, `thread_signal_wait` waits 
-indefinitely.
+returned, otherwise a non-zero value is returned. If the `timeout_ms` parameter is THREAD_SIGNAL_WAIT_INFINITE, 
+`thread_signal_wait` waits indefinitely.
 
 
 thread_atomic_int_load
@@ -482,21 +482,25 @@ Terminates the specified queue instance, releasing any system resources held by 
 thread_queue_produce
 --------------------
 
-    void thread_queue_produce( thread_queue_t* queue, void* value )
+    int thread_queue_produce( thread_queue_t* queue, void* value, int timeout_ms )
 
 Adds an element to a single-producer/single-consumer queue. If there is space in the queue to add another element, no
 lock will be taken. If the queue is full, calling thread will sleep until an element is consumed from another thread, 
-before adding the element and returning.
+before adding the element, or until `timeout_ms` milliseconds have passed. If the wait timed out, a value of 0 is 
+returned, otherwise a non-zero value is returned. If the `timeout_ms` parameter is THREAD_QUEUE_WAIT_INFINITE,  
+`thread_queue_produce` waits indefinitely.
 
 
 thread_queue_consume
 --------------------
 
-    void* thread_queue_consume( thread_queue_t* queue )
+    void* thread_queue_consume( thread_queue_t* queue, int timeout_ms )
 
 Removes an element from a single-producer/single-consumer queue. If the queue contains at least one element, no lock 
-will be taken. If the queue is empty, the calling thread will sleep until an element is added from another thread, 
-before returning. `thread_queue_consume` returns the value that was removed from the queue.
+will be taken. If the queue is empty, the calling thread will sleep until an element is added from another thread, or 
+until `timeout_ms` milliseconds have passed. If the wait timed out, a value of NULL is returned, otherwise 
+`thread_queue_consume` returns the value that was removed from the queue. If the `timeout_ms` parameter is 
+THREAD_QUEUE_WAIT_INFINITE, `thread_queue_consume` waits indefinitely.
 
 
 thread_queue_count
@@ -507,7 +511,7 @@ thread_queue_count
 Returns the number of elements currently held in a single-producer/single-consumer queue. Be aware that by the time you
 get the count, it might have changed by another thread calling consume or produce, so use with care.
 
-**/
+*/
 
 
 /*
@@ -534,24 +538,18 @@ union thread_signal_t
 union thread_atomic_int_t 
     {
     void* align;
-    long volatile i;
+    long i;
     };
 
 union thread_atomic_ptr_t 
     {
-    void* volatile ptr;
+    void* ptr;
     };
 
 union thread_timer_t 
     { 
     void* data; 
     char d[ 8 ]; 
-    };
-
-struct thread_once_t 
-    { 
-    void* align;
-    char data[ 16 ]; 
     };
 
 struct thread_queue_t
@@ -581,6 +579,8 @@ struct thread_queue_t
 
 #if defined( _WIN32 )
 
+    #pragma comment( lib, "winmm.lib" )
+
     #define _CRT_NONSTDC_NO_DEPRECATE 
     #define _CRT_SECURE_NO_WARNINGS
 
@@ -591,7 +591,7 @@ struct thread_queue_t
 
     #define _WINSOCKAPI_
     #pragma warning( push )
-    #pragma warning( disable: 4668 )
+    #pragma warning( disable: 4668 ) // 'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'
     #pragma warning( disable: 4255 )
     #include <windows.h>
     #pragma warning( pop )
@@ -610,10 +610,7 @@ struct thread_queue_t
     
 #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-    #include <stdint.h>
     #include <pthread.h>
-    #include <time.h>
-    #include <string.h>
     #include <sys/time.h>
 
 #else 
@@ -682,21 +679,35 @@ thread_ptr_t thread_create( int (*thread_proc)( void* ), void* user_data, char c
         HANDLE handle = CreateThread( NULL, stack_size > 0 ? (size_t)stack_size : 0U, 
             (LPTHREAD_START_ROUTINE)(uintptr_t) thread_proc, user_data, 0, &thread_id );
         if( !handle ) return NULL;
-        (void)name;
+
+        // Yes, this crazy construct with __try and RaiseException is how you name a thread in Visual Studio :S
+        if( name && IsDebuggerPresent() )
+            {
+            THREADNAME_INFO info;
+            info.dwType = 0x1000;
+            info.szName = name;
+            info.dwThreadID = thread_id;
+            info.dwFlags = 0;
+
+            __try
+                {
+                RaiseException( MS_VC_EXCEPTION, 0, sizeof( info ) / sizeof( ULONG_PTR ), (ULONG_PTR*) &info );
+                }
+            __except( EXCEPTION_EXECUTE_HANDLER )
+                {
+                }
+            }
 
         return (thread_ptr_t) handle;
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
         pthread_t thread;
-        (void)stack_size;
         if( 0 != pthread_create( &thread, NULL, ( void* (*)( void * ) ) thread_proc, user_data ) )
             return NULL;
 
         #if !defined( __APPLE__ ) // max doesn't support pthread_setname_np. alternatives?
             if( name ) pthread_setname_np( thread, name );
-        #else
-            (void)name;
         #endif
 
         return (thread_ptr_t) thread;
@@ -728,8 +739,8 @@ int thread_join( thread_ptr_t thread )
     {
     #if defined( _WIN32 )
 
-        DWORD retval;
         WaitForSingleObject( (HANDLE) thread, INFINITE );
+        DWORD retval;
         GetExitCodeThread( (HANDLE) thread, &retval );
         return (int) retval;
     
@@ -745,11 +756,11 @@ int thread_join( thread_ptr_t thread )
     }
 
 
-void thread_set_high_priority( thread_ptr_t thread )
+void thread_set_high_priority( void )
     {
     #if defined( _WIN32 )
 
-        SetThreadPriority( (HANDLE) thread, THREAD_PRIORITY_HIGHEST );
+        SetThreadPriority( GetCurrentThread(), THREAD_PRIORITY_HIGHEST );
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
@@ -757,7 +768,6 @@ void thread_set_high_priority( thread_ptr_t thread )
         memset( &sp, 0, sizeof( sp ) );
         sp.sched_priority = sched_get_priority_min( SCHED_RR );
         pthread_setschedparam( pthread_self(), SCHED_RR, &sp);
-        (void)thread;
 
     #else 
         #error Unknown platform.
@@ -770,7 +780,10 @@ void thread_mutex_init( thread_mutex_t* mutex )
     #if defined( _WIN32 )
 
         // Compile-time size check
+        #pragma warning( push )
+        #pragma warning( disable: 4214 ) // nonstandard extension used: bit field types other than int
         struct x { char thread_mutex_type_too_small : ( sizeof( thread_mutex_t ) < sizeof( CRITICAL_SECTION ) ? 0 : 1 ); }; 
+        #pragma warning( pop )
 
         InitializeCriticalSectionAndSpinCount( (CRITICAL_SECTION*) mutex, 32 );
     
@@ -835,7 +848,7 @@ void thread_mutex_unlock( thread_mutex_t* mutex )
     }
 
 
-typedef struct thread_internal_signal_t
+struct thread_internal_signal_t
     {
     #if defined( _WIN32 )
 
@@ -856,15 +869,18 @@ typedef struct thread_internal_signal_t
     #else 
         #error Unknown platform.
     #endif
-    } thread_internal_signal_t;
+    };
 
 
 void thread_signal_init( thread_signal_t* signal )
     {
     // Compile-time size check
-    struct x { char thread_signal_type_too_small : ( sizeof( thread_signal_t ) < sizeof( thread_internal_signal_t ) ? 0 : 1 ); };
+    #pragma warning( push )
+    #pragma warning( disable: 4214 ) // nonstandard extension used: bit field types other than int
+    struct x { char thread_signal_type_too_small : ( sizeof( thread_signal_t ) < sizeof( struct thread_internal_signal_t ) ? 0 : 1 ); };
+    #pragma warning( pop )
     
-    thread_internal_signal_t* internal = (thread_internal_signal_t*) signal;
+    struct thread_internal_signal_t* internal = (struct thread_internal_signal_t*) signal;
         
     #if defined( _WIN32 )
 
@@ -890,7 +906,7 @@ void thread_signal_init( thread_signal_t* signal )
 
  void thread_signal_term( thread_signal_t* signal )
     {
-    thread_internal_signal_t* internal = (thread_internal_signal_t*) signal;
+    struct thread_internal_signal_t* internal = (struct thread_internal_signal_t*) signal;
 
     #if defined( _WIN32 )
 
@@ -913,7 +929,7 @@ void thread_signal_init( thread_signal_t* signal )
 
 void thread_signal_raise( thread_signal_t* signal )
     {
-    thread_internal_signal_t* internal = (thread_internal_signal_t*) signal;
+    struct thread_internal_signal_t* internal = (struct thread_internal_signal_t*) signal;
 
     #if defined( _WIN32 )
 
@@ -941,20 +957,21 @@ void thread_signal_raise( thread_signal_t* signal )
 
 int thread_signal_wait( thread_signal_t* signal, int timeout_ms )
     {
-    thread_internal_signal_t* internal = (thread_internal_signal_t*) signal;
+    struct thread_internal_signal_t* internal = (struct thread_internal_signal_t*) signal;
 
     #if defined( _WIN32 )
 
         #if _WIN32_WINNT >= 0x0600
-            int failed = 0;
+            int timed_out = 0;
             EnterCriticalSection( &internal->mutex );
-            while( !internal->value && !failed )
+            while( internal->value == 0 )
                 {
-                failed = ( 0 == SleepConditionVariableCS( &internal->condition, &internal->mutex, timeout_ms < 0 ? INFINITE : timeout_ms ) );
+                int res = SleepConditionVariableCS( &internal->condition, &internal->mutex, timeout_ms < 0 ? INFINITE : timeout_ms );
+                if( !res && GetLastError() == ERROR_TIMEOUT ) { timed_out = 1; break; }
                 }
-            if( !failed ) internal->value = 0;
+            if( !timed_out ) internal->value = 0;
             LeaveCriticalSection( &internal->mutex );       
-            return !failed;
+            return !timed_out;
         #else 
             int failed = WAIT_OBJECT_0 != WaitForSingleObject( internal->event, timeout_ms < 0 ? INFINITE : timeout_ms );
             return !failed;
@@ -963,7 +980,6 @@ int thread_signal_wait( thread_signal_t* signal, int timeout_ms )
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
         struct timespec ts;
-        int failed = 0;
         if( timeout_ms >= 0 )
             {
             struct timeval tv;
@@ -974,19 +990,22 @@ int thread_signal_wait( thread_signal_t* signal, int timeout_ms )
             ts.tv_nsec %= ( 1000 * 1000 * 1000 );
             }
 
+        int timed_out = 0;
         pthread_mutex_lock( &internal->mutex );
-        while( !internal->value && !failed )
+        while( internal->value == 0 )
             {
-                if( timeout_ms < 0 ) {
-                    failed = pthread_cond_wait( &internal->condition, &internal->mutex );
+            if( timeout_ms < 0 ) 
+                pthread_cond_wait( &internal->condition, &internal->mutex );
+            else if( pthread_cond_timedwait( &internal->condition, &internal->mutex, &ts ) == ETIMEDOUT )
+                {
+                timed_out = 1;
+                break;
                 }
-                else {
-                    failed = pthread_cond_timedwait( &internal->condition, &internal->mutex, &ts );
-                }
-            }
-        if( !failed ) internal->value = 0;
+
+            }           
+        if( !timed_out ) internal->value = 0;
         pthread_mutex_unlock( &internal->mutex );
-        return !failed;
+        return !timed_out;
     
     #else 
         #error Unknown platform.
@@ -1058,12 +1077,12 @@ int thread_atomic_int_dec( thread_atomic_int_t* atomic )
     #endif
     }
 
-#if !defined(_MSC_VER) || _MSC_VER > 1400
+
 int thread_atomic_int_add( thread_atomic_int_t* atomic, int value )
     {
     #if defined( _WIN32 )
     
-        return InterlockedAdd( &atomic->i, value ) - value;
+        return InterlockedExchangeAdd ( &atomic->i, value );
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
@@ -1073,14 +1092,13 @@ int thread_atomic_int_add( thread_atomic_int_t* atomic, int value )
         #error Unknown platform.
     #endif
     }
-#endif
 
-#if !defined(_MSC_VER) || _MSC_VER > 1400
+
 int thread_atomic_int_sub( thread_atomic_int_t* atomic, int value )
     {
     #if defined( _WIN32 )
     
-        return InterlockedAdd( &atomic->i, -value ) + value;
+        return InterlockedExchangeAdd( &atomic->i, -value );
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
@@ -1090,7 +1108,7 @@ int thread_atomic_int_sub( thread_atomic_int_t* atomic, int value )
         #error Unknown platform.
     #endif
     }
-#endif
+
 
 int thread_atomic_int_swap( thread_atomic_int_t* atomic, int desired )
     {
@@ -1145,17 +1163,18 @@ void* thread_atomic_ptr_load( thread_atomic_ptr_t* atomic )
 void thread_atomic_ptr_store( thread_atomic_ptr_t* atomic, void* desired )
     {
     #if defined( _WIN32 )
-
+    
         #pragma warning( push )
         #pragma warning( disable: 4302 ) // 'type cast' : truncation from 'void *' to 'LONG'
         #pragma warning( disable: 4311 ) // pointer truncation from 'void *' to 'LONG'
         #pragma warning( disable: 4312 ) // conversion from 'LONG' to 'PVOID' of greater size
         InterlockedExchangePointer( &atomic->ptr, desired );
-#pragma warning( pop )
+        #pragma warning( pop )
+
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        (void)__sync_lock_test_and_set( &atomic->ptr, desired );
+        __sync_lock_test_and_set( &atomic->ptr, desired );
         __sync_lock_release( &atomic->ptr );
     
     #else 
@@ -1167,12 +1186,13 @@ void thread_atomic_ptr_store( thread_atomic_ptr_t* atomic, void* desired )
 void* thread_atomic_ptr_swap( thread_atomic_ptr_t* atomic, void* desired )
     {
     #if defined( _WIN32 )
-            #pragma warning( push )
+    
+        #pragma warning( push )
         #pragma warning( disable: 4302 ) // 'type cast' : truncation from 'void *' to 'LONG'
         #pragma warning( disable: 4311 ) // pointer truncation from 'void *' to 'LONG'
         #pragma warning( disable: 4312 ) // conversion from 'LONG' to 'PVOID' of greater size
         return InterlockedExchangePointer( &atomic->ptr, desired );
-		 #pragma warning( pop )
+        #pragma warning( pop )
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
@@ -1207,7 +1227,10 @@ void thread_timer_init( thread_timer_t* timer )
     #if defined( _WIN32 )
 
         // Compile-time size check
+        #pragma warning( push )
+        #pragma warning( disable: 4214 ) // nonstandard extension used: bit field types other than int
         struct x { char thread_timer_type_too_small : ( sizeof( thread_mutex_t ) < sizeof( HANDLE ) ? 0 : 1 ); }; 
+        #pragma warning( pop )
 
         TIMECAPS tc;
         if( timeGetDevCaps( &tc, sizeof( TIMECAPS ) ) == TIMERR_NOERROR ) 
@@ -1216,7 +1239,6 @@ void thread_timer_init( thread_timer_t* timer )
         *(HANDLE*)timer = CreateWaitableTimer( NULL, TRUE, NULL );
 
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
-        (void)timer;
 
         // Nothing
 
@@ -1230,18 +1252,17 @@ void thread_timer_term( thread_timer_t* timer )
     {
     #if defined( _WIN32 )
 
-		TIMECAPS tc;
         CloseHandle( *(HANDLE*)timer );
-
+    
+        TIMECAPS tc;
         if( timeGetDevCaps( &tc, sizeof( TIMECAPS ) ) == TIMERR_NOERROR ) 
             timeEndPeriod( tc.wPeriodMin );
 
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
-        (void)timer;
 
         // Nothing
-
-    #else
+    
+    #else 
         #error Unknown platform.
     #endif
     }
@@ -1250,13 +1271,13 @@ void thread_timer_term( thread_timer_t* timer )
 void thread_timer_wait( thread_timer_t* timer, THREAD_U64 nanoseconds )
     {
     #if defined( _WIN32 )
-        BOOL b;
+
         LARGE_INTEGER due_time;
         due_time.QuadPart = - (LONGLONG) ( nanoseconds / 100 );
-        b = SetWaitableTimer( *(HANDLE*)timer, &due_time, 0, 0, 0, FALSE );
-        (void)b;
-        WaitForSingleObject( *(HANDLE*)timer, INFINITE );
-
+        BOOL b = SetWaitableTimer( *(HANDLE*)timer, &due_time, 0, 0, 0, FALSE );
+        (void) b;
+        WaitForSingleObject( *(HANDLE*)timer, INFINITE ); 
+    
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
         struct timespec rem;
@@ -1265,10 +1286,8 @@ void thread_timer_wait( thread_timer_t* timer, THREAD_U64 nanoseconds )
         req.tv_nsec = nanoseconds - req.tv_sec * 1000000000ULL;
         while( nanosleep( &req, &rem ) )
             req = rem;
-
-        (void)timer;
-
-    #else
+    
+    #else 
         #error Unknown platform.
     #endif
     }
@@ -1288,7 +1307,7 @@ thread_tls_t thread_tls_create( void )
 
         pthread_key_t tls;
         if( pthread_key_create( &tls, NULL ) == 0 )
-            return (thread_tls_t) (uintptr_t) tls;
+            return (thread_tls_t) tls;
         else
             return NULL;
 
@@ -1306,7 +1325,7 @@ void thread_tls_destroy( thread_tls_t tls )
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        pthread_key_delete( (pthread_key_t) (uintptr_t) tls );
+        pthread_key_delete( (pthread_key_t) tls );
     
     #else 
         #error Unknown platform.
@@ -1322,7 +1341,7 @@ void thread_tls_set( thread_tls_t tls, void* value )
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        pthread_setspecific( (pthread_key_t) (uintptr_t) tls, value );
+        pthread_setspecific( (pthread_key_t) tls, value );
     
     #else 
         #error Unknown platform.
@@ -1338,12 +1357,13 @@ void* thread_tls_get( thread_tls_t tls )
     
     #elif defined( __linux__ ) || defined( __APPLE__ ) || defined( __ANDROID__ )
 
-        return pthread_getspecific( (pthread_key_t) (uintptr_t) tls );
+        return pthread_getspecific( (pthread_key_t) tls );
     
     #else 
         #error Unknown platform.
     #endif
     }
+
 
 void thread_queue_init( thread_queue_t* queue, int size, void** values, int count )
     {
@@ -1351,7 +1371,7 @@ void thread_queue_init( thread_queue_t* queue, int size, void** values, int coun
     thread_signal_init( &queue->data_ready );
     thread_signal_init( &queue->space_open );
     thread_atomic_int_store( &queue->head, 0 );
-    thread_atomic_int_store( &queue->tail, ( count > size ? size : count ) % size );
+    thread_atomic_int_store( &queue->tail, count > size ? size : count );
     thread_atomic_int_store( &queue->count, count > size ? size : count );
     queue->size = size;
     #ifndef NDEBUG
@@ -1368,36 +1388,40 @@ void thread_queue_term( thread_queue_t* queue )
     }
 
 
-void thread_queue_produce( thread_queue_t* queue, void* value )
+int thread_queue_produce( thread_queue_t* queue, void* value, int timeout_ms )
     {
-    int tail;
     #ifndef NDEBUG
         if( thread_atomic_int_compare_and_swap( &queue->id_produce_is_set, 0, 1 ) == 0 )
             queue->id_produce = thread_current_thread_id();
         assert( thread_current_thread_id() == queue->id_produce );
     #endif
     if( thread_atomic_int_load( &queue->count ) == queue->size )
-        thread_signal_wait( &queue->space_open, THREAD_SIGNAL_WAIT_INFINITE );
-    tail = thread_atomic_int_inc( &queue->tail );
+        {
+        if( timeout_ms == 0 ) return 0;
+        thread_signal_wait( &queue->space_open, timeout_ms == THREAD_QUEUE_WAIT_INFINITE ? THREAD_SIGNAL_WAIT_INFINITE : timeout_ms );
+        }
+    int tail = thread_atomic_int_inc( &queue->tail );
     queue->values[ tail % queue->size ] = value;
     if( thread_atomic_int_inc( &queue->count ) == 0 )
         thread_signal_raise( &queue->data_ready );
+    return 0;
     }
 
 
-void* thread_queue_consume( thread_queue_t* queue )
+void* thread_queue_consume( thread_queue_t* queue, int timeout_ms )
     {
-    int head;
-    void *retval;
     #ifndef NDEBUG
         if( thread_atomic_int_compare_and_swap( &queue->id_consume_is_set, 0, 1 ) == 0 )
             queue->id_consume = thread_current_thread_id();
         assert( thread_current_thread_id() == queue->id_consume );
     #endif
     if( thread_atomic_int_load( &queue->count ) == 0 )
+        {
+        if( timeout_ms == 0 ) return NULL;
         thread_signal_wait( &queue->data_ready, THREAD_SIGNAL_WAIT_INFINITE );
-    head = thread_atomic_int_inc( &queue->head );
-    retval = queue->values[ head % queue->size ];
+        }
+    int head = thread_atomic_int_inc( &queue->head );
+    void* retval = queue->values[ head % queue->size ];
     if( thread_atomic_int_dec( &queue->count ) == queue->size )
         thread_signal_raise( &queue->space_open );
     return retval;
@@ -1414,6 +1438,8 @@ int thread_queue_count( thread_queue_t* queue )
 
 /*
 revision history:
+    0.3     set_high_priority API change. Fixed spurious wakeup bug in signal. Added 
+            timeout param to queue produce/consume. Various cleanup and trivial fixes.
     0.2     first publicly released version 
 */
 

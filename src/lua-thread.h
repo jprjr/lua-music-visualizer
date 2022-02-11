@@ -68,10 +68,10 @@ extern "C" {
 /* this registers the thread metatable, can be called multiple times */
 void lmv_thread_init(lua_State *L);
 
-int lmv_thread_new(lua_State *L, lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize);
+int lmv_thread_new(lua_State *L, lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize, const char *name);
 
 /* like new, but uses malloc and returns a lightuserdata, you must track and free this */
-int lmv_thread_newmalloc(lua_State *L, lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize);
+int lmv_thread_newmalloc(lua_State *L, lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize, const char *name);
 void lmv_thread_free(lua_State *L, lmv_thread_t *t);
 
 void *lmv_thread_result(lmv_thread_t *, int *res);

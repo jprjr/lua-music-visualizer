@@ -9,6 +9,10 @@
 #include <lauxlib.h>
 #include <stdlib.h>
 
+static void lmv_queue_produce(thread_queue_t *queue, void *value) {
+    thread_queue_produce(queue,value,THREAD_QUEUE_WAIT_INFINITE);
+}
+
 
 static int
 lmv_thread(void *userdata) {
@@ -18,13 +22,13 @@ lmv_thread(void *userdata) {
     while(1) {
         thread_signal_wait(&t->signal,THREAD_SIGNAL_WAIT_INFINITE);
         while(thread_queue_count(&t->incoming) > 0) {
-            q = thread_queue_consume(&t->incoming);
+            q = thread_queue_consume(&t->incoming, THREAD_QUEUE_WAIT_INFINITE);
             if(UNLIKELY(q == NULL)) {
                 thread_exit(0);
                 return 0;
             }
             /* if the process function returns non-zero, exit */
-            r = t->process(q,(lmv_produce)thread_queue_produce,&t->outgoing);
+            r = t->process(q,(lmv_produce)lmv_queue_produce,&t->outgoing);
             if(r) {
                 thread_exit(r);
                 return r;
@@ -37,7 +41,7 @@ lmv_thread(void *userdata) {
 }
 
 void lmv_thread_inject(lmv_thread_t *t, void *val) {
-    thread_queue_produce(&t->incoming,val);
+    thread_queue_produce(&t->incoming,val,THREAD_QUEUE_WAIT_INFINITE);
     thread_signal_raise(&t->signal);
 }
 
@@ -45,7 +49,7 @@ void *lmv_thread_result(lmv_thread_t *t, int *res) {
     void *val = NULL;
     *res = 0;
     if(thread_queue_count(&t->outgoing) > 0) {
-        val = thread_queue_consume(&t->outgoing);
+        val = thread_queue_consume(&t->outgoing, THREAD_QUEUE_WAIT_INFINITE);
         *res = 1;
     }
     return val;
@@ -59,7 +63,7 @@ static void lmv_thread_clean(lua_State *L, lmv_thread_t *t) {
     void *q = NULL;
 
     /* send a quit item to the thread */
-    thread_queue_produce(&t->incoming,NULL);
+    thread_queue_produce(&t->incoming,NULL,THREAD_QUEUE_WAIT_INFINITE);
     thread_signal_raise(&t->signal);
     thread_join(t->thread);
 
@@ -75,7 +79,7 @@ static void lmv_thread_clean(lua_State *L, lmv_thread_t *t) {
     /* free any remaining queue items */
     if(t->free_in != NULL) {
         while(thread_queue_count(&t->incoming) > 0) {
-            q = thread_queue_consume(&t->incoming);
+            q = thread_queue_consume(&t->incoming,THREAD_QUEUE_WAIT_INFINITE);
             if(q != NULL) {
                 t->free_in(L,q);
             }
@@ -83,7 +87,7 @@ static void lmv_thread_clean(lua_State *L, lmv_thread_t *t) {
     }
     if(t->free_out != NULL) {
         while(thread_queue_count(&t->outgoing) > 0) {
-            q = thread_queue_consume(&t->outgoing);
+            q = thread_queue_consume(&t->outgoing,THREAD_QUEUE_WAIT_INFINITE);
             if(q != NULL) {
                 t->free_out(L,q);
             }
@@ -107,7 +111,7 @@ static int lmv_thread__gc(lua_State *L) {
     return 0;
 }
 
-static int lmv_thread_new_internal(lua_State *L,lmv_thread_t *t, lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize, const char *metaname) {
+static int lmv_thread_new_internal(lua_State *L,lmv_thread_t *t, lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize, const char *metaname, const char *name) {
 
     t->thread = NULL;
     t->in = NULL;
@@ -126,7 +130,7 @@ static int lmv_thread_new_internal(lua_State *L,lmv_thread_t *t, lmv_process pro
     thread_signal_init(&t->signal);
     thread_queue_init(&t->incoming,qsize,t->in,0);
     thread_queue_init(&t->outgoing,qsize,t->out,0);
-    t->thread = thread_create(lmv_thread, t, NULL, THREAD_STACK_SIZE_DEFAULT);
+    t->thread = thread_create(lmv_thread, t, name, THREAD_STACK_SIZE_DEFAULT);
     if(t->thread == NULL) {
         return luaL_error(L,"error spawning thread");
     }
@@ -135,7 +139,7 @@ static int lmv_thread_new_internal(lua_State *L,lmv_thread_t *t, lmv_process pro
 
 }
 
-int lmv_thread_newmalloc(lua_State *L,lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize) {
+int lmv_thread_newmalloc(lua_State *L,lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize, const char *name) {
     lmv_thread_t *t = NULL;
 
     if(process == NULL) {
@@ -152,10 +156,10 @@ int lmv_thread_newmalloc(lua_State *L,lmv_process process, lmv_free free_in, lmv
     }
     lua_pushlightuserdata(L,t);
 
-    return lmv_thread_new_internal(L, t, process, free_in, free_out, qsize, "lmv.threadmalloc");
+    return lmv_thread_new_internal(L, t, process, free_in, free_out, qsize, "lmv.threadmalloc", name);
 }
 
-int lmv_thread_new(lua_State *L,lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize) {
+int lmv_thread_new(lua_State *L,lmv_process process, lmv_free free_in, lmv_free free_out, lua_Integer qsize, const char *name) {
     lmv_thread_t *t = NULL;
 
     if(process == NULL) {
@@ -171,7 +175,7 @@ int lmv_thread_new(lua_State *L,lmv_process process, lmv_free free_in, lmv_free 
         return luaL_error(L,"out of memory");
     }
 
-    return lmv_thread_new_internal(L, t, process, free_in, free_out, qsize, "lmv.thread");
+    return lmv_thread_new_internal(L, t, process, free_in, free_out, qsize, "lmv.thread", name);
 }
 
 void lmv_thread_init(lua_State *L) {

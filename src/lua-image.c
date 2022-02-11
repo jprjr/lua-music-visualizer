@@ -355,7 +355,7 @@ lua_image_loader_new(lua_State *L) {
     if(qsize < 1) {
         return luaL_error(L,"invalid queue size for loader");
     }
-    if(lmv_thread_new(L,bgimage_process,image_q_free,image_q_free,qsize) != 1) {
+    if(lmv_thread_new(L,bgimage_process,image_q_free,image_q_free,qsize,"image loader") != 1) {
         return luaL_error(L,"error creating loader");
     }
     lua_newtable(L);

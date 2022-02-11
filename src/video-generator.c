@@ -470,8 +470,6 @@ int video_generator_init(video_generator *v, audio_processor *p, audio_resampler
     const char *err_str;
     int lua_top;
 
-    thread_set_high_priority( thread_current_thread_id() );
-
     v->mpd = NULL;
     v->decoder = NULL;
     v->sampler = NULL;
