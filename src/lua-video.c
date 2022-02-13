@@ -58,7 +58,7 @@ typedef struct luavideo_frame_t {
     unsigned int width;
     unsigned int height;
     unsigned int channels;
-    unsigned int linesize;
+    int linesize;
     double timestamp;
     jpr_uint8 *data;
 } luavideo_frame_t;

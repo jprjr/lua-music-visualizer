@@ -1634,10 +1634,10 @@ static int lframe_new(lua_State *L) {
 }
 
 int
-luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer channels, const jpr_uint8 *data, unsigned int linesize) {
+luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer channels, const jpr_uint8 *data, int linesize) {
     jpr_uint8 *ud = NULL;
     unsigned int l = 0;
-    unsigned int linesize_frame = 0;
+    int linesize_frame = 0;
     lua_Integer len = 0;
 
     if(width < 0 || height < 0 || channels < 0) {
@@ -1685,11 +1685,11 @@ luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer ch
         if(linesize == linesize_frame) {
             mem_cpy(ud,data,len);
         } else {
-            while(l<len) {
+            while(l<height) {
                 memcpy(ud,data,linesize_frame);
                 ud += linesize_frame;
                 data += linesize;
-                l += linesize_frame;
+                l++;
             }
         }
     }
