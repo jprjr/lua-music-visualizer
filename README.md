@@ -415,7 +415,10 @@ The `video` module allows decoding images/videos with ffmpeg.
 
 The returned `video` instance is a userdata with the following functions:
 
-* `video:frame()` - attempts to retrieve a new `frame` instance from the video.
+* `video:start()` - start decoding the video
+* `video:seek(ts)` - attempts to seek the video to the specified time, in seconds, floating-point accepted.
+* `frame, timestamp = video:frame()` - attempts to retrieve a new `frame` instance from the video, if successful,
+also returns the frame's timestamp as a second value.
 * `video:status()` - check the status of the video thread, can be:
   * `loading` - probing/etc, but has not started decoding.
   * `ok` - decoding video
