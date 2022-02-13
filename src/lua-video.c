@@ -301,7 +301,7 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
                 }
 
                 case LUAVIDEO_SEEK: {
-                    int64_t pts_prev;
+                    int64_t pts_prev = 0;
                     q->ctrl->status = LUAVIDEO_OK;
 
                     /* first flush the codec and drain everything */
