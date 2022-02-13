@@ -492,19 +492,22 @@ luavideo_new(lua_State *L) {
     char *buf;
     char args[512];
     luaL_Buffer errbuf;
+    luaL_buffinit(L,&errbuf);
 
     if(!lua_istable(L,1)) {
-        lua_pushnil(L);
         luaL_addstring(&errbuf,"missing parameters table");
         luaL_pushresult(&errbuf);
+        lua_pushnil(L);
+        lua_insert(L,-2);
         return 2;
     }
 
     lua_getfield(L,1,"url");
     if(!lua_isstring(L,-1)) {
-        lua_pushnil(L);
         luaL_addstring(&errbuf,"missing parameter: url");
         luaL_pushresult(&errbuf);
+        lua_pushnil(L);
+        lua_insert(L,-2);
         return 2;
     }
 
@@ -524,9 +527,10 @@ luavideo_new(lua_State *L) {
             case 24: channels = 3; break;
             case 32: channels = 4; break;
             default: {
-                lua_pushnil(L);
                 luaL_addstring(&errbuf,"invalid colordepth");
                 luaL_pushresult(&errbuf);
+                lua_pushnil(L);
+                lua_insert(L,-2);
                 return 2;
             }
         }
@@ -538,10 +542,10 @@ luavideo_new(lua_State *L) {
         return luaL_error(L,"out of memory");
     }
 
-
     graph = avfilter_graph_alloc();
     if(graph == NULL) {
         errflag = -1;
+        luaL_addstring(&errbuf,"error allocating graph");
         goto cleanup;
     }
 
@@ -556,6 +560,7 @@ luavideo_new(lua_State *L) {
     filter_ctxs = (AVFilterContext **)malloc(sizeof(AVFilterContext *) * filters);
     if(filter_ctxs == NULL) {
         errflag = -1;
+        luaL_addstring(&errbuf,"error allocating filters");
         goto cleanup;
     }
 
@@ -731,8 +736,9 @@ luavideo_new(lua_State *L) {
         free(filter_ctxs);
         avfilter_graph_free(&graph);
     }
-    lua_pushnil(L);
     luaL_pushresult(&errbuf);
+    lua_pushnil(L);
+    lua_insert(L,-2);
     return 2;
 }
 
