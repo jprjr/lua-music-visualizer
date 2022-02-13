@@ -122,7 +122,7 @@ lua_load_image_cb(void *Lua, unsigned int frames, jpr_uint8 *image) {
     delay_ind = lua_gettop(L);
 
     for(i=0;i<frames;i++) {
-        if(luaframe_new(L,width,height,channels,b) == 1) {
+        if(luaframe_new(L,width,height,channels,b,width*channels) == 1) {
           lua_rawseti(L,frame_ind,i+1);
           if(frames > 1) {
             b += width * height * channels;
@@ -237,7 +237,7 @@ lua_image_new(lua_State *L) {
         lua_newtable(L); /* image.frames  -- push */
         frame_ind = lua_gettop(L);
 
-        if(luaframe_new(L,width,height,channels,NULL) == 1) {
+        if(luaframe_new(L,width,height,channels,NULL,0) == 1) {
             lua_rawseti(L,frame_ind,1);
         } else {
             LOG_ERROR(lua_tostring(L,-1));
@@ -466,7 +466,7 @@ lua_image_load_default(lua_State *L) {
     delay_ind = lua_gettop(L);
 
     for(i=0;i<frames;i++) {
-        if(luaframe_new(L,width,height,channels,b) == 1) {
+        if(luaframe_new(L,width,height,channels,b,width*channels) == 1) {
             lua_rawseti(L,frame_ind,i+1);
             if(frames > 1) {
               b += width * height * channels;

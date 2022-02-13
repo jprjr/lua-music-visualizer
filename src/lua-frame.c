@@ -1630,12 +1630,14 @@ static int lframe_new(lua_State *L) {
     channels = luaL_checkinteger(L,3);
     data     = (const jpr_uint8 *)lua_tolstring(L,4,&len);
 
-    return luaframe_new(L,width,height,channels,data);
+    return luaframe_new(L,width,height,channels,data,width * channels);
 }
 
 int
-luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer channels, const jpr_uint8 *data) {
-    void *ud = NULL;
+luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer channels, const jpr_uint8 *data, unsigned int linesize) {
+    jpr_uint8 *ud = NULL;
+    unsigned int l = 0;
+    unsigned int linesize_frame = 0;
     lua_Integer len = 0;
 
     if(width < 0 || height < 0 || channels < 0) {
@@ -1650,6 +1652,7 @@ luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer ch
         lua_pushstring(L,"integer overflow");
         return 2;
     }
+    linesize_frame = width * channels;
 
     lua_newtable(L);
     ud = lua_newuserdata(L,len);
@@ -1679,7 +1682,16 @@ luaframe_new(lua_State *L, lua_Integer width, lua_Integer height, lua_Integer ch
     lua_setmetatable(L,-2);
 
     if(data != NULL) {
-        mem_cpy(ud,data,len);
+        if(linesize == linesize_frame) {
+            mem_cpy(ud,data,len);
+        } else {
+            while(l<len) {
+                memcpy(ud,data,linesize_frame);
+                ud += linesize_frame;
+                data += linesize;
+                l += linesize_frame;
+            }
+        }
     }
 
     return 1;

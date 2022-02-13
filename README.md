@@ -424,6 +424,7 @@ also returns the frame's timestamp as a second value.
   * `ok` - decoding video
   * `done` - done decoding video
   * `error` - some error occured.
+* `video:ok()` - returns a `true` if the video is in the `loading` or `ok` states, and a `false` if it's gotten an error or otherwise done playing.
 * `video:stop()` - stop the video decoder.
 
 The video instance will always have some filters added automatically, after your own:

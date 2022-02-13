@@ -31,11 +31,16 @@ enum LUAVIDEO_STATUS {
     LUAVIDEO_DONE,
 };
 
-static const char * const luavideo_status_strs[] = {
-    "error",
-    "loading",
-    "ok",
-    "done",
+typedef struct luavideo_status_rep {
+    const char *str;
+    int boolean;
+} luavideo_status_rep;
+
+static const luavideo_status_rep luavideo_status_reps[] = {
+    { "error", 0 },
+    { "loading", 1 },
+    { "ok", 1 },
+    { "done", 0 },
 };
 
 enum LUAVIDEO_COMMAND {
@@ -53,6 +58,7 @@ typedef struct luavideo_frame_t {
     unsigned int width;
     unsigned int height;
     unsigned int channels;
+    unsigned int linesize;
     double timestamp;
     jpr_uint8 *data;
 } luavideo_frame_t;
@@ -241,6 +247,7 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
                         buffersink_get:
                         if( (err = av_buffersink_get_frame(q->buffersink_ctx,oframe)) >= 0) {
                             f.data = oframe->data[0];
+                            f.linesize = oframe->linesize[0];
                             produce(queue,&f);
                             break;
                         }
@@ -430,10 +437,17 @@ static int luavideo_seek(lua_State *L) {
 
 static int luavideo_status(lua_State *L) {
     luavideo_ctrl_t *ctrl = NULL;
-
     ctrl = (luavideo_ctrl_t *)lua_touserdata(L,1);
 
-    lua_pushstring(L,luavideo_status_strs[ctrl->status]);
+    lua_pushstring(L,luavideo_status_reps[ctrl->status].str);
+    return 1;
+}
+
+static int luavideo_ok(lua_State *L) {
+    luavideo_ctrl_t *ctrl = NULL;
+    ctrl = (luavideo_ctrl_t *)lua_touserdata(L,1);
+
+    lua_pushboolean(L,luavideo_status_reps[ctrl->status].boolean);
     return 1;
 }
 
@@ -447,7 +461,7 @@ static int luavideo_frame(lua_State *L) {
     frame = lmv_thread_result(ctrl->thread,&res);
 
     if(frame != NULL) {
-        luaframe_new(L, frame->width, frame->height, frame->channels, frame->data);
+        luaframe_new(L, frame->width, frame->height, frame->channels, frame->data, frame->linesize);
         lua_pushnumber(L,frame->timestamp);
         thread_queue_produce(&ctrl->cmd,&(ctrl->cmds[LUAVIDEO_FRAME]),THREAD_QUEUE_WAIT_INFINITE);
         thread_signal_raise(&ctrl->cmd_signal);
@@ -775,6 +789,8 @@ void luavideo_init(lua_State *L, video_generator *v) {
         lua_setfield(L,-2,"start");
         lua_pushcclosure(L,luavideo_seek,0);
         lua_setfield(L,-2,"seek");
+        lua_pushcclosure(L,luavideo_ok,0);
+        lua_setfield(L,-2,"ok");
 
         lua_setfield(L,-2,"__index");
     }
