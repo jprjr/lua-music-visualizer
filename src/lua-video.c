@@ -289,6 +289,7 @@ static int luavideo_packet_feeder(void *userdata) {
         if(clone == NULL) {
             abort();
         }
+        av_packet_unref(packet);
 
         while(thread_queue_count(packet_thread_data->queue) == packet_thread_data->queueSize && packet_thread_data->running) {
             thread_signal_raise(packet_thread_data->outsignal);
