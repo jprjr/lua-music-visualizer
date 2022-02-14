@@ -23,7 +23,6 @@ static const AVFilter *fps_filter = NULL;
 static const AVFilter *buffer_filter = NULL;
 static const AVFilter *buffersink_filter = NULL;
 
-
 enum LUAVIDEO_STATUS {
     LUAVIDEO_ERROR,
     LUAVIDEO_LOADING,
@@ -68,8 +67,6 @@ typedef struct luavideo_ctrl_s {
     volatile int status;
     int loops;
     lmv_thread_t *thread;
-    jpr_int64 pts_last;
-    jpr_int64 pts_offset;
     void **cmd_storage;
     luavideo_cmd_t cmds[3];
     thread_queue_t cmd;
@@ -78,15 +75,69 @@ typedef struct luavideo_ctrl_s {
 
 typedef struct luavideo_queue_s {
     char *url;
-
     AVFilterGraph *graph;
-    AVFilterContext *buffer_ctx;
-    AVFilterContext *buffersink_ctx;
     AVFilterContext **filter_ctxs;
     unsigned int filters;
     luavideo_ctrl_t *ctrl;
     unsigned int channels;
 } luavideo_queue_t;
+
+/* parameters to pass to the packet-reading thread */
+typedef struct luavideo_packet_thread_s {
+    AVFormatContext *avFormatContext;
+    thread_queue_t *queue;
+    thread_signal_t *signal;
+    thread_signal_t *outsignal;
+    int queueSize;
+    volatile int running;
+} luavideo_packet_thread_s;
+
+typedef struct luavideo_packet_receiver_s {
+    thread_signal_t *signal;
+    thread_queue_t *queue;
+    thread_signal_t *readysignal;
+    luavideo_packet_thread_s *thread;
+} luavideo_packet_receiver_s;
+
+typedef struct luavideo_codec_receiver_s {
+    AVCodecContext *avCodecContext;
+    AVPacket *packet;
+    luavideo_packet_receiver_s *packet_receiver;
+    int videoStreamIndex;
+} luavideo_codec_receiver_s;
+
+typedef struct luavideo_frame_receiver_s {
+    AVFilterContext *bufferSrcContext;
+    AVFilterContext *bufferSinkContext;
+    jpr_int64 pts_real;
+    jpr_int64 pts_diff;
+    jpr_int64 pts;
+    AVFrame *rawFrame;
+    luavideo_codec_receiver_s *codec_receiver;
+} luavideo_frame_receiver_s;
+
+typedef struct luavideo_avformat_s {
+    AVFormatContext *avFormatContext;
+    AVCodec *avCodec;
+    AVCodecContext *avCodecContext;
+    AVCodecParameters *avCodecParameters;
+    AVStream *avStream;
+    int videoStreamIndex;
+    AVFilterContext *bufferSrcContext;
+    AVFilterContext *bufferSinkContext;
+} luavideo_avformat_s;
+
+typedef struct luavideo_seeker_s {
+    AVFormatContext *avFormatContext;
+    int videoStreamIndex;
+    thread_queue_t *queue;
+    luavideo_frame_receiver_s *fr;
+    double time_base_den;
+    double time_base_num;
+    jpr_int64 pts_prev;
+} luavideo_seeker_s;
+
+
 
 #if (!defined LUA_VERSION_NUM) || LUA_VERSION_NUM==501
 #define lua_len(L,i) lua_pushinteger(L,lua_objlen(L,i))
@@ -94,6 +145,275 @@ typedef struct luavideo_queue_s {
 #define lua_setuservalue(L,i) lua_setfenv((L),(i))
 #define lua_getuservalue(L,i) lua_getfenv((L),(i))
 #endif
+
+static void luavideo_frame_receiver_close(luavideo_frame_receiver_s *fr) {
+    av_frame_free(&fr->rawFrame);
+}
+
+static void luavideo_packet_receiver_init(luavideo_packet_receiver_s *pr, thread_signal_t *signal, thread_queue_t *queue,thread_signal_t *readysignal, luavideo_packet_thread_s *thread) {
+    pr->signal = signal;
+    pr->queue = queue;
+    pr->readysignal = readysignal;
+    pr->thread = thread;
+}
+
+static void luavideo_avformat_close(luavideo_avformat_s *av) {
+    if(av->avFormatContext != NULL) avformat_close_input(&av->avFormatContext);
+    if(av->avCodecContext != NULL) avcodec_free_context(&av->avCodecContext);
+    if(av->bufferSrcContext != NULL) avfilter_free(av->bufferSrcContext);
+    if(av->bufferSinkContext != NULL) avfilter_free(av->bufferSinkContext);
+    av->avFormatContext = NULL;
+    av->avCodec = NULL;
+    av->avCodecContext = NULL;
+    av->avCodecParameters = NULL;
+    av->avStream = NULL;
+    av->bufferSrcContext = NULL;
+    av->bufferSinkContext = NULL;
+}
+
+static void luavideo_codec_receiver_init(luavideo_codec_receiver_s *cr, luavideo_avformat_s *av, luavideo_packet_receiver_s *pr, int videoStreamIndex) {
+    cr->avCodecContext  = av->avCodecContext;
+    cr->packet_receiver = pr;
+    cr->videoStreamIndex = videoStreamIndex;
+    cr->packet = NULL;
+}
+
+static void luavideo_frame_receiver_init(luavideo_frame_receiver_s *fr, luavideo_avformat_s *av, luavideo_codec_receiver_s *cr) {
+    fr->rawFrame = NULL;
+    fr->rawFrame = av_frame_alloc();
+    if(fr->rawFrame == NULL) abort();
+
+    fr->bufferSrcContext = av->bufferSrcContext;
+    fr->bufferSinkContext = av->bufferSinkContext;;
+    fr->codec_receiver = cr;
+    fr->pts_diff = (jpr_int64)av->avStream->r_frame_rate.den * (jpr_int64)av->avStream->time_base.den / (jpr_int64)av->avStream->r_frame_rate.num;
+    fr->pts = 0 - fr->pts_diff;
+}
+
+static int luavideo_avformat_open(luavideo_avformat_s *av, luavideo_queue_t *q) {
+    unsigned int i;
+    int videoStreamIndex;
+    av->avFormatContext = NULL;
+    av->avCodec = NULL;
+    av->avCodecContext = NULL;
+    av->avCodecParameters = NULL;
+    av->avStream = NULL;
+    av->bufferSrcContext = NULL;
+    av->bufferSinkContext = NULL;
+    char args[512];
+
+    if(avformat_open_input(&av->avFormatContext,q->url, NULL, NULL) < 0) {
+        return -1;
+    }
+
+    if(avformat_find_stream_info(av->avFormatContext, NULL) < 0) {
+        return -1;
+    }
+
+    for(i=0;i<av->avFormatContext->nb_streams;i++) {
+        av->avFormatContext->streams[i]->discard = AVDISCARD_ALL;
+    }
+
+    videoStreamIndex = av_find_best_stream(av->avFormatContext,AVMEDIA_TYPE_VIDEO,-1,-1,&av->avCodec, 0);
+    if(videoStreamIndex < 0) {
+        return -1;
+    }
+    av->videoStreamIndex = videoStreamIndex;
+
+    if(av->avCodec == NULL) {
+        return -1;
+    }
+
+    av->avStream = av->avFormatContext->streams[videoStreamIndex];
+    av->avStream->discard = AVDISCARD_DEFAULT;
+
+    av->avCodecParameters = av->avStream->codecpar;
+
+    av->avCodecContext = avcodec_alloc_context3(av->avCodec);
+    if(av->avCodecContext == NULL) {
+        return -1;
+    }
+    avcodec_parameters_to_context(av->avCodecContext,av->avCodecParameters);
+
+    if(avcodec_open2(av->avCodecContext, av->avCodec, NULL) < 0) {
+        return 1;
+    }
+
+    snprintf(args, sizeof(args), "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
+      av->avCodecContext->width, av->avCodecContext->height, av->avCodecContext->pix_fmt, av->avStream->time_base.num,
+      av->avStream->time_base.den, av->avCodecContext->sample_aspect_ratio.num,
+      av->avCodecContext->sample_aspect_ratio.den);
+    if(avfilter_graph_create_filter(&av->bufferSrcContext, buffer_filter, "in", args, NULL, q->graph) < 0) {
+        return 1;
+    }
+    if(avfilter_graph_create_filter(&av->bufferSinkContext, buffersink_filter, "out", NULL, NULL, q->graph) < 0) {
+        return 1;
+    }
+
+    if(avfilter_link(av->bufferSrcContext, 0, q->filter_ctxs[0], 0) < 0) {
+        return 1;
+    }
+
+    i = 0;
+    while(i < q->filters - 1) {
+        if(avfilter_link(q->filter_ctxs[i], 0, q->filter_ctxs[i+1], 0) < 0) {
+            return 1;
+        }
+        i++;
+    }
+
+    if(avfilter_link(q->filter_ctxs[i], 0, av->bufferSinkContext, 0) < 0) {
+        return 1;
+    }
+    if(avfilter_graph_config(q->graph, NULL) < 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
+static int luavideo_packet_feeder(void *userdata) {
+    /* feeds packets into a queue, which acts as a buffer */
+    AVPacket *packet;
+    AVPacket *clone;
+    int err;
+    luavideo_packet_thread_s *packet_thread_data = (luavideo_packet_thread_s *)userdata;
+
+    packet = av_packet_alloc();
+
+    while(packet_thread_data->running) {
+        err = av_read_frame(packet_thread_data->avFormatContext,packet);
+        if(err < 0) break;
+        clone = av_packet_clone(packet);
+        if(clone == NULL) {
+            abort();
+        }
+
+        while(thread_queue_count(packet_thread_data->queue) == packet_thread_data->queueSize && packet_thread_data->running) {
+            thread_signal_raise(packet_thread_data->outsignal);
+            thread_signal_wait(packet_thread_data->signal,THREAD_SIGNAL_WAIT_INFINITE);
+        }
+        if(!packet_thread_data->running) break;
+        thread_queue_produce(packet_thread_data->queue,clone,THREAD_QUEUE_WAIT_INFINITE);
+        thread_signal_raise(packet_thread_data->outsignal);
+    }
+    packet_thread_data->running = 0;
+    av_packet_free(&packet);
+
+    if(thread_queue_count(packet_thread_data->queue) < packet_thread_data->queueSize) {
+        thread_queue_produce(packet_thread_data->queue,NULL,THREAD_QUEUE_WAIT_INFINITE);
+    }
+    thread_signal_raise(packet_thread_data->outsignal);
+
+    return 0;
+}
+
+
+/* returns an AVPacket, which must be freed */
+static AVPacket *luavideo_packet_receive(luavideo_packet_receiver_s *packet_receiver) {
+    AVPacket *packet;
+
+    while(thread_queue_count(packet_receiver->queue) == 0) {
+        if(!packet_receiver->thread->running) return NULL;
+        thread_signal_wait(packet_receiver->readysignal, THREAD_QUEUE_WAIT_INFINITE);
+    }
+    packet = thread_queue_consume(packet_receiver->queue,THREAD_QUEUE_WAIT_INFINITE);
+    thread_signal_raise(packet_receiver->signal);
+    return packet;
+}
+
+/* tries to pull a frame of data from the codec */
+static int luavideo_codec_receive(luavideo_codec_receiver_s *codec_receiver, AVFrame *frame) {
+    int err;
+    while(1) {
+          if( (err = avcodec_receive_frame(codec_receiver->avCodecContext,frame)) >= 0) {
+              return err;
+          }
+          if(err != AVERROR(EAGAIN)) {
+              return err;
+          }
+          while(codec_receiver->packet == NULL) {
+              codec_receiver->packet = luavideo_packet_receive(codec_receiver->packet_receiver);
+              if(codec_receiver->packet == NULL) {
+                  return AVERROR_EOF;
+              }
+              if(codec_receiver->packet->stream_index != codec_receiver->videoStreamIndex) {
+                  av_packet_free(&codec_receiver->packet);
+                  if(codec_receiver->packet != NULL) abort();
+                  continue;
+              }
+          }
+          err = avcodec_send_packet(codec_receiver->avCodecContext,codec_receiver->packet);
+          if(err >= 0) {
+              av_packet_free(&codec_receiver->packet);
+              continue;
+          }
+          if(err == AVERROR(EAGAIN)) continue;
+    }
+}
+
+/* tries to pull a frame of data from the graph buffer */
+static int luavideo_frame_receive(luavideo_frame_receiver_s *frame_receiver, AVFrame *frame) {
+    int err;
+
+    while(1) {
+        if( (err = av_buffersink_get_frame(frame_receiver->bufferSinkContext,frame)) >= 0) {
+            return err;
+        }
+
+        if(err != AVERROR(EAGAIN)) {
+            return err;
+        }
+
+        err = luavideo_codec_receive(frame_receiver->codec_receiver,frame_receiver->rawFrame);
+        if(err < 0) {
+            return err;
+        }
+
+        frame_receiver->pts += frame_receiver->pts_diff;
+        frame_receiver->pts_real = frame_receiver->rawFrame->pts;
+        frame_receiver->rawFrame->pts = frame_receiver->pts;
+
+        err = av_buffersrc_add_frame(frame_receiver->bufferSrcContext,frame_receiver->rawFrame);
+        if(err < 0) {
+            return err;
+        }
+    }
+}
+
+static int luavideo_format_seek(luavideo_seeker_s *seek_data, double ts) {
+    /* handles seeking operations */
+    AVFrame *frame = NULL;
+    AVPacket *packet = NULL;
+    int err = 0;
+
+    ts = ts * seek_data->time_base_den / seek_data->time_base_num;
+
+    /* drain all our buffered packets */
+    while(thread_queue_count(seek_data->queue) > 0) {
+        packet = thread_queue_consume(seek_data->queue,THREAD_QUEUE_WAIT_INFINITE);
+        if(packet == NULL) {
+            continue;
+        }
+        av_packet_free(&packet);
+    }
+
+    /* drain anything left in the codec */
+    packet = av_packet_alloc();
+    while( (err = av_read_frame(seek_data->avFormatContext,packet)) >= 0) {
+        av_packet_unref(packet);
+    }
+    av_packet_free(&packet);
+
+    /* drain anything left in the buffer */
+    frame = av_frame_alloc();
+    while( (err = av_buffersink_get_frame(seek_data->fr->bufferSinkContext,frame)) >= 0) {
+        av_frame_unref(frame);
+    }
+    av_frame_free(&frame);
+
+    return avformat_seek_file(seek_data->avFormatContext,seek_data->videoStreamIndex,0,(jpr_int64)ts,(jpr_int64)ts,0);
+}
 
 static void luavideo_queue_cleanup(lua_State *L, void *userdata) {
     unsigned int fidx;
@@ -107,8 +427,6 @@ static void luavideo_queue_cleanup(lua_State *L, void *userdata) {
         fidx++;
     }
     free(q->filter_ctxs);
-    if(q->buffer_ctx != NULL) avfilter_free(q->buffer_ctx);
-    if(q->buffersink_ctx != NULL) avfilter_free(q->buffersink_ctx);
     avfilter_graph_free(&q->graph);
     free(q->url);
     free(q);
@@ -122,252 +440,148 @@ static void luavideo_outqueue_cleanup(lua_State *L, void *userdata) {
 }
 
 static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
-    AVFormatContext *ic = NULL;
-    AVCodec *decoder = NULL;
-    AVCodecContext *avctx = NULL;
-    AVCodecParameters *codecParameters = NULL;
-    AVStream *stream = NULL;
-    AVPacket *packet = NULL;
-    AVFrame *iframe = NULL;
-    AVFrame *oframe = NULL;
-    AVBufferSrcParameters *bufferSrcParams = NULL;
-    char args[512];
+    luavideo_avformat_s av;
+    luavideo_frame_receiver_s fr;
+    luavideo_codec_receiver_s cr;
+    luavideo_packet_receiver_s pr;
+    luavideo_seeker_s seeker;
     luavideo_frame_t f;
-    unsigned int fidx;
-    int video_idx;
-    unsigned int i;
+    luavideo_queue_t *q;
+    luavideo_packet_thread_s packet_thread_ctrl;
+    luavideo_cmd_t *cmd;
     int err;
-    int seek_status;
-    luavideo_queue_t *q = (luavideo_queue_t *)userdata;
-    luavideo_cmd_t *cmd = NULL;
+    AVFrame *frame;
 
-    if(avformat_open_input(&ic,q->url, NULL, NULL) < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
-    }
-    if(avformat_find_stream_info(ic, NULL) < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
-    }
+    thread_ptr_t packet_thread;
+    thread_queue_t packet_queue;
+    thread_signal_t packet_signal;
+    thread_signal_t packet_ready_signal;
+    void **packet_queue_storage;
 
-    for(i=0;i<ic->nb_streams;i++) {
-        ic->streams[i]->discard = AVDISCARD_ALL;
-    }
+    packet_thread = NULL;
+    packet_queue_storage = NULL;
+    frame = NULL;
 
-    video_idx = av_find_best_stream(ic,AVMEDIA_TYPE_VIDEO,-1,-1,&decoder, 0);
-    if(video_idx < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
+    q = (luavideo_queue_t *)userdata;
+
+    if(luavideo_avformat_open(&av,q) < 0) {
+        goto luavideo_process_cleanup;
     }
-    if(decoder == NULL) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
+    packet_queue_storage = (void **)malloc(sizeof(void *) * 30);
+    if(packet_queue_storage == NULL) {
+        goto luavideo_process_cleanup;
     }
 
-    stream = ic->streams[video_idx];
-    stream->discard = AVDISCARD_DEFAULT;
-
-    codecParameters = stream->codecpar;
-
-    avctx = avcodec_alloc_context3(decoder);
-    if(avctx == NULL) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
-    }
-    avcodec_parameters_to_context(avctx,codecParameters);
-
-    if(avcodec_open2(avctx, decoder, NULL) < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
+    frame = av_frame_alloc();
+    if(frame == NULL) {
+        goto luavideo_process_cleanup;
     }
 
-    snprintf(args, sizeof(args), "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
-      avctx->width, avctx->height, avctx->pix_fmt, stream->time_base.num,
-      stream->time_base.den, avctx->sample_aspect_ratio.num,
-      avctx->sample_aspect_ratio.den);
-    if(avfilter_graph_create_filter(&q->buffer_ctx, buffer_filter, "in", args, NULL, q->graph) < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
-    }
-    if(avfilter_graph_create_filter(&q->buffersink_ctx, buffersink_filter, "out", NULL, NULL, q->graph) < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
-    }
+    thread_queue_init(&packet_queue,30,packet_queue_storage,0);
+    thread_signal_init(&packet_signal);
+    thread_signal_init(&packet_ready_signal);
 
-    if(avfilter_link(q->buffer_ctx, 0, q->filter_ctxs[0], 0) < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
-    }
+    packet_thread_ctrl.avFormatContext = av.avFormatContext;
+    packet_thread_ctrl.queue = &packet_queue;
+    packet_thread_ctrl.signal = &packet_signal;
+    packet_thread_ctrl.outsignal = &packet_ready_signal;
+    packet_thread_ctrl.queueSize = 30;
+    packet_thread_ctrl.running = 1;
 
-    fidx = 0;
-    while(fidx < q->filters - 1) {
-        if(avfilter_link(q->filter_ctxs[fidx], 0, q->filter_ctxs[fidx+1], 0) < 0) {
-            q->ctrl->status = LUAVIDEO_ERROR;
-            goto luavideo_cleanup;
-        }
-        fidx++;
-    }
+    luavideo_frame_receiver_init(&fr,&av,&cr);
+    luavideo_codec_receiver_init(&cr,&av,&pr,av.videoStreamIndex);
+    luavideo_packet_receiver_init(&pr,&packet_signal,&packet_queue,&packet_ready_signal,&packet_thread_ctrl);
 
-    if(avfilter_link(q->filter_ctxs[fidx], 0, q->buffersink_ctx, 0) < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
-    }
-    if(avfilter_graph_config(q->graph, NULL) < 0) {
-        q->ctrl->status = LUAVIDEO_ERROR;
-        goto luavideo_cleanup;
-    }
+    seeker.avFormatContext = av.avFormatContext;
+    seeker.queue = &packet_queue;
+    seeker.fr = &fr;
+    seeker.videoStreamIndex = av.videoStreamIndex;
+    seeker.time_base_den = av.avStream->time_base.den;
+    seeker.time_base_num = av.avStream->time_base.num;
+    seeker.pts_prev = 0;
 
-    q->ctrl->pts_last = 0;
-    q->ctrl->pts_offset = 0 - stream->start_time;
+    /* start the packet-making thread */
+    packet_thread = thread_create(luavideo_packet_feeder,&packet_thread_ctrl,"luavideo_packet_thread", THREAD_STACK_SIZE_DEFAULT);
+    q->ctrl->status = LUAVIDEO_OK;
 
-    f.width    = av_buffersink_get_w(q->buffersink_ctx);
-    f.height   = av_buffersink_get_h(q->buffersink_ctx);
     f.channels = q->channels;
     f.timestamp = 0.0f;
 
-    packet = av_packet_alloc();
-    iframe = av_frame_alloc();
-    oframe = av_frame_alloc();
-
     while(1) {
         while(thread_queue_count(&q->ctrl->cmd) > 0) {
-            av_frame_unref(oframe);
             cmd = (luavideo_cmd_t *)thread_queue_consume(&q->ctrl->cmd,THREAD_QUEUE_WAIT_INFINITE);
             if(cmd == NULL) abort();
 
             switch(cmd->cmd) {
                 case LUAVIDEO_STOP: {
                     q->ctrl->status = LUAVIDEO_DONE;
-                    goto luavideo_cleanup;
+                    goto luavideo_process_cleanup;
                 }
 
                 case LUAVIDEO_FRAME: {
-                    q->ctrl->status = LUAVIDEO_OK;
-                    while(1) {
-                        buffersink_get:
-                        if( (err = av_buffersink_get_frame(q->buffersink_ctx,oframe)) >= 0) {
-                            f.data = oframe->data[0];
-                            f.linesize = oframe->linesize[0];
-                            produce(queue,&f);
-                            break;
-                        }
-
-                        if(err != AVERROR(EAGAIN)) {
-                            q->ctrl->status = LUAVIDEO_ERROR;
-                            goto luavideo_cleanup;
-                        }
-
-                        codec_get:
-                        if( (err = avcodec_receive_frame(avctx,iframe)) >= 0) {
-                            if(av_buffersrc_add_frame(q->buffer_ctx,iframe) < 0) {
-                                q->ctrl->status = LUAVIDEO_ERROR;
-                                goto luavideo_cleanup;
+                    av_frame_unref(frame);
+                    tryreceive:
+                    if( (err = luavideo_frame_receive(&fr,frame)) < 0) {
+                        if(err == AVERROR_EOF) {
+                            q->ctrl->loops--;
+                            if(q->ctrl->loops == 0) {
+                                q->ctrl->status = LUAVIDEO_DONE;
+                                goto luavideo_process_cleanup;
                             }
-                            goto buffersink_get;
+                            packet_thread_ctrl.running = 0;
+                            thread_signal_raise(&packet_signal);
+                            thread_join(packet_thread);
+                            thread_destroy(packet_thread);
+                            packet_thread = NULL;
+                            avcodec_flush_buffers(av.avCodecContext);
+#ifndef NDEBUG
+                            packet_queue.id_produce_is_set.i = 0;
+#endif
+                            err = luavideo_format_seek(&seeker, cmd->dblparam);
+#ifndef NDEBUG
+                            packet_queue.id_produce_is_set.i = 0;
+#endif
+                            /* start the packet thread */
+                            packet_thread_ctrl.running = 1;
+                            packet_thread = thread_create(luavideo_packet_feeder,&packet_thread_ctrl,"luavideo_packet_thread", THREAD_STACK_SIZE_DEFAULT);
+                            if(err >= 0) goto tryreceive;
                         }
+                        goto luavideo_process_cleanup;
 
-                        if(err != AVERROR(EAGAIN)) {
-                            q->ctrl->status = LUAVIDEO_ERROR;
-                            goto luavideo_cleanup;
-                        }
-
-                        format_get:
-                        if( (err = av_read_frame(ic,packet)) >= 0) {
-                            if(packet->stream_index == video_idx) {
-                                f.timestamp = (double)packet->pts * (double)stream->time_base.num / (double)stream->time_base.den;
-                                /* mess with the packet pts */
-                                q->ctrl->pts_last = packet->pts;
-                                packet->pts += q->ctrl->pts_offset;
-
-                                if(avcodec_send_packet(avctx,packet) < 0) {
-                                    q->ctrl->status = LUAVIDEO_ERROR;
-                                    av_packet_unref(packet);
-                                    goto luavideo_cleanup;
-                                }
-                                av_packet_unref(packet);
-                                goto codec_get;
-                            }
-                            av_packet_unref(packet);
-                            goto format_get;
-                        }
-
-                        if(err != AVERROR_EOF) {
-                            q->ctrl->status = LUAVIDEO_ERROR;
-                            goto luavideo_cleanup;
-                        }
-
-                        q->ctrl->loops--;
-                        if(q->ctrl->loops == 0 || av_seek_frame(ic,video_idx,0,AVSEEK_FLAG_BACKWARD) < 0) {
-                            q->ctrl->status = LUAVIDEO_DONE;
-                            goto luavideo_cleanup;
-                        }
-                        q->ctrl->pts_offset += q->ctrl->pts_last;
-                        goto format_get;
                     }
+                    f.timestamp = (double)fr.pts_real * (double)av.avStream->time_base.num / (double)av.avStream->time_base.den;
+                    f.width    = frame->width;
+                    f.height   = frame->height;
+                    f.data     = frame->data[0];
+                    f.linesize = frame->linesize[0];
+                    produce(queue,&f);
                     break;
                 }
 
                 case LUAVIDEO_SEEK: {
-                    int64_t pts_prev = 0;
-                    q->ctrl->status = LUAVIDEO_OK;
+                    /* stop the packet thread */
+                    packet_thread_ctrl.running = 0;
+                    thread_signal_raise(&packet_signal);
+                    thread_join(packet_thread);
+                    thread_destroy(packet_thread);
+                    packet_thread = NULL;
+                    avcodec_flush_buffers(av.avCodecContext);
 
-                    /* first flush the codec and drain everything */
-                    avcodec_flush_buffers(avctx);
+                    /* prevent errors from cropping up before we start the
+                     * thread up again */
+#ifndef NDEBUG
+                    packet_queue.id_produce_is_set.i = 0;
+#endif
 
-                    /* then decode any remaining frames into the buffersrc */
-                    while( (err = avcodec_receive_frame(avctx,iframe)) >= 0) {
-                        if(av_buffersrc_add_frame(q->buffer_ctx,iframe) < 0) {
-                            q->ctrl->status = LUAVIDEO_ERROR;
-                            goto luavideo_cleanup;
-                        }
-                    }
+                    luavideo_format_seek(&seeker, cmd->dblparam);
 
-                    if(err != AVERROR(EAGAIN)) {
-                        q->ctrl->status = LUAVIDEO_ERROR;
-                        goto luavideo_cleanup;
-                    }
+#ifndef NDEBUG
+                    packet_queue.id_produce_is_set.i = 0;
+#endif
 
-                    while( (err = av_buffersink_get_frame(q->buffersink_ctx,oframe)) >= 0) {
-                        av_frame_unref(oframe);
-                    }
-
-                    /* find what the next PTS should have been */
-                    while( (err = av_read_frame(ic,packet)) > 0) {
-                        if(packet->stream_index == video_idx) {
-                            pts_prev = q->ctrl->pts_last;
-                            packet->pts += q->ctrl->pts_offset;
-                            q->ctrl->pts_last = packet->pts;
-                            break;
-                        }
-                        av_packet_unref(packet);
-                    }
-                    if(err < 0) {
-                        break;
-                    }
-
-                    /* figure out a new PTS offset after seeking */
-                    double ts = cmd->dblparam * (double)stream->time_base.den / (double)stream->time_base.num;
-                    seek_status = avformat_seek_file(ic,video_idx,0,(jpr_int64)ts,(jpr_int64)ts,0);
-                    /* if we were successful, figure out a new pts offset */
-                    if(seek_status >= 0) {
-                        while( (err = av_read_frame(ic,packet)) >= 0) {
-                            if(packet->stream_index == video_idx) {
-                                f.timestamp = (double)packet->pts * (double)stream->time_base.num / (double)stream->time_base.den;
-
-                                q->ctrl->pts_offset -= (packet->pts - pts_prev) - (q->ctrl->pts_last - pts_prev);
-                                q->ctrl->pts_last = packet->pts;
-                                packet->pts += q->ctrl->pts_offset;
-
-                                if(avcodec_send_packet(avctx,packet) < 0) {
-                                    q->ctrl->status = LUAVIDEO_ERROR;
-                                    goto luavideo_cleanup;
-                                }
-                                av_packet_unref(packet);
-                                break;
-                            }
-                            av_packet_unref(packet);
-                        }
-                    }
+                    /* start the packet thread */
+                    packet_thread_ctrl.running = 1;
+                    packet_thread = thread_create(luavideo_packet_feeder,&packet_thread_ctrl,"luavideo_packet_thread", THREAD_STACK_SIZE_DEFAULT);
                     break;
                 }
                 default: {
@@ -378,15 +592,21 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
         thread_signal_wait(&q->ctrl->cmd_signal,THREAD_SIGNAL_WAIT_INFINITE);
     }
 
-    luavideo_cleanup:
-    if(ic != NULL)  avformat_close_input(&ic);
-    if(avctx != NULL) avcodec_free_context(&avctx);
-    if(bufferSrcParams != NULL) av_free(&bufferSrcParams);
-    if(packet != NULL) av_packet_free(&packet);
-    if(iframe != NULL) av_frame_free(&iframe);
-    if(oframe != NULL) av_frame_free(&oframe);
+    luavideo_process_cleanup:
+    if(packet_thread != NULL) {
+        packet_thread_ctrl.running = 0;
+        thread_signal_raise(&packet_signal);
+        thread_join(packet_thread);
+        thread_destroy(packet_thread);
+        packet_thread = NULL;
+    }
+    if(frame != NULL) av_frame_free(&frame);
+    luavideo_avformat_close(&av);
+    luavideo_frame_receiver_close(&fr);
     luavideo_queue_cleanup(NULL,q);
-
+    if(packet_queue_storage != NULL) free(packet_queue_storage);
+    thread_signal_term(&packet_signal);
+    thread_queue_term(&packet_queue);
     return 1;
 }
 
@@ -729,8 +949,6 @@ luavideo_new(lua_State *L) {
         goto cleanup;
     }
     v->graph = graph;
-    v->buffer_ctx = NULL;
-    v->buffersink_ctx = NULL;
     v->filter_ctxs = filter_ctxs;
     v->filters = filters;
     v->ctrl = ctrl;
