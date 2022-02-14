@@ -295,7 +295,10 @@ static int luavideo_packet_feeder(void *userdata) {
             thread_signal_raise(packet_thread_data->outsignal);
             thread_signal_wait(packet_thread_data->signal,THREAD_SIGNAL_WAIT_INFINITE);
         }
-        if(!packet_thread_data->running) break;
+        if(!packet_thread_data->running) {
+            av_packet_free(&clone);
+            break;
+        }
         thread_queue_produce(packet_thread_data->queue,clone,THREAD_QUEUE_WAIT_INFINITE);
         thread_signal_raise(packet_thread_data->outsignal);
     }
