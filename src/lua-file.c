@@ -105,8 +105,14 @@ lua_file_list(lua_State *L) {
     while( (entry = dir_read(dir)) != NULL) {
         lua_pushinteger(L,j);
         lua_newtable(L);
+        lua_pushstring(L,entry->filename);
+        lua_setfield(L,-2,"filename");
         lua_pushstring(L,entry->path);
-        lua_setfield(L,-2,"file");
+        lua_setfield(L,-2,"path");
+        lua_pushboolean(L,entry->is_file);
+        lua_setfield(L,-2,"is_file");
+        lua_pushboolean(L,entry->is_dir);
+        lua_setfield(L,-2,"is_dir");
         lua_pushinteger(L,(lua_Integer)entry->mtime);
         lua_setfield(L,-2,"mtime");
         lua_pushinteger(L,(lua_Integer)entry->size);

@@ -366,9 +366,13 @@ The `file` module has methods for common file operations:
 
 * `dir = file.ls(path)`
   * Lists files in a directory
-  * Returns an array of file objects with two keys:
-    * `file` - the actual file path
-    * `mtime` - file modification time
+  * Returns an array of file objects, objects have the following keys:
+    * `filename` - the file name, and only the file name.
+    * `path` - the directory + file name, with the correct directory separator.
+    * `is_file` - a boolean `true/false` if this is a regular file.
+    * `is_dir` - a boolean `true/false` if this is a directory.
+    * `mtime` - file modification time.
+    * `size` - the file size.
 
 * `dirname = file.dirname(path)`
   * Equivalent to the [dirname call](http://pubs.opengroup.org/onlinepubs/009696799/functions/dirname.html)
