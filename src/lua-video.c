@@ -80,6 +80,7 @@ typedef struct luavideo_queue_s {
     unsigned int filters;
     luavideo_ctrl_t *ctrl;
     unsigned int channels;
+    unsigned int buffer;
 } luavideo_queue_t;
 
 /* parameters to pass to the packet-reading thread */
@@ -451,6 +452,7 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
     luavideo_cmd_t *cmd;
     int err;
     AVFrame *frame;
+    AVPacket *packet;
 
     thread_ptr_t packet_thread;
     thread_queue_t packet_queue;
@@ -467,7 +469,7 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
     if(luavideo_avformat_open(&av,q) < 0) {
         goto luavideo_process_cleanup;
     }
-    packet_queue_storage = (void **)malloc(sizeof(void *) * 30);
+    packet_queue_storage = (void **)malloc(sizeof(void *) * q->buffer);
     if(packet_queue_storage == NULL) {
         goto luavideo_process_cleanup;
     }
@@ -477,7 +479,7 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
         goto luavideo_process_cleanup;
     }
 
-    thread_queue_init(&packet_queue,30,packet_queue_storage,0);
+    thread_queue_init(&packet_queue,q->buffer,packet_queue_storage,0);
     thread_signal_init(&packet_signal);
     thread_signal_init(&packet_ready_signal);
 
@@ -485,7 +487,7 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
     packet_thread_ctrl.queue = &packet_queue;
     packet_thread_ctrl.signal = &packet_signal;
     packet_thread_ctrl.outsignal = &packet_ready_signal;
-    packet_thread_ctrl.queueSize = 30;
+    packet_thread_ctrl.queueSize = q->buffer;
     packet_thread_ctrl.running = 1;
 
     luavideo_frame_receiver_init(&fr,&av,&cr);
@@ -599,6 +601,10 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
         thread_join(packet_thread);
         thread_destroy(packet_thread);
         packet_thread = NULL;
+    }
+    while(thread_queue_count(&packet_queue) > 0) {
+        packet = thread_queue_consume(&packet_queue,THREAD_QUEUE_WAIT_INFINITE);
+        if(packet != NULL) av_packet_free(&packet);
     }
     if(frame != NULL) av_frame_free(&frame);
     luavideo_avformat_close(&av);
@@ -715,6 +721,7 @@ luavideo_new(lua_State *L) {
     const char *filterparams;
     unsigned int channels = 3;
     int loops = 1;
+    int buffer = 10;
 
     AVFilterGraph *graph = NULL;
     AVFilterContext **filter_ctxs = NULL;
@@ -750,6 +757,10 @@ luavideo_new(lua_State *L) {
 
     lua_getfield(L,1,"loops");
     loops = luaL_optinteger(L,-1,1);
+    lua_pop(L,1);
+
+    lua_getfield(L,1,"buffer");
+    buffer = luaL_optinteger(L,-1,10);
     lua_pop(L,1);
 
     lua_getfield(L,1,"colordepth");
@@ -953,6 +964,7 @@ luavideo_new(lua_State *L) {
     v->filters = filters;
     v->ctrl = ctrl;
     v->channels = channels;
+    v->buffer = buffer;
 
     lmv_thread_inject(ctrl->thread,v);
     return 1;
