@@ -148,7 +148,7 @@ typedef struct luavideo_seeker_s {
 #endif
 
 static void luavideo_frame_receiver_close(luavideo_frame_receiver_s *fr) {
-    av_frame_free(&fr->rawFrame);
+    if(fr->rawFrame != NULL) av_frame_free(&fr->rawFrame);
 }
 
 static void luavideo_packet_receiver_init(luavideo_packet_receiver_s *pr, thread_signal_t *signal, thread_queue_t *queue,thread_signal_t *readysignal, luavideo_packet_thread_s *thread) {
@@ -467,19 +467,25 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
     packet_thread = NULL;
     packet_queue_storage = NULL;
     frame = NULL;
+    fr.rawFrame = NULL;
+    packet_queue.values = NULL;
 
     q = (luavideo_queue_t *)userdata;
 
     if(luavideo_avformat_open(&av,q) < 0) {
+        q->ctrl->status = LUAVIDEO_ERROR;
         goto luavideo_process_cleanup;
     }
+
     packet_queue_storage = (void **)malloc(sizeof(void *) * q->buffer);
     if(packet_queue_storage == NULL) {
+        q->ctrl->status = LUAVIDEO_ERROR;
         goto luavideo_process_cleanup;
     }
 
     frame = av_frame_alloc();
     if(frame == NULL) {
+        q->ctrl->status = LUAVIDEO_ERROR;
         goto luavideo_process_cleanup;
     }
 
@@ -606,9 +612,11 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
         thread_destroy(packet_thread);
         packet_thread = NULL;
     }
-    while(thread_queue_count(&packet_queue) > 0) {
-        packet = thread_queue_consume(&packet_queue,THREAD_QUEUE_WAIT_INFINITE);
-        if(packet != NULL) av_packet_free(&packet);
+    if(packet_queue.values != NULL) {
+        while(thread_queue_count(&packet_queue) > 0) {
+            packet = thread_queue_consume(&packet_queue,THREAD_QUEUE_WAIT_INFINITE);
+            if(packet != NULL) av_packet_free(&packet);
+        }
     }
     if(frame != NULL) av_frame_free(&frame);
     luavideo_avformat_close(&av);
