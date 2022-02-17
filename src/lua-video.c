@@ -237,7 +237,7 @@ static int luavideo_avformat_open(luavideo_avformat_s *av, luavideo_queue_t *q) 
     avcodec_parameters_to_context(av->avCodecContext,av->avCodecParameters);
 
     if(avcodec_open2(av->avCodecContext, av->avCodec, NULL) < 0) {
-        return 1;
+        return -1;
     }
 
     snprintf(args, sizeof(args), "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
@@ -245,29 +245,29 @@ static int luavideo_avformat_open(luavideo_avformat_s *av, luavideo_queue_t *q) 
       av->avStream->time_base.den, av->avCodecContext->sample_aspect_ratio.num,
       av->avCodecContext->sample_aspect_ratio.den);
     if(avfilter_graph_create_filter(&av->bufferSrcContext, buffer_filter, "in", args, NULL, q->graph) < 0) {
-        return 1;
+        return -1;
     }
     if(avfilter_graph_create_filter(&av->bufferSinkContext, buffersink_filter, "out", NULL, NULL, q->graph) < 0) {
-        return 1;
+        return -1;
     }
 
     if(avfilter_link(av->bufferSrcContext, 0, q->filter_ctxs[0], 0) < 0) {
-        return 1;
+        return -1;
     }
 
     i = 0;
     while(i < q->filters - 1) {
         if(avfilter_link(q->filter_ctxs[i], 0, q->filter_ctxs[i+1], 0) < 0) {
-            return 1;
+            return -1;
         }
         i++;
     }
 
     if(avfilter_link(q->filter_ctxs[i], 0, av->bufferSinkContext, 0) < 0) {
-        return 1;
+        return -1;
     }
     if(avfilter_graph_config(q->graph, NULL) < 0) {
-        return 1;
+        return -1;
     }
 
     return 0;
@@ -334,17 +334,14 @@ static int luavideo_codec_receive(luavideo_codec_receiver_s *codec_receiver, AVF
           if( (err = avcodec_receive_frame(codec_receiver->avCodecContext,frame)) >= 0) {
               return err;
           }
-          if(err != AVERROR(EAGAIN)) {
-              return err;
-          }
+
+          if(err != AVERROR(EAGAIN)) return err;
+
           while(codec_receiver->packet == NULL) {
               codec_receiver->packet = luavideo_packet_receive(codec_receiver->packet_receiver);
-              if(codec_receiver->packet == NULL) {
-                  return AVERROR_EOF;
-              }
+              if(codec_receiver->packet == NULL) return AVERROR_EOF;
               if(codec_receiver->packet->stream_index != codec_receiver->videoStreamIndex) {
                   av_packet_free(&codec_receiver->packet);
-                  if(codec_receiver->packet != NULL) abort();
                   continue;
               }
           }
@@ -354,6 +351,8 @@ static int luavideo_codec_receive(luavideo_codec_receiver_s *codec_receiver, AVF
               continue;
           }
           if(err == AVERROR(EAGAIN)) continue;
+          av_packet_free(&codec_receiver->packet);
+          return err;
     }
 }
 
@@ -558,6 +557,7 @@ static int luavideo_process(void *userdata, lmv_produce produce, void *queue) {
                             packet_thread = thread_create(luavideo_packet_feeder,&packet_thread_ctrl,"luavideo_packet_thread", THREAD_STACK_SIZE_DEFAULT);
                             if(err >= 0) goto tryreceive;
                         }
+                        q->ctrl->status = LUAVIDEO_ERROR;
                         goto luavideo_process_cleanup;
 
                     }
