@@ -77,8 +77,9 @@ typedef struct luavideo_queue_s {
     char *url;
     AVFilterGraph *graph;
     AVFilterContext **filter_ctxs;
-    unsigned int filters;
     luavideo_ctrl_t *ctrl;
+    AVDictionary *pm;
+    unsigned int filters;
     unsigned int channels;
     unsigned int buffer;
 } luavideo_queue_t;
@@ -191,6 +192,12 @@ static void luavideo_frame_receiver_init(luavideo_frame_receiver_s *fr, luavideo
     fr->pts = 0 - fr->pts_diff;
 }
 
+static int luavideo_interrupt_callback(void *opaque) {
+    luavideo_queue_t *q = (luavideo_queue_t *)opaque;
+    if(q->ctrl->status > LUAVIDEO_OK) return 1;
+    return 0;
+}
+
 static int luavideo_avformat_open(luavideo_avformat_s *av, luavideo_queue_t *q) {
     unsigned int i;
     int videoStreamIndex;
@@ -203,11 +210,19 @@ static int luavideo_avformat_open(luavideo_avformat_s *av, luavideo_queue_t *q) 
     av->bufferSinkContext = NULL;
     char args[512];
 
-    if(avformat_open_input(&av->avFormatContext,q->url, NULL, NULL) < 0) {
+    av->avFormatContext = avformat_alloc_context();
+    if(av->avFormatContext == NULL) return -1;
+
+    av->avFormatContext->interrupt_callback.callback = luavideo_interrupt_callback;
+    av->avFormatContext->interrupt_callback.opaque = q;
+
+    if(avformat_open_input(&av->avFormatContext,q->url, NULL, &q->pm) < 0) {
+        avformat_free_context(av->avFormatContext);
         return -1;
     }
 
     if(avformat_find_stream_info(av->avFormatContext, NULL) < 0) {
+        luavideo_avformat_close(av);
         return -1;
     }
 
@@ -217,11 +232,13 @@ static int luavideo_avformat_open(luavideo_avformat_s *av, luavideo_queue_t *q) 
 
     videoStreamIndex = av_find_best_stream(av->avFormatContext,AVMEDIA_TYPE_VIDEO,-1,-1,&av->avCodec, 0);
     if(videoStreamIndex < 0) {
+        luavideo_avformat_close(av);
         return -1;
     }
     av->videoStreamIndex = videoStreamIndex;
 
     if(av->avCodec == NULL) {
+        luavideo_avformat_close(av);
         return -1;
     }
 
@@ -232,11 +249,13 @@ static int luavideo_avformat_open(luavideo_avformat_s *av, luavideo_queue_t *q) 
 
     av->avCodecContext = avcodec_alloc_context3(av->avCodec);
     if(av->avCodecContext == NULL) {
+        luavideo_avformat_close(av);
         return -1;
     }
     avcodec_parameters_to_context(av->avCodecContext,av->avCodecParameters);
 
     if(avcodec_open2(av->avCodecContext, av->avCodec, NULL) < 0) {
+        luavideo_avformat_close(av);
         return -1;
     }
 
@@ -245,33 +264,41 @@ static int luavideo_avformat_open(luavideo_avformat_s *av, luavideo_queue_t *q) 
       av->avStream->time_base.den, av->avCodecContext->sample_aspect_ratio.num,
       av->avCodecContext->sample_aspect_ratio.den);
     if(avfilter_graph_create_filter(&av->bufferSrcContext, buffer_filter, "in", args, NULL, q->graph) < 0) {
+        luavideo_avformat_close(av);
         return -1;
     }
     if(avfilter_graph_create_filter(&av->bufferSinkContext, buffersink_filter, "out", NULL, NULL, q->graph) < 0) {
+        luavideo_avformat_close(av);
         return -1;
     }
 
     if(avfilter_link(av->bufferSrcContext, 0, q->filter_ctxs[0], 0) < 0) {
+        luavideo_avformat_close(av);
         return -1;
     }
 
     i = 0;
     while(i < q->filters - 1) {
         if(avfilter_link(q->filter_ctxs[i], 0, q->filter_ctxs[i+1], 0) < 0) {
+            luavideo_avformat_close(av);
             return -1;
         }
         i++;
     }
 
     if(avfilter_link(q->filter_ctxs[i], 0, av->bufferSinkContext, 0) < 0) {
+        luavideo_avformat_close(av);
         return -1;
     }
     if(avfilter_graph_config(q->graph, NULL) < 0) {
+        luavideo_avformat_close(av);
         return -1;
     }
 
     return 0;
 }
+
+static uint64_t counter = 0;
 
 static int luavideo_packet_feeder(void *userdata) {
     /* feeds packets into a queue, which acts as a buffer */
@@ -283,7 +310,10 @@ static int luavideo_packet_feeder(void *userdata) {
     packet = av_packet_alloc();
 
     while(packet_thread_data->running) {
+        counter++;
+        //printf("%lu: av_read_frame start\n",counter);
         err = av_read_frame(packet_thread_data->avFormatContext,packet);
+        //printf("%lu: av_read_frame end\n",counter);
         if(err < 0) break;
         clone = av_packet_clone(packet);
         if(clone == NULL) {
@@ -292,14 +322,18 @@ static int luavideo_packet_feeder(void *userdata) {
         av_packet_unref(packet);
 
         while(thread_queue_count(packet_thread_data->queue) == packet_thread_data->queueSize && packet_thread_data->running) {
+            //printf("%lu: packet_reader, waiting on space to open up\n",counter);
             thread_signal_raise(packet_thread_data->outsignal);
             thread_signal_wait(packet_thread_data->signal,THREAD_SIGNAL_WAIT_INFINITE);
         }
+        //printf("%lu: packet_reader, done waiting on space to open up\n",counter);
         if(!packet_thread_data->running) {
             av_packet_free(&clone);
             break;
         }
+        //printf("%lu: packet_reader, submitting packet\n",counter);
         thread_queue_produce(packet_thread_data->queue,clone,THREAD_QUEUE_WAIT_INFINITE);
+        //printf("%lu: packet submitted\n",counter);
         thread_signal_raise(packet_thread_data->outsignal);
     }
     packet_thread_data->running = 0;
@@ -432,6 +466,7 @@ static void luavideo_queue_cleanup(lua_State *L, void *userdata) {
     }
     free(q->filter_ctxs);
     avfilter_graph_free(&q->graph);
+    av_dict_free(&q->pm);
     free(q->url);
     free(q);
 
@@ -798,6 +833,7 @@ luavideo_new(lua_State *L) {
     if(v == NULL) {
         return luaL_error(L,"out of memory");
     }
+    v->pm = NULL;
 
     graph = avfilter_graph_alloc();
     if(graph == NULL) {
@@ -805,6 +841,25 @@ luavideo_new(lua_State *L) {
         luaL_addstring(&errbuf,"error allocating graph");
         goto cleanup;
     }
+
+    lua_getfield(L,1,"options");
+    if(lua_istable(L,-1)) {
+        lua_pushnil(L);
+        while(lua_next(L,-2)) {
+            if( (errflag = (av_dict_set(&v->pm,
+                  lua_tostring(L,-2),
+                  lua_tostring(L,-1),
+                  AV_DICT_MULTIKEY))) < 0) {
+                lua_pop(L,3);
+                luaL_addstring(&errbuf,"av_dict_set: ");
+                buf = luaL_prepbuffer(&errbuf);
+                luaL_addsize(&errbuf,av_strerror(errflag,buf,LUAL_BUFFERSIZE));
+                goto cleanup;
+            }
+            lua_pop(L,1);
+        }
+    }
+    lua_pop(L,1);
 
     lua_getfield(L,1,"filters");
     if(lua_istable(L,-1)) {
@@ -983,6 +1038,7 @@ luavideo_new(lua_State *L) {
 
     cleanup:
     {
+        if(v->pm != NULL) av_dict_free(&v->pm);
         free(v);
         unsigned int fidx = 0;
         while(fidx < filters) {

@@ -415,7 +415,9 @@ The `video` module allows decoding images/videos with ffmpeg.
   * `url` - the url or path to the video you want to play.
   * `loops` - the number of times to (attempt) looping the input, set to 0 for infinite loops.
   * `colordepth` - the integer 3 or 4, basically whether you want an alpha channel.
-  * `filters` - an array-like table of filters, each entry is another table with a single key and value pair.
+  * `filters` - an array-like table of filters, each entry is another table with a single key and value pair. This is done to ensure filter order.
+  * `options` - a table of options to pass to `avformat_open_input`. Keys are the option name,
+  values are the option value. If you need to pass the same option multiple times with different values, make the value an array-like table.
 
 The returned `video` instance is a userdata with the following functions:
 
@@ -443,11 +445,23 @@ Here's an example of loading an MP4 file, resizing it, and putting the frames on
 local video = require'lmv.video'
 local stream = require'lmv.stream'
 
+-- assuming this is a m3u8 livestream and we want
+-- to pass the reconnect, reconnect_error, and headers
+-- options, headers has multiple values, each representing
+-- a header
 local v, err = video.new({
-  url = "example.mp4",
+  url = "http://example.com/example.m3u8",
   loops = 0,
   filters = {
     { scale = 'w=320:h=-1' },
+  },
+  options = {
+    reconnect = 1,
+    reconnect_error = 1,
+    headers = {
+      'Accept: something',
+      'Cookie: something else',
+    },
   },
 })
 
