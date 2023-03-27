@@ -8,6 +8,7 @@
 #include <lauxlib.h>
 #include <assert.h>
 
+#include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavfilter/avfilter.h>
 #include <libavfilter/buffersink.h>
@@ -120,7 +121,7 @@ typedef struct luavideo_frame_receiver_s {
 
 typedef struct luavideo_avformat_s {
     AVFormatContext *avFormatContext;
-    AVCodec *avCodec;
+    const AVCodec *avCodec;
     AVCodecContext *avCodecContext;
     AVCodecParameters *avCodecParameters;
     AVStream *avStream;
